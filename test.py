@@ -44,4 +44,14 @@ def test3():
     print "Numpy dot-product:"
     print np.dot(A.toarray(), B.toarray())
 
+def test4():
+    sdb = SciDBShimInterface('http://localhost:8080')
+    A = sdb.random((5, 10), chunk_size=32)
+
+    U, S, VT = sdb.svd(A)
+    print S.toarray()
+
+    U2, S2, VT2 = np.linalg.svd(A.toarray())
+    print S2
+
 test3()

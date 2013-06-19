@@ -36,7 +36,7 @@ class SciDBInterface(object):
         return "pyarray%.4i" % self.array_count
 
     @abc.abstractmethod
-    def _execute(self, query, response=False, max_lines=0):
+    def _execute(self, query, response=False, n=0, fmt='auto'):
         pass
 
     def _create_array(self, desc, name=None, fill_value=1):
@@ -76,16 +76,14 @@ class SciDBInterface(object):
         """
         self._execute("remove({0})".format(name))
 
-    def _scan_array(self, name, max_lines=0):
-        return self._execute("scan({0})".format(name), response=True,
-                             max_lines=max_lines)
+    def _scan_array(self, name, **kwargs):
+        return self._execute("scan({0})".format(name), response=True, **kwargs)
 
-    def _show_array(self, name):
-        return self._execute("show({0})".format(name), response=True)
+    def _show_array(self, name, **kwargs):
+        return self._execute("show({0})".format(name), response=True, **kwargs)
 
-    def list_arrays(self, max_lines=100):
-        return self._execute("list('arrays')", response=True,
-                             max_lines=max_lines)
+    def list_arrays(self, n=0):
+        return self._execute("list('arrays')", response=True, n=n)
 
     def ones(self, shape, dtype='double', **kwargs):
         datashape = SciDBDataShape(shape, dtype, **kwargs)
@@ -110,6 +108,7 @@ class SciDBInterface(object):
         return SciDBArray(datashape, self, name)
 
     def dot(self, A, B):
+        """Compute the matrix product of A and B"""
         if (A.ndim != 2) or (B.ndim != 2):
             raise ValueError("dot requires 2-dimensional arrays")
         if A.shape[1] != B.shape[0]:
@@ -122,6 +121,26 @@ class SciDBInterface(object):
         self._execute('store(multiply({0},{1}),{2})'.format(A.name, B.name,
                                                             name))
         return SciDBArray(datashape, self, name)
+
+    def svd(self, A, return_U=True, return_S=True, return_VT=True):
+        if (A.ndim != 2):
+            raise ValueError("svd requires 2-dimensional arrays")
+        self._execute("load_library('dense_linear_algebra')")
+
+        argdict = dict(U=return_U, S=return_S, VT=return_VT)
+
+        # TODO: check that data type is double and chunk size is 32
+        ret = []
+        for arg in ['U', 'S', 'VT']:
+            if argdict[arg]:
+                name = self._next_name()
+                self._execute("store(gesvd({0}, '{1}'), {2})".format(A.name,
+                                                                     arg,
+                                                                     name))
+                schema = self._show_array(name, fmt='csv')
+                descr = SciDBDataShape.from_descr(schema)
+                ret.append(SciDBArray(descr, self, name))
+        return tuple(ret)
 
 
 class SciDBShimInterface(SciDBInterface):
@@ -141,11 +160,17 @@ class SciDBShimInterface(SciDBInterface):
             raise ValueError("Invalid hostname: {0}".format(self.hostname))
         SciDBInterface.__init__(self)
 
-    def _execute(self, query, response=False, max_lines=0):
+    def _execute(self, query, response=False, n=0, fmt='auto'):
         session_id = self._new_session()
         if response:
-            self._execute_query(session_id, query, save='csv', release=False)
-            result = self._read_lines(session_id, max_lines)
+            self._execute_query(session_id, query, save=fmt, release=False)
+
+            if fmt.startswith('(') and fmt.endswith(')'):
+                # binary format
+                result = self._read_bytes(session_id, n)
+            else:
+                # text format
+                result = self._read_lines(session_id, n)
             self._release_session(session_id)
         else:
             self._execute_query(session_id, query, release=True)
