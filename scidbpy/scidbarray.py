@@ -1,4 +1,5 @@
 """SciDB Array Wrapper"""
+import numpy as np
 
 
 class SciDBDataShape(object):
@@ -17,9 +18,10 @@ class SciDBDataShape(object):
             self.full_dtype = [('x0', dtype)]
         else:
             self.full_dtype = dtype
-
+            
+        # By default, make chunks have ~10^6 values
         if chunk_size is None:
-            chunk_size = min(10, int(10000 ** (1. / len(self.shape))))
+            chunk_size = max(10, int(1E6 ** (1. / len(self.shape))))
         if not hasattr(chunk_size, '__len__'):
             chunk_size = [chunk_size for s in self.shape]
         if len(chunk_size) != len(self.shape):
@@ -53,6 +55,39 @@ class SciDBArray(object):
         self.name = name
         self.persistent = persistent
 
+    @property
+    def shape(self):
+        return self.datashape.shape
+
+    @property
+    def ndim(self):
+        return len(self.datashape.shape)
+
+    @property
+    def size(self):
+        return np.prod(self.shape)
+
+    @property
+    def dtype(self):
+        return self.datashape.dtype
+
     def __del__(self):
         if not self.persistent:
             self.interface._delete_array(self.name)
+
+    def __repr__(self):
+        show = self.interface._show_array(self.name).split('\n')
+        return "SciDBArray({0})".format(show[1])
+
+    def contents(self, max_lines=10):
+        return repr(self) + '\n' + self.interface._scan_array(self.name,
+                                                              max_lines)
+
+    def toarray(self):
+        # TODO: is there a way to do this without intermediate strings?
+        # TODO: correctly handle compound dtypes
+        dtype = np.dtype(self.datashape.dtype)
+        arr = np.empty(self.datashape.shape, dtype=dtype)
+        str_rep = self.interface._scan_array(self.name, max_lines=0)
+        arr.ravel()[:] = map(dtype.type, str_rep.strip().split('\n')[1:])
+        return arr

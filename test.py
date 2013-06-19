@@ -1,5 +1,6 @@
 from scidbpy.interface import SciDBShimInterface
 import time
+import numpy as np
 
 def test():
     scidb = SciDBShimInterface('http://localhost:8080')
@@ -23,9 +24,24 @@ def test():
 def test2():
     sdb = SciDBShimInterface('http://localhost:8080')
 
-    x = sdb.ones(100)
+    x = sdb.random((10, 4))
     print sdb.list_arrays()
+    print x.toarray()
     del x
     print sdb.list_arrays()
 
-test2()
+def test3():
+    sdb = SciDBShimInterface('http://localhost:8080')
+    A = sdb.random((4, 6))
+    B = sdb.random((6, 5))
+    C = sdb.dot(A, B)
+
+    print "SciDB dot-product:"
+    print C.toarray()
+    print C.datashape.descr
+    print C
+    print
+    print "Numpy dot-product:"
+    print np.dot(A.toarray(), B.toarray())
+
+test3()

@@ -31,8 +31,12 @@ class SciDBInterface(object):
         # Array count will facilitate the creation of unique array names
         self.array_count = 0
 
+    def _next_name(self):
+        self.array_count += 1
+        return "pyarray%.4i" % self.array_count
+
     @abc.abstractmethod
-    def _execute(self, query, response=False, max_lines=10):
+    def _execute(self, query, response=False, max_lines=0):
         pass
 
     def _create_array(self, desc, name=None, fill_value=1):
@@ -55,8 +59,7 @@ class SciDBInterface(object):
             the name of the stored array
         """
         if name is None:
-            self.array_count += 1
-            name = "pyarray%.4i" % self.array_count
+            name = self._next_name()
         self._execute("store(build({0},{1}),{2})".format(desc,
                                                          fill_value,
                                                          name))
@@ -73,6 +76,13 @@ class SciDBInterface(object):
         """
         self._execute("remove({0})".format(name))
 
+    def _scan_array(self, name, max_lines=0):
+        return self._execute("scan({0})".format(name), response=True,
+                             max_lines=max_lines)
+
+    def _show_array(self, name):
+        return self._execute("show({0})".format(name), response=True)
+
     def list_arrays(self, max_lines=100):
         return self._execute("list('arrays')", response=True,
                              max_lines=max_lines)
@@ -85,6 +95,32 @@ class SciDBInterface(object):
     def zeros(self, shape, dtype='double', **kwargs):
         datashape = SciDBDataShape(shape, dtype, **kwargs)
         name = self._create_array(datashape.descr, fill_value=0)
+        return SciDBArray(datashape, self, name)
+
+    def random(self, shape, dtype='double', **kwargs):
+        datashape = SciDBDataShape(shape, dtype, **kwargs)
+        name = self._create_array(datashape.descr,
+                                  fill_value='random() / 2147483647.0')
+        return SciDBArray(datashape, self, name)
+
+    def randint(self, upper, shape, dtype='uint32', **kwargs):            
+        datashape = SciDBDataShape(shape, dtype, **kwargs)
+        name = self._create_array(datashape.descr,
+                                  fill_value='random() % {0}'.format(upper))
+        return SciDBArray(datashape, self, name)
+
+    def dot(self, A, B):
+        if (A.ndim != 2) or (B.ndim != 2):
+            raise ValueError("dot requires 2-dimensional arrays")
+        if A.shape[1] != B.shape[0]:
+            raise ValueError("array dimensions must match for matrix product")
+        datashape = SciDBDataShape((A.shape[0], B.shape[1]), A.dtype)
+        name = self._next_name()
+
+        # TODO: make sure datashape matches that of the new array.
+        #       How do we do this?
+        self._execute('store(multiply({0},{1}),{2})'.format(A.name, B.name,
+                                                            name))
         return SciDBArray(datashape, self, name)
 
 
@@ -105,7 +141,7 @@ class SciDBShimInterface(SciDBInterface):
             raise ValueError("Invalid hostname: {0}".format(self.hostname))
         SciDBInterface.__init__(self)
 
-    def _execute(self, query, response=False, max_lines=10):
+    def _execute(self, query, response=False, max_lines=0):
         session_id = self._new_session()
         if response:
             self._execute_query(session_id, query, save='csv', release=False)
