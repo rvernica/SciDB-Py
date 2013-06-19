@@ -54,4 +54,12 @@ def test4():
     U2, S2, VT2 = np.linalg.svd(A.toarray())
     print S2
 
-test3()
+def test5():
+    sdb = SciDBShimInterface('http://localhost:8080')
+    arr_in = np.random.random((5, 5))
+    A = sdb.from_array(arr_in)
+    print arr_in
+    print A.toarray()
+    
+
+test5()

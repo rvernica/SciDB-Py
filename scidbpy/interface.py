@@ -15,29 +15,45 @@ class SciDBQueryError(SciDBError): pass
 class SciDBConnectionError(SciDBError): pass
 class SciDBMemoryError(SciDBError): pass
 class SciDBUnknownError(SciDBError): pass
+
+
+SHIM_ERROR_DICT = {400:SciDBInvalidQuery,
+                   404:SciDBInvalidSession,
+                   410:SciDBEndOfFile,
+                   414:SciDBInvalidRequest,
+                   500:SciDBQueryError,
+                   503:SciDBConnectionError,
+                   507:SciDBMemoryError}
                                            
 
 class SciDBInterface(object):
     """SciDBInterface Abstract Base Class.
 
     This class provides a wrapper to the low-level interface to sciDB.  The
-    actual communication with the database should be implemented via the
-    ``execute()`` method of subclasses.
+    actual communication with the database should be implemented in
+    subclasses
     """
     __metaclass__ = abc.ABCMeta
 
     @abc.abstractmethod
     def __init__(self):
         # Array count will facilitate the creation of unique array names
+        # This should be called with super() in subclasses
         self.array_count = 0
+
+    @abc.abstractmethod
+    def _execute_query(self, query, response=False, n=0, fmt='auto'):
+        """Execute a query on the SciDB engine"""
+        pass
+
+    @abc.abstractmethod
+    def _upload_bytes(self, data):
+        """Upload binary data to the SciDB engine"""
+        pass
 
     def _next_name(self):
         self.array_count += 1
         return "pyarray%.4i" % self.array_count
-
-    @abc.abstractmethod
-    def _execute(self, query, response=False, n=0, fmt='auto'):
-        pass
 
     def _create_array(self, desc, name=None, fill_value=1):
         """Utility routine to create a new array
@@ -60,7 +76,7 @@ class SciDBInterface(object):
         """
         if name is None:
             name = self._next_name()
-        self._execute("store(build({0},{1}),{2})".format(desc,
+        self._execute_query("store(build({0},{1}),{2})".format(desc,
                                                          fill_value,
                                                          name))
         return name
@@ -74,16 +90,16 @@ class SciDBInterface(object):
             The name of the array to delete.  An error will be raised if
             an array with this name does not exist in the database.
         """
-        self._execute("remove({0})".format(name))
+        self._execute_query("remove({0})".format(name))
 
     def _scan_array(self, name, **kwargs):
-        return self._execute("scan({0})".format(name), response=True, **kwargs)
+        return self._execute_query("scan({0})".format(name), response=True, **kwargs)
 
     def _show_array(self, name, **kwargs):
-        return self._execute("show({0})".format(name), response=True, **kwargs)
+        return self._execute_query("show({0})".format(name), response=True, **kwargs)
 
     def list_arrays(self, n=0):
-        return self._execute("list('arrays')", response=True, n=n)
+        return self._execute_query("list('arrays')", response=True, n=n)
 
     def ones(self, shape, dtype='double', **kwargs):
         datashape = SciDBDataShape(shape, dtype, **kwargs)
@@ -118,14 +134,14 @@ class SciDBInterface(object):
 
         # TODO: make sure datashape matches that of the new array.
         #       How do we do this?
-        self._execute('store(multiply({0},{1}),{2})'.format(A.name, B.name,
+        self._execute_query('store(multiply({0},{1}),{2})'.format(A.name, B.name,
                                                             name))
         return SciDBArray(datashape, self, name)
 
     def svd(self, A, return_U=True, return_S=True, return_VT=True):
         if (A.ndim != 2):
             raise ValueError("svd requires 2-dimensional arrays")
-        self._execute("load_library('dense_linear_algebra')")
+        self._execute_query("load_library('dense_linear_algebra')")
 
         argdict = dict(U=return_U, S=return_S, VT=return_VT)
 
@@ -134,7 +150,7 @@ class SciDBInterface(object):
         for arg in ['U', 'S', 'VT']:
             if argdict[arg]:
                 name = self._next_name()
-                self._execute("store(gesvd({0}, '{1}'), {2})".format(A.name,
+                self._execute_query("store(gesvd({0}, '{1}'), {2})".format(A.name,
                                                                      arg,
                                                                      name))
                 schema = self._show_array(name, fmt='csv')
@@ -142,14 +158,32 @@ class SciDBInterface(object):
                 ret.append(SciDBArray(descr, self, name))
         return tuple(ret)
 
+    def from_array(self, A, **kwargs):
+        """Initialize a scidb array from a numpy array"""
+        # TODO: make this work for other data types
+        if A.dtype != 'double':
+            raise NotImplementedError("from_array only implemented for double")
+        dtype = 'double'
+        data = A.tostring(order='C')
+        filename = self._upload_bytes(A.tostring(order='C'))
+        arr = self.zeros(A.shape, 'double', **kwargs)
+        self._execute_query("load({0},'{1}',-1,'(double)')".format(arr.name,
+                                                                   filename))
+        return arr
+
+    def from_file(self, filename, **kwargs):
+        raise NotImplementedError()
+        
 
 class SciDBShimInterface(SciDBInterface):
-    """HTTP interface to SciDB via shim
+    """HTTP interface to SciDB via shim [1]_
     
     Parameters
     ----------
     hostname : string
     session_id : integer
+
+    [1] https://github.com/Paradigm4/shim
     """
     def __init__(self, hostname, session_id=None):
         self.hostname = hostname.rstrip('/')
@@ -160,99 +194,86 @@ class SciDBShimInterface(SciDBInterface):
             raise ValueError("Invalid hostname: {0}".format(self.hostname))
         SciDBInterface.__init__(self)
 
-    def _execute(self, query, response=False, n=0, fmt='auto'):
-        session_id = self._new_session()
+    def _execute_query(self, query, response=False, n=0, fmt='auto'):
+        session_id = self._shim_new_session()
         if response:
-            self._execute_query(session_id, query, save=fmt, release=False)
+            self._shim_execute_query(session_id, query, save=fmt, release=False)
 
             if fmt.startswith('(') and fmt.endswith(')'):
                 # binary format
-                result = self._read_bytes(session_id, n)
+                result = self._shim_read_bytes(session_id, n)
             else:
                 # text format
-                result = self._read_lines(session_id, n)
-            self._release_session(session_id)
+                result = self._shim_read_lines(session_id, n)
+            self._shim_release_session(session_id)
         else:
-            self._execute_query(session_id, query, release=True)
+            self._shim_execute_query(session_id, query, release=True)
             result = None
         return result
 
-    def _url(self, keyword, **kwargs):
+    def _upload_bytes(self, data):
+        session_id = self._shim_new_session()
+        return self._shim_upload_file(session_id, data)
+
+    def _shim_url(self, keyword, **kwargs):
         url = self.hostname + '/' + keyword
         if kwargs:
             url += '?' + '&'.join(['{0}={1}'.format(key, val)
                                    for key, val in kwargs.iteritems()])
         return url
 
-    def _urlopen(self, url):
+    def _shim_urlopen(self, url):
         try:
             return urllib2.urlopen(url)
         except urllib2.HTTPError as e:
-            self._handle_error(e.code, e.read())
+            # Any error kills the session
+            self.session_id = None
+            Error = SHIM_ERROR_DICT.get(e.code, SciDBUnknownError)
+            raise Error("[HTTP {0}] {1}".format(e.code, e.read()))
 
-    def _handle_error(self, code, message=''):
-        # Any error kills the session
-        self.session_id = None
-
-        if code == 400:
-            raise SciDBInvalidQuery(message)
-        elif code == 404:
-            raise SciDBInvalidSession(message)
-        elif code == 410:
-            raise SciDBEndOfFile(message)
-        elif code == 414:
-            raise SciDBInvalidRequest(message)
-        elif code == 500:
-            raise SciDBQueryError(message)
-        elif code == 503:
-            raise SciDBConnectionError(message)
-        elif code == 507:
-            raise SciDBMemoryError(message)
-        else:
-            raise SciDBUnknownError("HTTP {0}: {1}".format(code, message))
-
-    def _new_session(self):
+    def _shim_new_session(self):
         """Request a new HTTP session from the service"""
-        url = self._url('new_session')
-        result = self._urlopen(url)
+        url = self._shim_url('new_session')
+        result = self._shim_urlopen(url)
         session_id = int(result.read())
         return session_id
 
-    def _release_session(self, session_id):
-        url = self._url('release_session', id=session_id)
-        result = self._urlopen(url)
+    def _shim_release_session(self, session_id):
+        url = self._shim_url('release_session', id=session_id)
+        result = self._shim_urlopen(url)
 
-    def _execute_query(self, session_id, query, save=None, release=False):
-        url = self._url('execute_query',
-                        id=session_id,
-                        query=urllib2.quote(query),
-                        release=int(bool(release)))
+    def _shim_execute_query(self, session_id, query, save=None, release=False):
+        url = self._shim_url('execute_query',
+                             id=session_id,
+                             query=urllib2.quote(query),
+                             release=int(bool(release)))
         if save is not None:
             url += "&save={0}".format(save)
 
-        result = self._urlopen(url)
+        result = self._shim_urlopen(url)
         query_id = result.read()
         return query_id
 
-    def _cancel(self, session_id):
-        url = self._url('cancel', id=session_id)
-        result = self._urlopen(url)
+    def _shim_cancel(self, session_id):
+        url = self._shim_url('cancel', id=session_id)
+        result = self._shim_urlopen(url)
         
-    def _read_lines(self, session_id, n):
-        url = self._url('read_lines', id=session_id, n=n)
-        result = self._urlopen(url)
+    def _shim_read_lines(self, session_id, n):
+        url = self._shim_url('read_lines', id=session_id, n=n)
+        result = self._shim_urlopen(url)
         text_result = result.read()
         return text_result
 
-    def _read_bytes(self, session_id, n):
-        url = self._url('read_lines', id=session_id, n=n)
-        result = self._urlopen(url)
+    def _shim_read_bytes(self, session_id, n):
+        url = self._shim_url('read_lines', id=session_id, n=n)
+        result = self._shim_urlopen(url)
         bytes_result = result.read()
         return bytes_result
 
-    def _upload_file(self, session_id, filename, data):
+    def _shim_upload_file(self, session_id, data):
+        # TODO: can this be implemented in urllib2 to remove dependency?
         import requests
-        url = self._url('upload_file', id=session_id)
-        result = requests.post(url, files={filename:data})
-        scidb_filename = result.text
+        url = self._shim_url('upload_file', id=session_id)
+        result = requests.post(url, files=dict(fileupload=data))
+        scidb_filename = result.text.strip()
         return scidb_filename
