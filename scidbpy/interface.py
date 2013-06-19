@@ -171,6 +171,10 @@ class SciDBInterface(object):
                                                                    filename))
         return arr
 
+    def toarray(self, A):
+        """Convert a SciDB array to a numpy array"""
+        return A.toarray()
+
     def from_file(self, filename, **kwargs):
         raise NotImplementedError()
         
