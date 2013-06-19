@@ -6,25 +6,50 @@ import urllib2
 from .scidbarray import SciDBArray, SciDBDataShape
 
 
-class SciDBError(Exception): pass
-class SciDBInvalidQuery(SciDBError): pass
-class SciDBInvalidSession(SciDBError): pass
-class SciDBEndOfFile(SciDBError): pass
-class SciDBInvalidRequest(SciDBError): pass
-class SciDBQueryError(SciDBError): pass
-class SciDBConnectionError(SciDBError): pass
-class SciDBMemoryError(SciDBError): pass
-class SciDBUnknownError(SciDBError): pass
+class SciDBError(Exception):
+    pass
 
 
-SHIM_ERROR_DICT = {400:SciDBInvalidQuery,
-                   404:SciDBInvalidSession,
-                   410:SciDBEndOfFile,
-                   414:SciDBInvalidRequest,
-                   500:SciDBQueryError,
-                   503:SciDBConnectionError,
-                   507:SciDBMemoryError}
-                                           
+class SciDBInvalidQuery(SciDBError):
+    pass
+
+
+class SciDBInvalidSession(SciDBError):
+    pass
+
+
+class SciDBEndOfFile(SciDBError):
+    pass
+
+
+class SciDBInvalidRequest(SciDBError):
+    pass
+
+
+class SciDBQueryError(SciDBError):
+    pass
+
+
+class SciDBConnectionError(SciDBError):
+    pass
+
+
+class SciDBMemoryError(SciDBError):
+    pass
+
+
+class SciDBUnknownError(SciDBError):
+    pass
+
+
+SHIM_ERROR_DICT = {400: SciDBInvalidQuery,
+                   404: SciDBInvalidSession,
+                   410: SciDBEndOfFile,
+                   414: SciDBInvalidRequest,
+                   500: SciDBQueryError,
+                   503: SciDBConnectionError,
+                   507: SciDBMemoryError}
+
 
 class SciDBInterface(object):
     """SciDBInterface Abstract Base Class.
@@ -52,6 +77,9 @@ class SciDBInterface(object):
         pass
 
     def _next_name(self):
+        # TODO: use a unique hash for this session?  Otherwise two python
+        #       sessions connected to the same database will likely overwrite
+        #       each other.
         self.array_count += 1
         return "pyarray%.4i" % self.array_count
 
@@ -77,8 +105,8 @@ class SciDBInterface(object):
         if name is None:
             name = self._next_name()
         self._execute_query("store(build({0},{1}),{2})".format(desc,
-                                                         fill_value,
-                                                         name))
+                                                               fill_value,
+                                                               name))
         return name
 
     def _delete_array(self, name):
@@ -93,13 +121,18 @@ class SciDBInterface(object):
         self._execute_query("remove({0})".format(name))
 
     def _scan_array(self, name, **kwargs):
-        return self._execute_query("scan({0})".format(name), response=True, **kwargs)
+        return self._execute_query("scan({0})".format(name),
+                                   response=True, **kwargs)
 
     def _show_array(self, name, **kwargs):
-        return self._execute_query("show({0})".format(name), response=True, **kwargs)
+        return self._execute_query("show({0})".format(name),
+                                   response=True, **kwargs)
 
     def list_arrays(self, n=0):
+        # TODO: return as a dictionary of names and schemas
         return self._execute_query("list('arrays')", response=True, n=n)
+
+    # TODO: allow creation of arrays wrapping persistent memory?
 
     def ones(self, shape, dtype='double', **kwargs):
         datashape = SciDBDataShape(shape, dtype, **kwargs)
@@ -117,7 +150,7 @@ class SciDBInterface(object):
                                   fill_value='random() / 2147483647.0')
         return SciDBArray(datashape, self, name)
 
-    def randint(self, upper, shape, dtype='uint32', **kwargs):            
+    def randint(self, upper, shape, dtype='uint32', **kwargs):
         datashape = SciDBDataShape(shape, dtype, **kwargs)
         name = self._create_array(datashape.descr,
                                   fill_value='random() % {0}'.format(upper))
@@ -134,8 +167,9 @@ class SciDBInterface(object):
 
         # TODO: make sure datashape matches that of the new array.
         #       How do we do this?
-        self._execute_query('store(multiply({0},{1}),{2})'.format(A.name, B.name,
-                                                            name))
+        self._execute_query('store(multiply({0},{1}),{2})'.format(A.name,
+                                                                  B.name,
+                                                                  name))
         return SciDBArray(datashape, self, name)
 
     def svd(self, A, return_U=True, return_S=True, return_VT=True):
@@ -150,9 +184,8 @@ class SciDBInterface(object):
         for arg in ['U', 'S', 'VT']:
             if argdict[arg]:
                 name = self._next_name()
-                self._execute_query("store(gesvd({0}, '{1}'), {2})".format(A.name,
-                                                                     arg,
-                                                                     name))
+                self._execute_query("store(gesvd({0}, '{1}'), {2})"
+                                    .format(A.name, arg, name))
                 schema = self._show_array(name, fmt='csv')
                 descr = SciDBDataShape.from_descr(schema)
                 ret.append(SciDBArray(descr, self, name))
@@ -177,11 +210,11 @@ class SciDBInterface(object):
 
     def from_file(self, filename, **kwargs):
         raise NotImplementedError()
-        
+
 
 class SciDBShimInterface(SciDBInterface):
     """HTTP interface to SciDB via shim [1]_
-    
+
     Parameters
     ----------
     hostname : string
@@ -201,7 +234,8 @@ class SciDBShimInterface(SciDBInterface):
     def _execute_query(self, query, response=False, n=0, fmt='auto'):
         session_id = self._shim_new_session()
         if response:
-            self._shim_execute_query(session_id, query, save=fmt, release=False)
+            self._shim_execute_query(session_id, query, save=fmt,
+                                     release=False)
 
             if fmt.startswith('(') and fmt.endswith(')'):
                 # binary format
@@ -261,7 +295,7 @@ class SciDBShimInterface(SciDBInterface):
     def _shim_cancel(self, session_id):
         url = self._shim_url('cancel', id=session_id)
         result = self._shim_urlopen(url)
-        
+
     def _shim_read_lines(self, session_id, n):
         url = self._shim_url('read_lines', id=session_id, n=n)
         result = self._shim_urlopen(url)

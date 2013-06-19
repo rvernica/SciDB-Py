@@ -23,7 +23,7 @@ class SciDBDataShape(object):
         # If a single dimension, make dtype a simple type
         if len(self.full_dtype) == 1:
             self.dtype = self.full_dtype[0][1]
-            
+
         # If not specified, make chunks have ~10^6 values
         if chunk_size is None:
             chunk_size = max(10, int(1E6 ** (1. / len(self.shape))))
@@ -32,7 +32,6 @@ class SciDBDataShape(object):
         if len(chunk_size) != len(self.shape):
             raise ValueError("length of chunk_size should match "
                          "number of dimensions")
-        #self.chunk_size = [min(c, s) for c, s in zip(chunk_size, self.shape)]
         self.chunk_size = chunk_size
 
         if not hasattr(chunk_overlap, '__len__'):
@@ -56,7 +55,8 @@ class SciDBDataShape(object):
         # First split out the array name, data types, and shapes.
         # e.g. "myarray<val:double> [i=0:4,5,0]"
         #      => arrname = "myarray"; dtypes="val:double"; dshapes="i=0:9,5,0"
-        R = re.compile(r'(?P<arrname>[\s\S]+)\<(?P<dtypes>\S*?)\>(?:\s*)\[(?P<dshapes>\S+)\]')
+        R = re.compile(r'(?P<arrname>[\s\S]+)\<(?P<dtypes>\S*?)\>(?:\s*)'
+                       '\[(?P<dshapes>\S+)\]')
         match = R.search(descr.lstrip('schema').strip())
         try:
             D = match.groupdict()
@@ -65,7 +65,6 @@ class SciDBDataShape(object):
             dshapes = D['dshapes']
         except:
             raise ValueError("no match for descr: {0}".format(descr))
-        
 
         # split dtypes.  TODO: how to represent NULLs?
         R = re.compile(r'(\S*?):([\S ]*?),')
