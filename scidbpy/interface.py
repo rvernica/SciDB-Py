@@ -1,7 +1,9 @@
 """
 Low-level interface to Scidb
 """
+import abc
 import urllib2
+from .scidbarray import SciDBArray, SciDBDataShape
 
 
 class SciDBError(Exception): pass
@@ -13,21 +15,106 @@ class SciDBQueryError(SciDBError): pass
 class SciDBConnectionError(SciDBError): pass
 class SciDBMemoryError(SciDBError): pass
 class SciDBUnknownError(SciDBError): pass
-
+                                           
 
 class SciDBInterface(object):
-    """SciDBInterface Base Class"""
-    pass
+    """SciDBInterface Abstract Base Class.
+
+    This class provides a wrapper to the low-level interface to sciDB.  The
+    actual communication with the database should be implemented via the
+    ``execute()`` method of subclasses.
+    """
+    __metaclass__ = abc.ABCMeta
+
+    @abc.abstractmethod
+    def __init__(self):
+        # Array count will facilitate the creation of unique array names
+        self.array_count = 0
+
+    @abc.abstractmethod
+    def _execute(self, query, response=False, max_lines=10):
+        pass
+
+    def _create_array(self, desc, name=None, fill_value=1):
+        """Utility routine to create a new array
+
+        Parameters
+        ----------
+        desc : string
+            Array descriptor.  See SciDB documentation for details.
+        name : string (optional)
+            The name of the array to create.  An error will be raised if
+            an array with this name already exists in the database.  If
+            not specified, a name will be generated.
+        fill_value : integer, float, or string (optional)
+            The value with with the array should be filled.  This may contain
+            a string expression referencing the dimension indices. Default = 1.
+        Returns
+        -------
+        name : string
+            the name of the stored array
+        """
+        if name is None:
+            self.array_count += 1
+            name = "pyarray%.4i" % self.array_count
+        self._execute("store(build({0},{1}),{2})".format(desc,
+                                                         fill_value,
+                                                         name))
+        return name
+
+    def _delete_array(self, name):
+        """Utility routine to delete an existing array
+
+        Parameters
+        ----------
+        name : string
+            The name of the array to delete.  An error will be raised if
+            an array with this name does not exist in the database.
+        """
+        self._execute("remove({0})".format(name))
+
+    def list_arrays(self, max_lines=100):
+        return self._execute("list('arrays')", response=True,
+                             max_lines=max_lines)
+
+    def ones(self, shape, dtype='double', **kwargs):
+        datashape = SciDBDataShape(shape, dtype, **kwargs)
+        name = self._create_array(datashape.descr, fill_value=1)
+        return SciDBArray(datashape, self, name)
+
+    def zeros(self, shape, dtype='double', **kwargs):
+        datashape = SciDBDataShape(shape, dtype, **kwargs)
+        name = self._create_array(datashape.descr, fill_value=0)
+        return SciDBArray(datashape, self, name)
 
 
 class SciDBShimInterface(SciDBInterface):
-    """HTTP interface to SciDB via shim"""
-    def __init__(self, hostname):
+    """HTTP interface to SciDB via shim
+    
+    Parameters
+    ----------
+    hostname : string
+    session_id : integer
+    """
+    def __init__(self, hostname, session_id=None):
         self.hostname = hostname.rstrip('/')
+        self.session_id = session_id
         try:
             urllib2.urlopen(self.hostname)
         except HTTPError:
             raise ValueError("Invalid hostname: {0}".format(self.hostname))
+        SciDBInterface.__init__(self)
+
+    def _execute(self, query, response=False, max_lines=10):
+        session_id = self._new_session()
+        if response:
+            self._execute_query(session_id, query, save='csv', release=False)
+            result = self._read_lines(session_id, max_lines)
+            self._release_session(session_id)
+        else:
+            self._execute_query(session_id, query, release=True)
+            result = None
+        return result
 
     def _url(self, keyword, **kwargs):
         url = self.hostname + '/' + keyword
@@ -43,6 +130,9 @@ class SciDBShimInterface(SciDBInterface):
             self._handle_error(e.code, e.read())
 
     def _handle_error(self, code, message=''):
+        # Any error kills the session
+        self.session_id = None
+
         if code == 400:
             raise SciDBInvalidQuery(message)
         elif code == 404:

@@ -1,15 +1,31 @@
 from scidbpy.interface import SciDBShimInterface
+import time
 
-
-def test1():
+def test():
     scidb = SciDBShimInterface('http://localhost:8080')
-    session_id = scidb._new_session()
-    print scidb._execute_query(session_id,
-                               ("CREATE ARRAY A <x: double, err: double> "
-                                "[i=0:99,10,0, j=0:99,10,0]"))
-    print scidb._execute_query(session_id, "list('arrays')", save='csv')
-    print scidb._read_lines(session_id, 5)
-    scidb._release_session(session_id)
+    # list all arrays
+    print scidb._execute("list('arrays')", response=True)
 
+    # build an array
+    arrayname = scidb._create_array('<val:double>[i=0:9,10,0]')
+    #execute("store(build(<val:double>[i=0:9,10,0],1), myarray)",
+    #                    response=False)
 
-test1()
+    # list all arrays
+    print scidb._execute("list('arrays')", response=True)
+
+    # remove the array
+    scidb._delete_array(arrayname)
+    #print scidb.execute("remove(myarray)",
+    #                    response=False)
+    print scidb._execute("list('arrays')", response=True)
+
+def test2():
+    sdb = SciDBShimInterface('http://localhost:8080')
+
+    x = sdb.ones(100)
+    print sdb.list_arrays()
+    del x
+    print sdb.list_arrays()
+
+test2()
