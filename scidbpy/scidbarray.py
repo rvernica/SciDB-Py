@@ -51,7 +51,7 @@ class SciDBArray(object):
         self.datashape = datashape
         self.interface = interface
         self.name = name
-        self.persistant = persistent
+        self.persistent = persistent
 
     def __del__(self):
         if not self.persistent:
