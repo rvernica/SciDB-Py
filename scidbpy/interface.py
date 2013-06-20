@@ -6,6 +6,8 @@ import urllib2
 from .scidbarray import SciDBArray, SciDBDataShape, SciDBAttribute
 from .errors import SHIM_ERROR_DICT
 
+SCIDB_RAND_MAX = 2147483647  # 2 ** 31 - 1
+
 
 class SciDBInterface(object):
     """SciDBInterface Abstract Base Class.
@@ -17,12 +19,6 @@ class SciDBInterface(object):
     __metaclass__ = abc.ABCMeta
 
     @abc.abstractmethod
-    def __init__(self):
-        # Array count will facilitate the creation of unique array names
-        # This should be called with super() in subclasses
-        self.array_count = 0
-
-    @abc.abstractmethod
     def _execute_query(self, query, response=False, n=0, fmt='auto'):
         """Execute a query on the SciDB engine"""
         pass
@@ -32,11 +28,14 @@ class SciDBInterface(object):
         """Upload binary data to the SciDB engine"""
         pass
 
-    def _next_name(self):
-        # TODO: perhaps use a unique hash for this session?
-        #       Otherwise two python sessions connected to the same database
+    def _db_array_name(self):
+        # TODO: perhaps use a unique hash for each python session?
+        #       Otherwise two sessions connected to the same database
         #       will likely overwrite each other or result in errors.
-        self.array_count += 1
+        if not hasattr(self, 'array_count'):
+            self.array_count = 1
+        else:
+            self.array_count += 1
         return "pyarray%.4i" % self.array_count
 
     def _scan_array(self, name, **kwargs):
@@ -85,7 +84,7 @@ class SciDBInterface(object):
         arr : SciDBArray
             wrapper of the new SciDB array instance.
         """
-        name = self._next_name()
+        name = self._db_array_name()
         if shape is not None:
             datashape = SciDBDataShape(shape, dtype, **kwargs)
             query = "CREATE ARRAY {0} {1}".format(name, datashape.descr)
@@ -97,15 +96,51 @@ class SciDBInterface(object):
     def query(self, query, *args, **kwargs):
         """Perform a query on the database.
 
-        TODO: write some examples
+        This wraps a query constructor which allows the creation of
+        sophisticated SciDB queries which act on arrays wrapped by SciDBArray
+        objects.  See below for details.
+
+        Parameters
+        ----------
+        query: string
+            The query string, with curly-braces to indicate insertions
+        *args, **kwargs:
+            Values to be inserted (see below).
+
+        Details
+        -------
+        The query string uses the python string formatting convention, with
+        appropriate substitutions made for arguments or keyword arguments that
+        are subclasses of SciDBAttribute, such as SciDBArrays or their indices.
+
+        For example, a 3x3 identity matrix can be created using the query
+        function as follows:
+
+        >>> sdb = SciDBShimInterface('http://localhost:8080')
+        >>> arr = sdb.new_array((3, 3), dtype, **kwargs)
+        >>> sdb.query('store(build({0}, iif({i}={j}, 1, 0)), {0})',
+        ...           arr, i=arr.index(0), j=arr.index(1))
+        >>> arr.toarray()
+        array([[ 1.,  0.,  0.],
+               [ 0.,  1.,  0.],
+               [ 0.,  0.,  1.]])
+
+        In the query string, substitutions are identified by braces
+        ('{' and '}'). The contents of the braces should refer to either an
+        argument index (e.g. ``{0}`` references the first non-keyword
+        argument) or the name of a keyword argument (e.g. ``{i}`` references
+        the keyword argument ``i``).  Arguments of type SciDBAttribute (such
+        as SciDBArrays, SciDBArray indices, etc.) have their ``name`` attribute
+        inserted.  All other argument types are inserted as-is.
         """
-        args = [arg.name for arg in args]
-        kwargs = dict([(k, v.name) for k, v in kwargs.iteritems()])
+        parse = SciDBAttribute.parse
+        args = (parse(v) for v in args)
+        kwargs = dict((k, parse(v)) for k, v in kwargs.iteritems())
         query = query.format(*args, **kwargs)
-        self._execute_query(query)
+        return self._execute_query(query)
         
     def list_arrays(self, **kwargs):
-        # TODO: return as a dictionary of names and schemas
+        # TODO: parse to a dictionary of names and schemas
         if 'response' not in kwargs:
             kwargs['response'] = True
         return self._execute_query("list('arrays')", **kwargs)
@@ -175,12 +210,13 @@ class SciDBInterface(object):
             uniformly distributed between `lower` and `upper`.
         """
         arr = self.new_array(shape, dtype, **kwargs)
-        fill_value = ('random() * {0} / 2147483647.0 + {1}'
-                      .format(upper - lower, lower))
-        self.query('store(build({0},' + fill_value + '),{0})', arr)
+        fill_value = ('random()*{0}/{2}+{1}'.format(upper - lower, lower,
+                                                    float(SCIDB_RAND_MAX)))
+        self.query('store(build({0}, {1}), {0})', arr, fill_value)
         return arr
 
-    def randint(self, shape, dtype='uint32', lower=0, upper=2147483647, 
+    def randint(self, shape, dtype='uint32',
+                lower=0, upper=SCIDB_RAND_MAX, 
                 **kwargs):
         """Return an array of random integers between lower and upper
 
@@ -205,7 +241,7 @@ class SciDBInterface(object):
         """
         arr = self.new_array(shape, dtype, **kwargs)
         fill_value = 'random() % {0} + {1}'.format(upper - lower, lower)
-        self.query('store(build({0},' + fill_value + '),{0})', arr)
+        self.query('store(build({0}, {1}), {0})', arr, fill_value)
         return arr
 
     def identity(self, n, dtype='double', **kwargs):
@@ -266,15 +302,14 @@ class SciDBInterface(object):
             raise ValueError("svd requires 2-dimensional arrays")
         self.query("load_library('dense_linear_algebra')")
 
-        argdict = dict(U=return_U, S=return_S, VT=return_VT)
+        out_dict = dict(U=return_U, S=return_S, VT=return_VT)
 
         # TODO: check that data type is double and chunk size is 32
         ret = []
-        for arg in ['U', 'S', 'VT']:
-            if argdict[arg]:
+        for output in ['U', 'S', 'VT']:
+            if out_dict[output]:
                 ret.append(self.new_array())
-                self.query("store(gesvd({0},'{1}'),{2})",
-                           A, SciDBAttribute(arg), ret[-1])
+                self.query("store(gesvd({0}, '{1}'),{2})", A, output, ret[-1])
         return tuple(ret)
 
     def from_array(self, A, **kwargs):
@@ -286,8 +321,7 @@ class SciDBInterface(object):
         data = A.tostring(order='C')
         filename = self._upload_bytes(A.tostring(order='C'))
         arr = self.new_array(A.shape, 'double', **kwargs)
-        self.query("load({0},'{1}',-1,'(double)')",
-                   arr, SciDBAttribute(filename))
+        self.query("load({0},'{1}',{2},'{3}')", arr, filename, -1, '(double)')
         return arr
 
     def toarray(self, A):
@@ -317,7 +351,6 @@ class SciDBShimInterface(SciDBInterface):
             urllib2.urlopen(self.hostname)
         except HTTPError:
             raise ValueError("Invalid hostname: {0}".format(self.hostname))
-        SciDBInterface.__init__(self)
 
     def _execute_query(self, query, response=False, n=0, fmt='auto'):
         session_id = self._shim_new_session()

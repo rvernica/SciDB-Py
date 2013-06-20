@@ -109,6 +109,18 @@ class SciDBAttribute(object):
     def __init__(self, name):
         self.name = name
 
+    @staticmethod
+    def parse(obj):
+        """Parse object for insertion into a query.
+
+        If the object is a SciDBAttribute, the name attribute is returned.
+        Otherwise, the object itself is returned.
+        """
+        if isinstance(obj, SciDBAttribute):
+            return obj.name
+        else:
+            return obj
+
 
 class SciDBIndexLabel(SciDBAttribute):
     def __init__(self, arr, i):
