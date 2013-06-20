@@ -153,3 +153,26 @@ class SciDBArray(object):
             arr = np.array(map(dtype.type, str_rep.strip().split('\n')[1:]),
                            dtype=dtype).reshape(shape)
         return arr
+
+    def __getitem__(self, slices):
+        # Note that slice steps must be a divisor of the chunk size.
+        # TODO: handle non-slice indices
+        if len(slices) < self.ndim:
+            slices = list(slices) + [slice(None)
+                                     for i in range(self.ndim - len(slices))]
+        if len(slices) != self.ndim:
+            raise ValueError("too many indices")
+
+        indices = [sl.indices(sh) for sl, sh in zip(slices, self.shape)]
+
+        # TODO: check whether tmp array is needed
+        limits = [i[0] for i in indices] + [i[1] - 1 for i in indices]
+        steps = sum([[0, i[2]] for i in indices], [])
+        
+        tmp = self.interface._store_array(
+            'subarray({0},{1})'.format(self.name,
+                                       ','.join(str(lim) for lim in limits)))
+        arr =  self.interface._store_array(
+            'thin({0},{1})'.format(tmp.name,
+                                   ','.join(str(st) for st in steps)))
+        return arr

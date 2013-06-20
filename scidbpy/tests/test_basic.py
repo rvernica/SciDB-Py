@@ -50,3 +50,17 @@ def test_svd():
     assert_allclose(U.toarray(), U2)
     assert_allclose(S.toarray(), S2)
     assert_allclose(VT.toarray(), VT2)
+
+
+def test_subarray():
+    # note that slices must be a divisor of chunk size
+    A = sdb.random((10, 10), chunk_size=12)
+    def check_subarray(slc1, slc2):
+        Aslc = A[slc1, slc2]
+        assert_allclose(Aslc.toarray(), A.toarray()[slc1, slc2])
+
+    for (slc1, slc2) in [(slice(None), slice(None)),
+                         (slice(2, 8), slice(3, 7)),
+                         (slice(2, 8, 2), slice(None, None, 3))]:
+        yield check_subarray, slc1, slc2
+

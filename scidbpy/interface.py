@@ -172,6 +172,25 @@ class SciDBInterface(object):
             kwargs['response'] = True
         return self._execute_query("dimensions({0})".format(name), **kwargs)
 
+    def _store_array(self, expr):
+        """Store and return an array from a SciDB AFL expression
+
+        Parameters
+        ----------
+        expr : string
+            SciDB AFL expression
+
+        Returns
+        -------
+        arr : SciDBArray
+            array constructed from the expression
+        """
+        name = self._next_name()
+        self._execute_query('store({0},{1})'.format(expr, name))
+        schema = self._show_array(name, fmt='csv')
+        datashape = SciDBDataShape.from_descr(schema)
+        return SciDBArray(datashape, self, name)
+        
     def list_arrays(self, **kwargs):
         # TODO: return as a dictionary of names and schemas
         if 'response' not in kwargs:
@@ -302,18 +321,13 @@ class SciDBInterface(object):
 
     def dot(self, A, B):
         """Compute the matrix product of A and B"""
+        # TODO: implement vector-vector and matrix-vector dot()
         if (A.ndim != 2) or (B.ndim != 2):
             raise ValueError("dot requires 2-dimensional arrays")
         if A.shape[1] != B.shape[0]:
             raise ValueError("array dimensions must match for matrix product")
 
-        name = self._next_name()
-        self._execute_query('store(multiply({0},{1}),{2})'.format(A.name,
-                                                                  B.name,
-                                                                  name))
-        schema = self._show_array(name, fmt='csv')
-        datashape = SciDBDataShape.from_descr(schema)
-        return SciDBArray(datashape, self, name)
+        return self._store_array('multiply({0},{1})'.format(A.name, B.name))
 
     def svd(self, A, return_U=True, return_S=True, return_VT=True):
         """Compute the Singular Value Decomposition of the array A:
@@ -345,12 +359,8 @@ class SciDBInterface(object):
         ret = []
         for arg in ['U', 'S', 'VT']:
             if argdict[arg]:
-                name = self._next_name()
-                self._execute_query("store(gesvd({0}, '{1}'), {2})"
-                                    .format(A.name, arg, name))
-                schema = self._show_array(name, fmt='csv')
-                descr = SciDBDataShape.from_descr(schema)
-                ret.append(SciDBArray(descr, self, name))
+                ret.append(self._store_array("gesvd({0},'{1}')".format(A.name,
+                                                                       arg)))
         return tuple(ret)
 
     def from_array(self, A, **kwargs):
