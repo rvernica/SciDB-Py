@@ -16,7 +16,7 @@ def test_array_creation():
         del A
         assert name not in sdb.list_arrays()
 
-    for create_array in [sdb.zeros, sdb.ones, sdb.random]:
+    for create_array in [sdb.zeros, sdb.ones, sdb.random, sdb.randint]:
         yield check_array_creation, create_array
 
 
