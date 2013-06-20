@@ -1,6 +1,7 @@
 """SciDB Array Wrapper"""
 import numpy as np
 import re
+from .errors import SciDBError
 
 
 class SciDBDataShape(object):
@@ -100,12 +101,51 @@ class SciDBDataShape(object):
         return '<{0}> [{1}]'.format(type_arg, shape_arg)
 
 
-class SciDBArray(object):
+class SciDBAttribute(object):
+    """
+    A simple class to reference SciDB attributes,
+    i.e. things with names in the SciDB database instance.
+    """
+    def __init__(self, name):
+        self.name = name
+
+
+class SciDBIndexLabel(SciDBAttribute):
+    def __init__(self, arr, i):
+        self.arr = arr
+        self.i = i
+
+    @property
+    def name(self):
+        return self.arr.datashape.dim_names[self.i]
+
+
+class SciDBValLabel(SciDBAttribute):
+    def __init__(self, arr, i):
+        self.arr = arr
+        self.i = i
+
+    @property
+    def name(self):
+        return self.arr.datashape.full_dtype[self.i][0]
+
+
+class SciDBArray(SciDBAttribute):
     def __init__(self, datashape, interface, name, persistent=False):
-        self.datashape = datashape
+        self._datashape = datashape
         self.interface = interface
         self.name = name
         self.persistent = persistent
+
+    @property
+    def datashape(self):
+        if self._datashape is None:
+            try:
+                schema = self.interface._show_array(self.name, fmt='csv')
+                self._datashape = SciDBDataShape.from_descr(schema)
+            except SciDBError:
+                self._datashape = None
+        return self._datashape
 
     @property
     def shape(self):
@@ -123,9 +163,17 @@ class SciDBArray(object):
     def dtype(self):
         return self.datashape.dtype
 
+    def index(self, i):
+        """Return a SciDBAttribute representing the i^th index"""
+        return SciDBIndexLabel(self, i)
+
+    def val(self, i):
+        """Return a SciDBAttribute representing the i^th value in each cell"""
+        return SciDBValLabel(self, i)
+
     def __del__(self):
-        if not self.persistent:
-            self.interface._delete_array(self.name)
+        if (self.datashape is not None) and (not self.persistent):
+            self.interface.query("remove({0})", self)
 
     def __repr__(self):
         show = self.interface._show_array(self.name, fmt='csv').split('\n')
@@ -165,14 +213,17 @@ class SciDBArray(object):
 
         indices = [sl.indices(sh) for sl, sh in zip(slices, self.shape)]
 
-        # TODO: check whether tmp array is needed
+        # TODO: do this more efficiently: is subarray needed? is thin needed?
+        #       remove tmp array?
         limits = [i[0] for i in indices] + [i[1] - 1 for i in indices]
         steps = sum([[0, i[2]] for i in indices], [])
         
-        tmp = self.interface._store_array(
-            'subarray({0},{1})'.format(self.name,
-                                       ','.join(str(lim) for lim in limits)))
-        arr =  self.interface._store_array(
-            'thin({0},{1})'.format(tmp.name,
-                                   ','.join(str(st) for st in steps)))
+        tmp = self.interface.new_array()
+        arr = self.interface.new_array()
+        self.interface.query("store(subarray({0},{2}),{1})",
+                             self, tmp,
+                             SciDBAttribute(','.join(str(L) for L in limits)))
+        self.interface.query("store(thin({0},{2}),{1})",
+                             tmp, arr,
+                             SciDBAttribute(','.join(str(st) for st in steps)))
         return arr

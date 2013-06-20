@@ -3,52 +3,8 @@ Low-level interface to Scidb
 """
 import abc
 import urllib2
-from .scidbarray import SciDBArray, SciDBDataShape
-
-
-class SciDBError(Exception):
-    pass
-
-
-class SciDBInvalidQuery(SciDBError):
-    pass
-
-
-class SciDBInvalidSession(SciDBError):
-    pass
-
-
-class SciDBEndOfFile(SciDBError):
-    pass
-
-
-class SciDBInvalidRequest(SciDBError):
-    pass
-
-
-class SciDBQueryError(SciDBError):
-    pass
-
-
-class SciDBConnectionError(SciDBError):
-    pass
-
-
-class SciDBMemoryError(SciDBError):
-    pass
-
-
-class SciDBUnknownError(SciDBError):
-    pass
-
-
-SHIM_ERROR_DICT = {400: SciDBInvalidQuery,
-                   404: SciDBInvalidSession,
-                   410: SciDBEndOfFile,
-                   414: SciDBInvalidRequest,
-                   500: SciDBQueryError,
-                   503: SciDBConnectionError,
-                   507: SciDBMemoryError}
+from .scidbarray import SciDBArray, SciDBDataShape, SciDBAttribute
+from .errors import SHIM_ERROR_DICT
 
 
 class SciDBInterface(object):
@@ -83,77 +39,6 @@ class SciDBInterface(object):
         self.array_count += 1
         return "pyarray%.4i" % self.array_count
 
-    def _create_array(self, desc, name=None, **kwargs):
-        """Utility routine to create a new array
-
-        Note that this routine does not build the array: it only creates
-        an empty array.
-
-        Parameters
-        ----------
-        desc : string
-            Array descriptor.  See SciDB documentation for details.
-        name : string (optional)
-            The name of the array to create.  An error will be raised if
-            an array with this name already exists in the database.  If
-            not specified, a name will be generated.
-
-        Returns
-        -------
-        name : string
-            the name of the stored array
-
-        See Also
-        --------
-        _build_array : build and fill an array
-        """
-        if name is None:
-            name = self._next_name()
-        query = "CREATE ARRAY {0} {1}".format(name, desc)
-        self._execute_query(query, **kwargs)
-        return name
-
-    def _build_array(self, desc, name=None, fill_value=1, **kwargs):
-        """Utility routine to build a new array
-
-        Parameters
-        ----------
-        desc : string
-            Array descriptor.  See SciDB documentation for details.
-        name : string (optional)
-            The name of the array to create.  An error will be raised if
-            an array with this name already exists in the database.  If
-            not specified, a name will be generated.
-        fill_value : integer, float, or string (optional)
-            The value with with the array should be filled.  This may contain
-            a string expression referencing the dimension indices. Default = 1.
-
-        Returns
-        -------
-        name : string
-            the name of the stored array
-
-        See Also
-        --------
-        _create_array : create an empty array
-        """
-        if name is None:
-            name = self._next_name()
-        query = "store(build({0},{1}),{2})".format(desc, fill_value, name)
-        self._execute_query(query, **kwargs)
-        return name
-
-    def _delete_array(self, name, **kwargs):
-        """Utility routine to delete an existing array
-
-        Parameters
-        ----------
-        name : string
-            The name of the array to delete.  An error will be raised if
-            an array with this name does not exist in the database.
-        """
-        self._execute_query("remove({0})".format(name), **kwargs)
-
     def _scan_array(self, name, **kwargs):
         """Return the contents of the given array"""
         if 'response' not in kwargs:
@@ -172,32 +57,58 @@ class SciDBInterface(object):
             kwargs['response'] = True
         return self._execute_query("dimensions({0})".format(name), **kwargs)
 
-    def _store_array(self, expr):
-        """Store and return an array from a SciDB AFL expression
+    # TODO: allow creation of arrays wrapping pre-existing objects within
+    #       the database?
+    def new_array(self, shape=None, dtype='double', persistent=False,
+                  **kwargs):
+        """
+        Create a new array, either instantiating it in SciDB or simply
+        reserving the name for use in a later query.
 
         Parameters
         ----------
-        expr : string
-            SciDB AFL expression
-
+        shape : int or tuple (optional)
+            The shape of the array to create.  If not specified, no array
+            will be created and a name will simply be reserved for later use.
+        dtype : string (optional)
+            the datatype of the array.  This is only referenced if `shape`
+            is specified.  Default is 'double'.
+        persistent : string (optional)
+            whether the created array should be persistent, i.e. survive
+            in SciDB past when the object wrapper goes out of scope.  Default
+            is False.
+        **kwargs : (optional)
+            If `shape` is specified, additional keyword arguments are passed
+            to SciDBDataShape.  Otherwise, these will not be referenced.
         Returns
         -------
         arr : SciDBArray
-            array constructed from the expression
+            wrapper of the new SciDB array instance.
         """
         name = self._next_name()
-        self._execute_query('store({0},{1})'.format(expr, name))
-        schema = self._show_array(name, fmt='csv')
-        datashape = SciDBDataShape.from_descr(schema)
-        return SciDBArray(datashape, self, name)
+        if shape is not None:
+            datashape = SciDBDataShape(shape, dtype, **kwargs)
+            query = "CREATE ARRAY {0} {1}".format(name, datashape.descr)
+            self._execute_query(query)
+        else:
+            datashape = None
+        return SciDBArray(datashape, self, name, persistent=persistent)
+
+    def query(self, query, *args, **kwargs):
+        """Perform a query on the database.
+
+        TODO: write some examples
+        """
+        args = [arg.name for arg in args]
+        kwargs = dict([(k, v.name) for k, v in kwargs.iteritems()])
+        query = query.format(*args, **kwargs)
+        self._execute_query(query)
         
     def list_arrays(self, **kwargs):
         # TODO: return as a dictionary of names and schemas
         if 'response' not in kwargs:
             kwargs['response'] = True
         return self._execute_query("list('arrays')", **kwargs)
-
-    # TODO: allow creation of arrays wrapping persistent memory?
 
     def ones(self, shape, dtype='double', **kwargs):
         """Return an array of ones
@@ -216,9 +127,9 @@ class SciDBInterface(object):
         arr: SciDBArray
             A SciDBArray consisting of all ones.
         """
-        datashape = SciDBDataShape(shape, dtype, **kwargs)
-        name = self._build_array(datashape.descr, fill_value=1)
-        return SciDBArray(datashape, self, name)
+        arr = self.new_array(shape, dtype, **kwargs)
+        self.query('store(build({0},1),{0})', arr)
+        return arr
 
     def zeros(self, shape, dtype='double', **kwargs):
         """Return an array of zeros
@@ -237,9 +148,9 @@ class SciDBInterface(object):
         arr: SciDBArray
             A SciDBArray consisting of all zeros.
         """
-        datashape = SciDBDataShape(shape, dtype, **kwargs)
-        name = self._build_array(datashape.descr, fill_value=0)
-        return SciDBArray(datashape, self, name)
+        arr = self.new_array(shape, dtype, **kwargs)
+        self.query('store(build({0},0),{0})', arr)
+        return arr
 
     def random(self, shape, dtype='double', lower=0, upper=1, **kwargs):
         """Return an array of random floats between lower and upper
@@ -263,11 +174,11 @@ class SciDBInterface(object):
             A SciDBArray consisting of random floating point numbers,
             uniformly distributed between `lower` and `upper`.
         """
-        datashape = SciDBDataShape(shape, dtype, **kwargs)
-        fill_value = 'random() * {0} / 2147483647.0 + {1}'.format(
-            upper - lower, upper)
-        name = self._build_array(datashape.descr, fill_value=fill_value)
-        return SciDBArray(datashape, self, name)
+        arr = self.new_array(shape, dtype, **kwargs)
+        fill_value = ('random() * {0} / 2147483647.0 + {1}'
+                      .format(upper - lower, lower))
+        self.query('store(build({0},' + fill_value + '),{0})', arr)
+        return arr
 
     def randint(self, shape, dtype='uint32', lower=0, upper=2147483647, 
                 **kwargs):
@@ -292,10 +203,10 @@ class SciDBInterface(object):
             A SciDBArray consisting of random integers, uniformly distributed
             between `lower` and `upper`.
         """
-        datashape = SciDBDataShape(shape, dtype, **kwargs)
+        arr = self.new_array(shape, dtype, **kwargs)
         fill_value = 'random() % {0} + {1}'.format(upper - lower, lower)
-        name = self._build_array(datashape.descr, fill_value=fill_value)
-        return SciDBArray(datashape, self, name)
+        self.query('store(build({0},' + fill_value + '),{0})', arr)
+        return arr
 
     def identity(self, n, dtype='double', **kwargs):
         """Return a 2-dimensional square identity matrix of size n
@@ -314,10 +225,10 @@ class SciDBInterface(object):
         arr: SciDBArray
             A SciDBArray containint an [n x n] identity matrix
         """
-        datashape = SciDBDataShape([n, n], dtype, **kwargs)
-        fill_value = 'iif({0}={1},1,0)'.format(*datashape.dim_names)
-        name = self._build_array(datashape.descr, fill_value=fill_value)
-        return SciDBArray(datashape, self, name)
+        arr = self.new_array((n, n), dtype, **kwargs)
+        self.query('store(build({0},iif({i}={j},1,0)),{0})',
+                   arr, i=arr.index(0), j=arr.index(1))
+        return arr
 
     def dot(self, A, B):
         """Compute the matrix product of A and B"""
@@ -327,7 +238,9 @@ class SciDBInterface(object):
         if A.shape[1] != B.shape[0]:
             raise ValueError("array dimensions must match for matrix product")
 
-        return self._store_array('multiply({0},{1})'.format(A.name, B.name))
+        result = self.new_array()
+        self.query('store(multiply({0},{1}),{2})', A, B, result)
+        return result
 
     def svd(self, A, return_U=True, return_S=True, return_VT=True):
         """Compute the Singular Value Decomposition of the array A:
@@ -351,7 +264,7 @@ class SciDBInterface(object):
         """
         if (A.ndim != 2):
             raise ValueError("svd requires 2-dimensional arrays")
-        self._execute_query("load_library('dense_linear_algebra')")
+        self.query("load_library('dense_linear_algebra')")
 
         argdict = dict(U=return_U, S=return_S, VT=return_VT)
 
@@ -359,8 +272,9 @@ class SciDBInterface(object):
         ret = []
         for arg in ['U', 'S', 'VT']:
             if argdict[arg]:
-                ret.append(self._store_array("gesvd({0},'{1}')".format(A.name,
-                                                                       arg)))
+                ret.append(self.new_array())
+                self.query("store(gesvd({0},'{1}'),{2})",
+                           A, SciDBAttribute(arg), ret[-1])
         return tuple(ret)
 
     def from_array(self, A, **kwargs):
@@ -371,9 +285,9 @@ class SciDBInterface(object):
         dtype = 'double'
         data = A.tostring(order='C')
         filename = self._upload_bytes(A.tostring(order='C'))
-        arr = self.zeros(A.shape, 'double', **kwargs)
-        self._execute_query("load({0},'{1}',-1,'(double)')".format(arr.name,
-                                                                   filename))
+        arr = self.new_array(A.shape, 'double', **kwargs)
+        self.query("load({0},'{1}',-1,'(double)')",
+                   arr, SciDBAttribute(filename))
         return arr
 
     def toarray(self, A):
@@ -381,6 +295,9 @@ class SciDBInterface(object):
         return A.toarray()
 
     def from_file(self, filename, **kwargs):
+        # TODO: allow creation of arrays from uploaded files
+        # TODO: allow creation of arrays from pre-existing files within the
+        #       database
         raise NotImplementedError()
 
 
@@ -390,6 +307,7 @@ class SciDBShimInterface(SciDBInterface):
     Parameters
     ----------
     hostname : string
+        A URL pointing to a running shim/SciDB session
 
     [1] https://github.com/Paradigm4/shim
     """
@@ -434,7 +352,7 @@ class SciDBShimInterface(SciDBInterface):
         try:
             return urllib2.urlopen(url)
         except urllib2.HTTPError as e:
-            Error = SHIM_ERROR_DICT.get(e.code, SciDBUnknownError)
+            Error = SHIM_ERROR_DICT[e.code]
             raise Error("[HTTP {0}] {1}".format(e.code, e.read()))
 
     def _shim_new_session(self):

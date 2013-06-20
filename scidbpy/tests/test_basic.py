@@ -20,6 +20,21 @@ def test_array_creation():
         yield check_array_creation, create_array
 
 
+def test_query():
+    """Test a more involved raw query: creating a tri-diagonal matrix"""
+    arr = sdb.new_array((10, 10))
+    sdb.query('store(build({0},                           iif({i}={j},2,iif(abs({i}-{j})=1,1,0))),{0})',
+              arr, i=arr.index(0), j=arr.index(1))
+
+    # Build the numpy equivalent
+    np_arr = np.zeros((10, 10))
+    np_arr.flat[0::11] = 2  # set diagonal to 2
+    np_arr.flat[1::11] = 1  # set upper off-diagonal to 1
+    np_arr.flat[10::11] = 1  # set lower off-diagonal to 1
+
+    assert_allclose(arr.toarray(), np_arr)
+
+
 def test_identity():
     A = sdb.identity(6)
     assert_allclose(A.toarray(), np.identity(6))
