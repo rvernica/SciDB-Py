@@ -20,6 +20,11 @@ def test_array_creation():
         yield check_array_creation, create_array
 
 
+def test_identity():
+    A = sdb.identity(6)
+    assert_allclose(A.toarray(), np.identity(6))
+
+
 def test_numpy_conversion():
     x_in = np.random.random((10, 6, 5))
     x_sdb = sdb.from_array(x_in)
@@ -33,6 +38,7 @@ def test_dot():
     C = sdb.dot(A, B)
 
     assert_allclose(C.toarray(), np.dot(A.toarray(), B.toarray()))
+
 
 def test_svd():
     # chunk_size=32 currently required for svd

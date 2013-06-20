@@ -24,6 +24,13 @@ class SciDBDataShape(object):
         if len(self.full_dtype) == 1:
             self.dtype = self.full_dtype[0][1]
 
+        if dim_names is None:
+            dim_names = ['i{0}'.format(i) for i in range(len(self.shape))]
+        if len(dim_names) != len(self.shape):
+            raise ValueError("length of dim_names should match "
+                             "number of dimensions")
+        self.dim_names = dim_names
+
         # If not specified, make chunks have ~10^6 values
         if chunk_size is None:
             chunk_size = max(10, int(1E6 ** (1. / len(self.shape))))
@@ -75,11 +82,8 @@ class SciDBDataShape(object):
         R = re.compile(r'(\S*?)=(\S*?):(\S*?),(\S*?),(\S*?),')
         dshapes = R.findall(dshapes + ',')  # note added trailing comma
 
-        shape = [int(d[2]) - int(d[1]) + 1 for d in dshapes]
-        dim_names = [d[0] for d in dshapes]
-        chunk_size = [int(d[3]) for d in dshapes]
-        chunk_overlap = [int(d[4]) for d in dshapes]
-        return cls(shape, dtype,
+        return cls(shape=[int(d[2]) - int(d[1]) + 1 for d in dshapes],
+                   dtype=dtype,
                    dim_names=[d[0] for d in dshapes],
                    chunk_size=[int(d[3]) for d in dshapes],
                    chunk_overlap=[int(d[4]) for d in dshapes])
@@ -88,11 +92,11 @@ class SciDBDataShape(object):
     def descr(self):
         type_arg = ','.join(['{0}:{1}'.format(name, typ)
                              for name, typ in self.full_dtype])
-        shape_arg = ','.join(['i{0}=0:{1},{2},{3}'.format(i, s - 1, cs, co)
-                              for i, (s, cs, co)
-                              in enumerate(zip(self.shape,
-                                               self.chunk_size,
-                                               self.chunk_overlap))])
+        shape_arg = ','.join(['{0}=0:{1},{2},{3}'.format(d, s - 1, cs, co)
+                              for (d, s, cs, co) in zip(self.dim_names,
+                                                        self.shape,
+                                                        self.chunk_size,
+                                                        self.chunk_overlap)])
         return '<{0}> [{1}]'.format(type_arg, shape_arg)
 
 

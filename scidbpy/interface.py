@@ -166,6 +166,12 @@ class SciDBInterface(object):
             kwargs['response'] = True
         return self._execute_query("show({0})".format(name), **kwargs)
 
+    def _array_dimensions(self, name, **kwargs):
+        """Show the dimensions of the given array"""
+        if 'response' not in kwargs:
+            kwargs['response'] = True
+        return self._execute_query("dimensions({0})".format(name), **kwargs)
+
     def list_arrays(self, **kwargs):
         # TODO: return as a dictionary of names and schemas
         if 'response' not in kwargs:
@@ -272,6 +278,28 @@ class SciDBInterface(object):
         name = self._build_array(datashape.descr, fill_value=fill_value)
         return SciDBArray(datashape, self, name)
 
+    def identity(self, n, dtype='double', **kwargs):
+        """Return a 2-dimensional square identity matrix of size n
+
+        Parameters
+        ----------
+        n : integer
+            the number of rows and columns in the matrix
+        dtype: string or list
+            The data type of the array
+        **kwargs:
+            Additional keyword arguments are passed to SciDBDataShape.
+
+        Returns
+        -------
+        arr: SciDBArray
+            A SciDBArray containint an [n x n] identity matrix
+        """
+        datashape = SciDBDataShape([n, n], dtype, **kwargs)
+        fill_value = 'iif({0}={1},1,0)'.format(*datashape.dim_names)
+        name = self._build_array(datashape.descr, fill_value=fill_value)
+        return SciDBArray(datashape, self, name)
+
     def dot(self, A, B):
         """Compute the matrix product of A and B"""
         if (A.ndim != 2) or (B.ndim != 2):
@@ -288,6 +316,25 @@ class SciDBInterface(object):
         return SciDBArray(datashape, self, name)
 
     def svd(self, A, return_U=True, return_S=True, return_VT=True):
+        """Compute the Singular Value Decomposition of the array A:
+
+        A = U.S.V^T
+
+        Parameters
+        ----------
+        A : SciDBArray
+            The array for which the SVD will be computed.  It should be a
+            2-dimensional array with a single value per cell.  Currently, the
+            svd routine requires non-overlapping chunks of size 32.
+        return_U, return_S, return_VT : boolean
+            if any is True, then return the associated array.  All are True
+            by default
+
+        Returns
+        -------
+        [U], [S], [VT] : SciDBArrays
+            Arrays storing the singular values and vectors of A.
+        """
         if (A.ndim != 2):
             raise ValueError("svd requires 2-dimensional arrays")
         self._execute_query("load_library('dense_linear_algebra')")
