@@ -139,7 +139,8 @@ class SciDBValLabel(SciDBAttribute):
 
     @property
     def name(self):
-        return self.arr.datashape.full_dtype[self.i][0]
+        return "{0}.{1}".format(self.arr.name,
+                                self.arr.datashape.full_dtype[self.i][0])
 
 
 class SciDBArray(SciDBAttribute):
@@ -239,3 +240,38 @@ class SciDBArray(SciDBAttribute):
                              tmp, arr,
                              SciDBAttribute(','.join(str(st) for st in steps)))
         return arr
+
+    # note that these operations only work across the first attribute
+    # in each array.
+    def _join_operation(self, other, op):
+        if isinstance(other, SciDBArray):
+            if self.shape != other.shape:
+                raise NotImplementedError("array shapes must match")
+            arr = self.interface.new_array()
+            self.interface.query("store(project(apply(join({0},{1}),"
+                                 "x,{2}{3}{4}),x),{5})", self, other,
+                                 self.val(0), op, other.val(0), arr)
+            return arr
+        elif np.isscalar(other):
+            arr = self.interface.new_array()
+            self.interface.query("store(project(apply({0},"
+                                 "x,{1}{2}{3}),x),{4})",
+                                 self, self.val(0), op, other, arr)
+            return arr
+        else:
+            raise ValueError("unrecognized value: {0}".format(other))
+
+    def __add__(self, other):
+        return self._join_operation(other, '+')
+
+    def __sub__(self, other):
+        return self._join_operation(other, '-')
+
+    def __mul__(self, other):
+        return self._join_operation(other, '*')
+
+    def __div__(self, other):
+        return self._join_operation(other, '/')
+
+    def __mod__(self, other):
+        return self._join_operation(other, '%')

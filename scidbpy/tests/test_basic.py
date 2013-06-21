@@ -79,3 +79,28 @@ def test_subarray():
                          (slice(2, 8, 2), slice(None, None, 3))]:
         yield check_subarray, slc1, slc2
 
+
+def test_ops():
+    from operator import add, sub, mul, div, mod
+    A = sdb.random((5, 5))
+    B = 3.14
+
+    def check_join_op(op):
+        C = op(A, B)
+        assert_allclose(C.toarray(), op(A.toarray(), B))
+
+    for op in (add, sub, mul, div, mod):
+        yield check_join_op, op
+
+
+def test_join_ops():
+    from operator import add, sub, mul, div, mod
+    A = sdb.random((5, 5))
+    B = sdb.random((5, 5))
+
+    def check_join_op(op):
+        C = op(A, B)
+        assert_allclose(C.toarray(), op(A.toarray(), B.toarray()))
+
+    for op in (add, sub, mul, div, mod):
+        yield check_join_op, op
