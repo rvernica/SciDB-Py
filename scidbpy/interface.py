@@ -334,6 +334,40 @@ class SciDBInterface(object):
         #       database
         raise NotImplementedError()
 
+    def _apply_func(self, A, func):
+        # TODO: new value name could conflict.  How to generate a unique one?
+        arr = self.new_array()
+        self.query("store(project(apply({0},{1}_val,{1}({2}))"
+                   ",{1}_val),{3})", A, func, A.val(0), arr)
+        return arr
+
+    def sin(self, A):
+        return self._apply_func(A, 'sin')
+
+    def cos(self, A):
+        return self._apply_func(A, 'cos')
+
+    def tan(self, A):
+        return self._apply_func(A, 'tan')
+
+    def asin(self, A):
+        return self._apply_func(A, 'asin')
+
+    def acos(self, A):
+        return self._apply_func(A, 'acos')
+
+    def atan(self, A):
+        return self._apply_func(A, 'atan')
+
+    def exp(self, A):
+        return self._apply_func(A, 'exp')
+
+    def log(self, A):
+        return self._apply_func(A, 'log')
+
+    def log10(self, A):
+        return self._apply_func(A, 'log10')
+
 
 class SciDBShimInterface(SciDBInterface):
     """HTTP interface to SciDB via shim [1]_

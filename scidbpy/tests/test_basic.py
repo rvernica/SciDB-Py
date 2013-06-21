@@ -104,3 +104,20 @@ def test_join_ops():
 
     for op in (add, sub, mul, div, mod):
         yield check_join_op, op
+
+
+def test_transcendentals():
+    def np_op(op):
+        D = dict(asin='arcsin', acos='arccos', atan='arctan')
+        return D.get(op, op)
+
+    A = sdb.random((5, 5))
+
+    def check_op(op):
+        C = getattr(sdb, op)(A)
+        C_np = getattr(np, np_op(op))(A.toarray())
+        assert_allclose(C.toarray(), C_np)
+
+    for op in ['sin', 'cos', 'tan', 'asin', 'acos', 'atan',
+               'exp', 'log', 'log10']:
+        yield check_op, op
