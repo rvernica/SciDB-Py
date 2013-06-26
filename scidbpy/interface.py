@@ -368,6 +368,47 @@ class SciDBInterface(object):
     def log10(self, A):
         return self._apply_func(A, 'log10')
 
+    def _aggregate(self, A, agg, i=None):
+        # TODO: new value name could conflict.  How to generate a unique one?
+        # TODO: allow specifying multiple indices
+        arr = self.new_array()
+        if index is None:
+            qstring = "store(aggregate({0}, {agg}({val})), {1})"
+            index = None
+        else:
+            qstring = "store(aggregate({0}, {agg}({val}), {index}), {1})"
+            index = A.index(i)
+        
+        self.query(qstring, A, arr, val=A.val(0), agg=agg, index=index)
+        return arr
+
+    def min(self, index=None):
+        return self._aggregate(A, 'min', index)
+
+    def max(self, index=None):
+        return self._aggregate(A, 'max', index)
+
+    def sum(self, index=None):
+        return self._aggregate(A, 'sum', index)
+
+    def var(self, index=None):
+        return self._aggregate(A, 'var', index)
+
+    def stdev(self, index=None):
+        return self._aggregate(A, 'stdev', index)
+
+    def avg(self, index=None):
+        return self._aggregate(A, 'avg', index)
+
+    def mean(self, index=None):
+        return self._aggregate(A, 'avg', index)
+
+    def count(self, index=None):
+        return self._aggregate(A, 'count', index)
+
+    def approxdc(self, index=None):
+        return self._aggregate(A, 'approxdc', index)
+
 
 class SciDBShimInterface(SciDBInterface):
     """HTTP interface to SciDB via shim [1]_
