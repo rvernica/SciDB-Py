@@ -271,7 +271,8 @@ class SciDBInterface(object):
         """
         arr = self.new_array((n, n), dtype, **kwargs)
         self.query('store(build({0},iif({i}={j},1,0)),{0})',
-                   arr, i=arr.index(0), j=arr.index(1))
+                   arr, i=arr.index(0, full=False),
+                   j=arr.index(1, full=False))
         return arr
 
     def dot(self, A, B):
@@ -428,6 +429,21 @@ class SciDBInterface(object):
 
     def approxdc(self, A, index=None):
         return self._aggregate(A, 'approxdc', index)
+
+    def pairwise_distances(self, A, B):
+        tmp = self.new_array()
+        self.query(("store(project(apply(cross_join({A}, {B}, {Aj}, {Bj}),"
+                    "                    sqdiff,"
+                    "                    pow({Aval} - {Bval}, 2)),"
+                    "              sqdiff),"
+                    "      {tmp})"), A=A, B=B, Aj=A.index(1), Bj=B.index(1),
+                   Aval=A.val(0), Bval=B.val(0), tmp=tmp)
+        result = self.new_array()
+        self.query(("store(project(apply(sum({tmp}, {val}, {i0}, {i2}),"
+                    "                    {val}, sqrt({val}_sum)), {val}),"
+                    "      {result})"), tmp=tmp, val=tmp.val(0, full=False),
+                   i0=tmp.index(0), i2=tmp.index(2), result=result)
+        return result
 
 
 class SciDBShimInterface(SciDBInterface):

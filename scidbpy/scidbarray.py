@@ -130,24 +130,33 @@ class SciDBAttribute(object):
 
 
 class SciDBIndexLabel(SciDBAttribute):
-    def __init__(self, arr, i):
+    def __init__(self, arr, i, full=True):
         self.arr = arr
         self.i = i
+        self.full = full
 
     @property
     def name(self):
-        return self.arr.datashape.dim_names[self.i]
+        if self.full:
+            return "{0}.{1}".format(self.arr.name,
+                                    self.arr.datashape.dim_names[self.i])
+        else:
+            return self.arr.datashape.dim_names[self.i]
 
 
 class SciDBValLabel(SciDBAttribute):
-    def __init__(self, arr, i):
+    def __init__(self, arr, i, full=True):
         self.arr = arr
         self.i = i
+        self.full = full
 
     @property
     def name(self):
-        return "{0}.{1}".format(self.arr.name,
-                                self.arr.datashape.full_dtype[self.i][0])
+        if self.full:
+            return "{0}.{1}".format(self.arr.name,
+                                    self.arr.datashape.full_dtype[self.i][0])
+        else:
+            return self.arr.datashape.full_dtype[self.i][0]
 
 
 class SciDBArray(SciDBAttribute):
@@ -183,13 +192,13 @@ class SciDBArray(SciDBAttribute):
     def dtype(self):
         return self.datashape.dtype
 
-    def index(self, i):
+    def index(self, i, full=True):
         """Return a SciDBAttribute representing the i^th index"""
-        return SciDBIndexLabel(self, i)
+        return SciDBIndexLabel(self, i, full)
 
-    def val(self, i):
+    def val(self, i, full=True):
         """Return a SciDBAttribute representing the i^th value in each cell"""
-        return SciDBValLabel(self, i)
+        return SciDBValLabel(self, i, full)
 
     def __del__(self):
         if (self.datashape is not None) and (not self.persistent):

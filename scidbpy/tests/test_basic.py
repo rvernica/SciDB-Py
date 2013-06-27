@@ -24,7 +24,7 @@ def test_query():
     """Test a more involved raw query: creating a tri-diagonal matrix"""
     arr = sdb.new_array((10, 10))
     sdb.query('store(build({0},                           iif({i}={j},2,iif(abs({i}-{j})=1,1,0))),{0})',
-              arr, i=arr.index(0), j=arr.index(1))
+              arr, i=arr.index(0, full=False), j=arr.index(1, full=False))
 
     # Build the numpy equivalent
     np_arr = np.zeros((10, 10))
@@ -139,3 +139,13 @@ def test_aggregates():
     for op in ['min', 'max', 'sum', 'var', 'std', 'mean']:
         for ind in [None, 0, 1]:
             yield check_op, op, ind
+
+
+def test_pairwise_distances():
+    A = sdb.random((5, 3))
+    B = sdb.random((4, 3))
+
+    D = sdb.pairwise_distances(A, B)
+    D_np = np.sqrt(np.sum((A.toarray()[:, None, :] - B.toarray()) ** 2, -1))
+
+    assert_allclose(D.toarray(), D_np)
