@@ -93,6 +93,17 @@ class SciDBInterface(object):
             datashape = None
         return SciDBArray(datashape, self, name, persistent=persistent)
 
+    def _format_query_string(self, query, *args, **kwargs):
+        """Format query string.
+
+        See query() documentation for more information
+        """
+        parse = SciDBAttribute.parse
+        args = (parse(v) for v in args)
+        kwargs = dict((k, parse(v)) for k, v in kwargs.iteritems())
+        query = query.format(*args, **kwargs)
+        return query
+
     def query(self, query, *args, **kwargs):
         """Perform a query on the database.
 
@@ -133,11 +144,8 @@ class SciDBInterface(object):
         as SciDBArrays, SciDBArray indices, etc.) have their ``name`` attribute
         inserted.  All other argument types are inserted as-is.
         """
-        parse = SciDBAttribute.parse
-        args = (parse(v) for v in args)
-        kwargs = dict((k, parse(v)) for k, v in kwargs.iteritems())
-        query = query.format(*args, **kwargs)
-        return self._execute_query(query)
+        return self._execute_query(self._format_query_string(query,
+                                                             *args, **kwargs))
         
     def list_arrays(self, **kwargs):
         # TODO: parse to a dictionary of names and schemas
@@ -368,45 +376,57 @@ class SciDBInterface(object):
     def log10(self, A):
         return self._apply_func(A, 'log10')
 
-    def _aggregate(self, A, agg, i=None):
+    def _aggregate(self, A, agg, ind=None):
         # TODO: new value name could conflict.  How to generate a unique one?
-        # TODO: allow specifying multiple indices
-        arr = self.new_array()
-        if index is None:
+        # TODO: ind behavior does not match numpy.  How to proceed?
+
+        if ind is None:
             qstring = "store(aggregate({0}, {agg}({val})), {1})"
-            index = None
+            index = ''
         else:
-            qstring = "store(aggregate({0}, {agg}({val}), {index}), {1})"
-            index = A.index(i)
+            try:
+                ind = tuple(ind)
+            except:
+                ind = (ind,)
+
+            index_fmt = ', '.join(['{%i}' % i for i in range(len(ind))])
+            index = self._format_query_string(index_fmt, *[A.index(i) for
+                                                           i in ind])
+
+            qstring = ("store(aggregate({0}, {agg}({val}), {index}), {1})")
         
+        arr = self.new_array()
         self.query(qstring, A, arr, val=A.val(0), agg=agg, index=index)
         return arr
 
-    def min(self, index=None):
+    def min(self, A, index=None):
         return self._aggregate(A, 'min', index)
 
-    def max(self, index=None):
+    def max(self, A, index=None):
         return self._aggregate(A, 'max', index)
 
-    def sum(self, index=None):
+    def sum(self, A, index=None):
         return self._aggregate(A, 'sum', index)
 
-    def var(self, index=None):
+    def var(self, A, index=None):
         return self._aggregate(A, 'var', index)
 
-    def stdev(self, index=None):
+    def stdev(self, A, index=None):
         return self._aggregate(A, 'stdev', index)
 
-    def avg(self, index=None):
+    def std(self, A, index=None):
+        return self._aggregate(A, 'stdev', index)
+
+    def avg(self, A, index=None):
         return self._aggregate(A, 'avg', index)
 
-    def mean(self, index=None):
+    def mean(self, A, index=None):
         return self._aggregate(A, 'avg', index)
 
-    def count(self, index=None):
+    def count(self, A, index=None):
         return self._aggregate(A, 'count', index)
 
-    def approxdc(self, index=None):
+    def approxdc(self, A, index=None):
         return self._aggregate(A, 'approxdc', index)
 
 

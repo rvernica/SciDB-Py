@@ -121,3 +121,21 @@ def test_transcendentals():
     for op in ['sin', 'cos', 'tan', 'asin', 'acos', 'atan',
                'exp', 'log', 'log10']:
         yield check_op, op
+
+
+def test_aggregates():
+    A = sdb.random((5, 5))
+
+    ind_dict = {1:0, 0:1, None:None}
+
+    def check_op(op, ind):
+        C = getattr(sdb, op)(A, ind)
+        if op in ['var', 'std']:
+            C_np = getattr(np, op)(A.toarray(), ind_dict[ind], ddof=1)
+        else:
+            C_np = getattr(np, op)(A.toarray(), ind_dict[ind])
+        assert_allclose(C.toarray(), C_np)
+
+    for op in ['min', 'max', 'sum', 'var', 'std', 'mean']:
+        for ind in [None, 0, 1]:
+            yield check_op, op, ind

@@ -17,7 +17,7 @@ class SciDBDataShape(object):
 
         # TODO: make dtypes play well with numpy
         if type(dtype) is str:
-            self.full_dtype = [('x0', dtype)]
+            self.full_dtype = [('x0', dtype, '')]
         else:
             self.full_dtype = dtype
 
@@ -63,9 +63,10 @@ class SciDBDataShape(object):
         # First split out the array name, data types, and shapes.
         # e.g. "myarray<val:double> [i=0:4,5,0]"
         #      => arrname = "myarray"; dtypes="val:double"; dshapes="i=0:9,5,0"
-        R = re.compile(r'(?P<arrname>[\s\S]+)\<(?P<dtypes>\S*?)\>(?:\s*)'
+        R = re.compile(r'(?P<arrname>[\s\S]+)\<(?P<dtypes>[\S\s]*?)\>(?:\s*)'
                        '\[(?P<dshapes>\S+)\]')
-        match = R.search(descr.lstrip('schema').strip())
+        descr = descr.lstrip('schema').strip()
+        match = R.search(descr)
         try:
             D = match.groupdict()
             arrname = D['arrname']
@@ -74,9 +75,15 @@ class SciDBDataShape(object):
         except:
             raise ValueError("no match for descr: {0}".format(descr))
 
+        #if 'NULL' in dtypes:
+        #    raise NotImplementedError("Nullable dtypes: {0}".format(dtypes))
+
         # split dtypes.  TODO: how to represent NULLs?
-        R = re.compile(r'(\S*?):([\S ]*?),')
-        dtype = R.findall(dtypes + ',')  # note added trailing comma
+        R = re.compile(r'(\S*?):([\S ]*?)\s?(NULL)?,')
+        dtypes = R.findall(dtypes + ',')  # note added trailing comma
+
+        if len(dtypes) > 1:
+            raise NotImplementedError("Compound dtypes: {0}".format(dtypes))
 
         # split dshapes.  TODO: correctly handle '*' dimensions
         #                       handle non-integer dimensions?
@@ -84,15 +91,15 @@ class SciDBDataShape(object):
         dshapes = R.findall(dshapes + ',')  # note added trailing comma
 
         return cls(shape=[int(d[2]) - int(d[1]) + 1 for d in dshapes],
-                   dtype=dtype,
+                   dtype=dtypes,
                    dim_names=[d[0] for d in dshapes],
                    chunk_size=[int(d[3]) for d in dshapes],
                    chunk_overlap=[int(d[4]) for d in dshapes])
 
     @property
     def descr(self):
-        type_arg = ','.join(['{0}:{1}'.format(name, typ)
-                             for name, typ in self.full_dtype])
+        type_arg = ','.join(['{0}:{1} {2}'.format(name, typ, null)
+                             for name, typ, null in self.full_dtype])
         shape_arg = ','.join(['{0}=0:{1},{2},{3}'.format(d, s - 1, cs, co)
                               for (d, s, cs, co) in zip(self.dim_names,
                                                         self.shape,
@@ -202,6 +209,9 @@ class SciDBArray(SciDBAttribute):
         dtype = self.datashape.dtype
         shape = self.datashape.shape
 
+        if dtype[-1][-1] == "NULL":
+            raise NotImplementedError("Nullable dtypes")
+
         if dtype == 'double':
             # transfer bytes
             bytes_rep = self.interface._scan_array(self.name, n=0,
@@ -209,7 +219,7 @@ class SciDBArray(SciDBAttribute):
             arr = np.fromstring(bytes_rep, dtype=dtype).reshape(shape)
         else:
             # transfer ASCII
-            dtype = np.dtype(dtype)
+            dtype = np.dtype(dtype[:2])
             str_rep = self.interface._scan_array(self.name, n=0, fmt='csv')
             arr = np.array(map(dtype.type, str_rep.strip().split('\n')[1:]),
                            dtype=dtype).reshape(shape)
