@@ -3,6 +3,8 @@ Low-level interface to Scidb
 """
 import abc
 import urllib2
+import re
+import csv
 from .scidbarray import SciDBArray, SciDBDataShape, SciDBAttribute
 from .errors import SHIM_ERROR_DICT
 
@@ -31,14 +33,23 @@ class SciDBInterface(object):
         pass
 
     def _db_array_name(self):
-        # TODO: perhaps use a unique hash for each python session?
+        # TODO: perhaps use a unique hash for each session?
         #       Otherwise two sessions connected to the same database
         #       will likely overwrite each other or result in errors.
+        arr_key = 'pyarray'
+
         if not hasattr(self, 'array_count'):
-            self.array_count = 1
+            # for the first number, search database to make sure there are
+            # no collisions
+            current = self.list_arrays(parsed=False)
+            nums = map(int, re.findall("\"{0}(\d+)\"".format(arr_key),
+                                       current))
+            nums.append(0)
+            self.array_count = max(nums) + 1
         else:
+            # on subsequent calls, increment the array count
             self.array_count += 1
-        return "pyarray%.4i" % self.array_count
+        return "{0}{1:05}".format(arr_key, self.array_count)
 
     def _scan_array(self, name, **kwargs):
         """Return the contents of the given array"""
@@ -149,11 +160,16 @@ class SciDBInterface(object):
         return self._execute_query(self._format_query_string(query,
                                                              *args, **kwargs))
         
-    def list_arrays(self, **kwargs):
-        # TODO: parse to a dictionary of names and schemas
+    def list_arrays(self, parsed=True, **kwargs):
+        # TODO: more stable way to do this than string parsing?
         if 'response' not in kwargs:
             kwargs['response'] = True
-        return self._execute_query("list('arrays')", **kwargs)
+        arr_list = self._execute_query("list('arrays')", **kwargs)
+        if parsed:
+            R = re.compile(r'\(([^\(\)]*)\)')
+            splits = R.findall(arr_list)
+            arr_list = dict((a[0], a[1:]) for a in csv.reader(splits))
+        return arr_list
 
     def ones(self, shape, dtype='double', **kwargs):
         """Return an array of ones
