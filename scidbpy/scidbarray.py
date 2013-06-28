@@ -294,3 +294,11 @@ class SciDBArray(SciDBAttribute):
 
     def __mod__(self, other):
         return self._join_operation(other, '%')
+
+    def transpose(self):
+        arr = self.interface.new_array()
+        self.interface.query("store(transpose({0}), {1})",
+                             self, arr)
+        return arr
+
+    T = property(transpose)

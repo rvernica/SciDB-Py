@@ -23,7 +23,7 @@ def test_array_creation():
 def test_query():
     """Test a more involved raw query: creating a tri-diagonal matrix"""
     arr = sdb.new_array((10, 10))
-    sdb.query('store(build({0},                           iif({i}={j},2,iif(abs({i}-{j})=1,1,0))),{0})',
+    sdb.query('store(build({0},iif({i}={j},2,iif(abs({i}-{j})=1,1,0))),{0})',
               arr, i=arr.index(0, full=False), j=arr.index(1, full=False))
 
     # Build the numpy equivalent
@@ -149,3 +149,8 @@ def test_pairwise_distances():
     D_np = np.sqrt(np.sum((A.toarray()[:, None, :] - B.toarray()) ** 2, -1))
 
     assert_allclose(D.toarray(), D_np)
+
+
+def test_transpose():
+    A = sdb.random((5, 3))
+    assert_allclose(A.toarray().T, A.T.toarray())
