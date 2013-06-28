@@ -21,7 +21,9 @@ class SciDBInterface(object):
     @abc.abstractmethod
     def _execute_query(self, query, response=False, n=0, fmt='auto'):
         """Execute a query on the SciDB engine"""
-        pass
+        if not hasattr(self, '_query_log'):
+            self._query_log = []
+        self._query_log.append(query)
 
     @abc.abstractmethod
     def _upload_bytes(self, data):
@@ -464,6 +466,9 @@ class SciDBShimInterface(SciDBInterface):
             raise ValueError("Invalid hostname: {0}".format(self.hostname))
 
     def _execute_query(self, query, response=False, n=0, fmt='auto'):
+        # log the query
+        SciDBInterface._execute_query(self, query, response, n, fmt)
+
         session_id = self._shim_new_session()
         if response:
             self._shim_execute_query(session_id, query, save=fmt,
