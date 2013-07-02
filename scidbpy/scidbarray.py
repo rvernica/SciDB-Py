@@ -280,10 +280,30 @@ class SciDBValLabel(SciDBAttribute):
     @property
     def name(self):
         if self.full:
-            return "{0}.{1}".format(self.arr.name,
-                                    self.arr.datashape.sdbtype.full_rep[self.i][0])
+            full_rep = self.arr.datashape.sdbtype.full_rep[self.i][0]
+            return "{0}.{1}".format(self.arr.name, full_rep)
+                                    
         else:
             return self.arr.datashape.sdbtype.full_rep[self.i][0]
+
+
+def _new_attribute_label(suggestion='val', *arrays):
+    """Return a new attribute label
+
+    The label will not clash with any attribute labels in the given arrays
+    """
+    label_list = sum([[dim[0] for dim in arr.sdbtype.full_rep]
+                      for arr in arrays], [])
+    if suggestion not in label_list:
+        return suggestion
+    else:
+        # find all labels of the form val_0, val_1, val_2 ... etc.
+        # where `val` is replaced by suggestion
+        R = re.compile(r'^{0}_(\d+)$'.format(suggestion))
+        nums = sum([map(int, R.findall(label)) for label in label_list], [])
+
+        nums.append(-1)  # in case it's empty
+        return '{0}_{1}'.format(suggestion, max(nums) + 1)
 
 
 class SciDBArray(SciDBAttribute):
@@ -396,20 +416,22 @@ class SciDBArray(SciDBAttribute):
     # note that these operations only work across the first attribute
     # in each array.
     def _join_operation(self, other, op):
-        # TODO: hard-coded `x` is a bad idea; can lead to errors
         if isinstance(other, SciDBArray):
             if self.shape != other.shape:
                 raise NotImplementedError("array shapes must match")
             arr = self.interface.new_array()
-            query = ("store(project(apply(join({0},{1}),x," + op + "),x),{2})")
-            self.interface.query(query, self, other, arr,
+            attr = _new_attribute_label('x', self, other)
+            query = ("store(project(apply(join({0},{1}),{2},"
+                     + op + "),{2}),{3})")
+            self.interface.query(query, self, other, attr, arr,
                                  left=self.val(0), right=other.val(0))
             return arr
         elif np.isscalar(other):
             arr = self.interface.new_array()
-            query = ("store(project(apply({0},x," + op + "),x),{1})")
+            attr = _new_attribute_label('x', self)
+            query = ("store(project(apply({0},{1}," + op + "),{1}),{2})")
 
-            self.interface.query(query, self, arr,
+            self.interface.query(query, self, attr, arr,
                                  left=self.val(0), right=other)
             return arr
         else:
