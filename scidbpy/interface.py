@@ -102,7 +102,7 @@ class SciDBInterface(object):
         name = self._db_array_name()
         if shape is not None:
             datashape = SciDBDataShape(shape, dtype, **kwargs)
-            query = "CREATE ARRAY {0} {1}".format(name, datashape.descr)
+            query = "CREATE ARRAY {0} {1}".format(name, datashape.schema)
             self._execute_query(query)
         else:
             datashape = None

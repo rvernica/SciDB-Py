@@ -23,82 +23,89 @@ NP_SDB_TYPE_MAP = dict((val, key) for key, val in SDB_NP_TYPE_MAP.iteritems())
 
 
 class sdbtype(object):
-    """Class to store info on SciDB types
+    """SciDB data type class.
 
-    also contains conversion tools to and from numpy dtypes"""
+    This class encapsulates the information about the datatype of SciDB
+    arrays, with tools to convert to and from numpy dtypes.
+
+    Parameters
+    ----------
+    typecode : string, list, sdbtype, or dtype
+        An object representing a datatype.  
+    """
     def __init__(self, typecode):
-        # process array typecode: either a scidb descriptor or a numpy dtype
         if isinstance(typecode, sdbtype):
-            self.descr = typecode.descr
+            self.schema = typecode.schema
             self.dtype = typecode.dtype
             self.full_rep = [t.copy() for t in typecode.full_rep]
+
         else:
             try:
                 self.dtype = np.dtype(typecode)
-                self.descr = None
+                self.schema = None
             except:
-                self.descr = self._regularize(typecode)
+                self.schema = self._regularize(typecode)
                 self.dtype = None
 
-            if self.dtype is None:
-                self.dtype = self._descr_to_dtype(self.descr)
-        
-            if self.descr is None:
-                self.descr = self._dtype_to_descr(self.dtype)
+            if self.schema is None:
+                self.schema = self._dtype_to_schema(self.dtype)
 
-            self.full_rep = self._descr_to_list(self.descr)
+            if self.dtype is None:
+                self.dtype = self._schema_to_dtype(self.schema)
+
+            self.full_rep = self._schema_to_list(self.schema)
 
     def __repr__(self):
-        return "sdbtype('{0}')".format(self.descr)
+        return "sdbtype('{0}')".format(self.schema)
 
     def __str__(self):
-        return self.descr
+        return self.schema
 
     @classmethod
-    def _regularize(cls, descr):
-        # if a full descriptor is given, we need to split out the dtype
-        R = re.compile(r'\<(?P<descr>[\S\s]*?)\>')
-        results = R.search(descr)
+    def _regularize(cls, schema):
+        # if a full schema is given, we need to split out the type info
+        R = re.compile(r'\<(?P<schema>[\S\s]*?)\>')
+        results = R.search(schema)
         try:
-            descr = results.groupdict()['descr']
+            schema = results.groupdict()['schema']
         except AttributeError:
             pass
-        return '<{0}>'.format(descr)
+        return '<{0}>'.format(schema)
 
     @classmethod
-    def _descr_to_list(cls, descr):
-        """Convert a scidb type descriptor to a list representation
+    def _schema_to_list(cls, schema):
+        """Convert a scidb type schema to a list representation
 
         Parameters
         ----------
-        descr : string
-            a SciDB type descriptor, for example
+        schema : string
+            a SciDB type schema, for example
             "<val:double,rank:int32>"
 
         Returns
         -------
-        sdbt_list : list of tuples
-            the correspo
+        sdbtype_list : list of tuples
+            the corresponding full-representation of the scidbtype
         """
-        descr = cls._regularize(descr)
-        descr = descr.lstrip('<').rstrip('>')
+        schema = cls._regularize(schema)
+        schema = schema.lstrip('<').rstrip('>')
 
         # assume that now we just have the dtypes themselves
         # TODO: support default values?
-        sdbL = descr.split(',')
+        sdbL = schema.split(',')
         sdbL = [map(str.strip, s.split(':')) for s in sdbL]
         sdbL = [(s[0], s[1].split()[0], ('NULL' in s[1])) for s in sdbL]
 
         return sdbL
 
     @classmethod
-    def _descr_to_dtype(cls, descr):
-        """Convert a scidb type descriptor to a numpy dtype
+    def _schema_to_dtype(cls, schema):
+        """Convert a scidb type schema to a numpy dtype
 
         Parameters
         ----------
-        descr : string
-            a SciDB type descriptor, for example
+        schema : string
+            a SciDB type schema, for example
             "<val:double,rank:int32>"
 
         Returns
@@ -106,12 +113,7 @@ class sdbtype(object):
         dtype : np.dtype object
             The corresponding numpy dtype descriptor
         """
-        sdbL = cls._descr_to_list(descr)
-
-        # TODO: support NULLs - this changes the memory layout, adding a byte
-        #       for now, we'll just throw an error.
-        #if np.any([s[2] for s in sdbL]):
-        #    raise ValueError("NULL-able dtypes not supported")
+        sdbL = cls._schema_to_list(schema)
 
         if len(sdbL) == 1:
             return np.dtype(sdbL[0][1])
@@ -119,8 +121,8 @@ class sdbtype(object):
             return np.dtype([(s[0], SDB_NP_TYPE_MAP[s[1]]) for s in sdbL])
 
     @classmethod
-    def _dtype_to_descr(cls, dtype):
-        """Convert a scidb type descriptor to a numpy dtype
+    def _dtype_to_schema(cls, dtype):
+        """Convert a scidb type schema to a numpy dtype
 
         Parameters
         ----------
@@ -129,8 +131,8 @@ class sdbtype(object):
 
         Returns
         -------
-        descr : string
-            a SciDB type descriptor, for example "<val:double,rank:int32>"
+        schema : string
+            a SciDB type schema, for example "<val:double,rank:int32>"
         """
         dtype = np.dtype(dtype).descr
 
@@ -151,7 +153,7 @@ class SciDBDataShape(object):
         except:
             self.shape = (shape,)
 
-        # process array typecode: either a scidb descriptor or a numpy dtype
+        # process array typecode: either a scidb schema or a numpy dtype
         self.sdbtype = sdbtype(typecode)
         self.dtype = self.sdbtype.dtype
 
@@ -180,13 +182,13 @@ class SciDBDataShape(object):
         self.chunk_overlap = chunk_overlap
 
     @classmethod
-    def from_descr(cls, descr):
-        """Create a DataShape object from a SciDB Descriptor.
+    def from_schema(cls, schema):
+        """Create a DataShape object from a SciDB Schema.
 
         This function uses a series of regular expressions to take an input
-        descriptor such as::
+        schema such as::
 
-            descr = "not empty myarray<val:double> [i0=0:3,4,0,i1=0:4,5,0]"
+            schema = "not empty myarray<val:double> [i0=0:3,4,0,i1=0:4,5,0]"
 
         parse it, and return a SciDBDataShape object.
         """
@@ -200,17 +202,17 @@ class SciDBDataShape(object):
         #        dtypes  = "val:double,rank:int32"
         #        dshapes = "i=0:9,5,0,j=0:9,5,0")
         #
-        R = re.compile(r'(?P<arrname>[\s\S]+)\<(?P<descr>[\S\s]*?)\>(?:\s*)'
+        R = re.compile(r'(?P<arrname>[\s\S]+)\<(?P<schema>[\S\s]*?)\>(?:\s*)'
                        '\[(?P<dshapes>\S+)\]')
-        descr = descr.lstrip('schema').strip()
-        match = R.search(descr)
+        schema = schema.lstrip('schema').strip()
+        match = R.search(schema)
         try:
             D = match.groupdict()
             arrname = D['arrname']
-            descr = D['descr']
+            schema = D['schema']
             dshapes = D['dshapes']
         except:
-            raise ValueError("no match for descr: {0}".format(descr))
+            raise ValueError("no match for schema: {0}".format(schema))
 
         # split dshapes.  TODO: correctly handle '*' dimensions
         #                       handle non-integer dimensions?
@@ -218,13 +220,13 @@ class SciDBDataShape(object):
         dshapes = R.findall(dshapes + ',')  # note added trailing comma
 
         return cls(shape=[int(d[2]) - int(d[1]) + 1 for d in dshapes],
-                   typecode=descr,
+                   typecode=schema,
                    dim_names=[d[0] for d in dshapes],
                    chunk_size=[int(d[3]) for d in dshapes],
                    chunk_overlap=[int(d[4]) for d in dshapes])
 
     @property
-    def descr(self):
+    def schema(self):
         shape_arg = ','.join(['{0}=0:{1},{2},{3}'.format(d, s - 1, cs, co)
                               for (d, s, cs, co) in zip(self.dim_names,
                                                         self.shape,
@@ -296,7 +298,7 @@ class SciDBArray(SciDBAttribute):
         if self._datashape is None:
             try:
                 schema = self.interface._show_array(self.name, fmt='csv')
-                self._datashape = SciDBDataShape.from_descr(schema)
+                self._datashape = SciDBDataShape.from_schema(schema)
             except SciDBError:
                 self._datashape = None
         return self._datashape
