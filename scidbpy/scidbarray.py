@@ -1,6 +1,7 @@
 """SciDB Array Wrapper"""
 import numpy as np
 import re
+import cStringIO
 from .errors import SciDBError
 
 __all__ = ["sdbtype", "SciDBArray", "SciDBDataShape"]
@@ -26,9 +27,6 @@ class sdbtype(object):
 
     also contains conversion tools to and from numpy dtypes"""
     def __init__(self, typecode):
-        print "-----------"
-        print typecode
-        print "-----------"
         # process array typecode: either a scidb descriptor or a numpy dtype
         if isinstance(typecode, sdbtype):
             self.descr = typecode.descr
@@ -339,14 +337,14 @@ class SciDBArray(SciDBAttribute):
         show = self.interface._show_array(self.name, fmt='csv').split('\n')
         return "SciDBArray({0})".format(show[1])
 
-    def contents(self, n=0):
-        return repr(self) + '\n' + self.interface._scan_array(self.name, n)
+    def contents(self, **kwargs):
+        return repr(self) + '\n' + self.interface._scan_array(self.name,
+                                                              **kwargs)
 
     def toarray(self):
         # TODO: use bytes for formats other than double
         # TODO: correctly handle compound dtypes
         # TODO: correctly handle nullable values
-        print self.datashape
 
         dtype = self.datashape.dtype
         shape = self.datashape.shape
@@ -361,11 +359,10 @@ class SciDBArray(SciDBAttribute):
             arr = np.fromstring(bytes_rep, dtype=dtype).reshape(shape)
         else:
             # transfer ASCII
-            # XXX this is broken for compound data types
-            # XXX need to parse commas
             str_rep = self.interface._scan_array(self.name, n=0, fmt='csv')
-            arr = np.array(map(dtype.type, str_rep.strip().split('\n')[1:]),
-                           dtype=dtype).reshape(shape)
+            fhandle = cStringIO.StringIO(str_rep)
+            arr = np.genfromtxt(fhandle, delimiter=',', skip_header=1,
+                                dtype=dtype).reshape(shape)
         return arr
 
     def __getitem__(self, slices):

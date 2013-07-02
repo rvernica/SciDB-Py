@@ -5,8 +5,10 @@ from nose import SkipTest
 
 # In order to run tests, we need to connect to a valid SciDB engine
 from scidbpy import interface, SciDBQueryError
-#sdb = interface.SciDBShimInterface('http://localhost:8080')
-sdb = interface.SciDBShimInterface('http://vega.cs.washington.edu:8080')
+sdb = interface.SciDBShimInterface('http://localhost:8080')
+
+RTOL = 1E-6
+
 
 def test_array_creation():
     def check_array_creation(create_array):
@@ -23,9 +25,9 @@ def test_array_creation():
         yield check_array_creation, create_array
 
 
-def test_compound_attribute():
-    arr = sdb.zeros(dtype=[('A',float),('B',int)])
-    print arr
+#def test_compound_attribute():
+#    arr = sdb.zeros(dtype=[('A',float),('B',int)])
+#    print arr
 
 
 def test_query():
@@ -40,19 +42,19 @@ def test_query():
     np_arr.flat[1::11] = 1  # set upper off-diagonal to 1
     np_arr.flat[10::11] = 1  # set lower off-diagonal to 1
 
-    assert_allclose(arr.toarray(), np_arr)
+    assert_allclose(arr.toarray(), np_arr, rtol=RTOL)
 
 
 def test_identity():
     A = sdb.identity(6)
-    assert_allclose(A.toarray(), np.identity(6))
+    assert_allclose(A.toarray(), np.identity(6), rtol=RTOL)
 
 
 def test_numpy_conversion():
     x_in = np.random.random((10, 6, 5))
     x_sdb = sdb.from_array(x_in)
     x_out = x_sdb.toarray()
-    assert_allclose(x_in, x_out)
+    assert_allclose(x_in, x_out, rtol=RTOL)
 
 
 def test_dot():
@@ -60,7 +62,7 @@ def test_dot():
     B = sdb.random((6, 5))
     C = sdb.dot(A, B)
 
-    assert_allclose(C.toarray(), np.dot(A.toarray(), B.toarray()))
+    assert_allclose(C.toarray(), np.dot(A.toarray(), B.toarray()), rtol=RTOL)
 
 
 def test_svd():
@@ -75,9 +77,9 @@ def test_svd():
 
     U2, S2, VT2 = np.linalg.svd(A.toarray(), full_matrices=False)
 
-    assert_allclose(U.toarray(), U2)
-    assert_allclose(S.toarray(), S2)
-    assert_allclose(VT.toarray(), VT2)
+    assert_allclose(U.toarray(), U2, rtol=RTOL)
+    assert_allclose(S.toarray(), S2, rtol=RTOL)
+    assert_allclose(VT.toarray(), VT2, rtol=RTOL)
 
 
 def test_subarray():
@@ -85,7 +87,7 @@ def test_subarray():
     A = sdb.random((10, 10), chunk_size=12)
     def check_subarray(slc1, slc2):
         Aslc = A[slc1, slc2]
-        assert_allclose(Aslc.toarray(), A.toarray()[slc1, slc2])
+        assert_allclose(Aslc.toarray(), A.toarray()[slc1, slc2], rtol=RTOL)
 
     for (slc1, slc2) in [(slice(None), slice(None)),
                          (slice(2, 8), slice(3, 7)),
@@ -100,7 +102,7 @@ def test_ops():
 
     def check_join_op(op):
         C = op(A, B)
-        assert_allclose(C.toarray(), op(A.toarray(), B))
+        assert_allclose(C.toarray(), op(A.toarray(), B), rtol=RTOL)
 
     for op in (add, sub, mul, div, mod):
         yield check_join_op, op
@@ -113,7 +115,7 @@ def test_join_ops():
 
     def check_join_op(op):
         C = op(A, B)
-        assert_allclose(C.toarray(), op(A.toarray(), B.toarray()))
+        assert_allclose(C.toarray(), op(A.toarray(), B.toarray()), rtol=RTOL)
 
     for op in (add, sub, mul, div, mod):
         yield check_join_op, op
@@ -129,7 +131,7 @@ def test_transcendentals():
     def check_op(op):
         C = getattr(sdb, op)(A)
         C_np = getattr(np, np_op(op))(A.toarray())
-        assert_allclose(C.toarray(), C_np)
+        assert_allclose(C.toarray(), C_np, rtol=RTOL)
 
     for op in ['sin', 'cos', 'tan', 'asin', 'acos', 'atan',
                'exp', 'log', 'log10']:
@@ -147,7 +149,7 @@ def test_aggregates():
             C_np = getattr(np, op)(A.toarray(), ind_dict[ind], ddof=1)
         else:
             C_np = getattr(np, op)(A.toarray(), ind_dict[ind])
-        assert_allclose(C.toarray(), C_np, rtol=1E-6)  #fails for 1E-7 (??)
+        assert_allclose(C.toarray(), C_np, rtol=1E-6)
 
     for op in ['min', 'max', 'sum', 'var', 'std', 'mean']:
         for ind in [None, 0, 1]:
@@ -161,9 +163,19 @@ def test_pairwise_distances():
     D = sdb.pairwise_distances(A, B)
     D_np = np.sqrt(np.sum((A.toarray()[:, None, :] - B.toarray()) ** 2, -1))
 
-    assert_allclose(D.toarray(), D_np)
+    assert_allclose(D.toarray(), D_np, rtol=RTOL)
 
 
 def test_transpose():
     A = sdb.random((5, 3))
-    assert_allclose(A.toarray().T, A.T.toarray())
+    assert_allclose(A.toarray().T, A.T.toarray(), rtol=RTOL)
+
+def test_join():
+    A = sdb.randint(10)
+    B = sdb.randint(10)
+    C = sdb.join(A, B)
+
+    Cnp = C.toarray()
+    names = Cnp.dtype.names
+    assert_allclose(Cnp[names[0]], A.toarray())
+    assert_allclose(Cnp[names[1]], B.toarray())

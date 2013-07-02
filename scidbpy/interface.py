@@ -465,8 +465,11 @@ class SciDBInterface(object):
                    i0=tmp.index(0), i2=tmp.index(2), result=result)
         return result
 
-    def argmin(self, A, axis=-1):
-        Amax = self.max(A, axis)
+    def join(self, A, B):
+        """Perform a simple array join"""
+        arr = self.new_array()
+        self.query('store(join({0},{1}), {2})', A, B, arr)
+        return arr
 
 
 class SciDBShimInterface(SciDBInterface):
