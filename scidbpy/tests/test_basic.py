@@ -96,9 +96,9 @@ def test_subarray():
 
 
 def test_ops():
-    from operator import add, sub, mul, div, mod
+    from operator import add, sub, mul, div, mod, pow
     A = sdb.random((5, 5))
-    B = 3.14
+    B = 1.2
 
     def check_join_op(op):
         C = op(A, B)

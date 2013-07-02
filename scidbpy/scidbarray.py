@@ -394,37 +394,42 @@ class SciDBArray(SciDBAttribute):
     # note that these operations only work across the first attribute
     # in each array.
     def _join_operation(self, other, op):
+        # TODO: hard-coded `x` is a bad idea; can lead to errors
         if isinstance(other, SciDBArray):
             if self.shape != other.shape:
                 raise NotImplementedError("array shapes must match")
             arr = self.interface.new_array()
-            self.interface.query("store(project(apply(join({0},{1}),"
-                                 "x,{2}{3}{4}),x),{5})", self, other,
-                                 self.val(0), op, other.val(0), arr)
+            query = ("store(project(apply(join({0},{1}),x," + op + "),x),{2})")
+            self.interface.query(query, self, other, arr,
+                                 left=self.val(0), right=other.val(0))
             return arr
         elif np.isscalar(other):
             arr = self.interface.new_array()
-            self.interface.query("store(project(apply({0},"
-                                 "x,{1}{2}{3}),x),{4})",
-                                 self, self.val(0), op, other, arr)
+            query = ("store(project(apply({0},x," + op + "),x),{1})")
+
+            self.interface.query(query, self, arr,
+                                 left=self.val(0), right=other)
             return arr
         else:
             raise ValueError("unrecognized value: {0}".format(other))
 
     def __add__(self, other):
-        return self._join_operation(other, '+')
+        return self._join_operation(other, '{left}+{right}')
 
     def __sub__(self, other):
-        return self._join_operation(other, '-')
+        return self._join_operation(other, '{left}-{right}')
 
     def __mul__(self, other):
-        return self._join_operation(other, '*')
+        return self._join_operation(other, '{left}*{right}')
 
     def __div__(self, other):
-        return self._join_operation(other, '/')
+        return self._join_operation(other, '{left}/{right}')
 
     def __mod__(self, other):
-        return self._join_operation(other, '%')
+        return self._join_operation(other, '{left}%{right}')
+
+    def __pow__(self, other):
+        return self._join_operation(other, 'pow({left},{right})')
 
     def transpose(self):
         arr = self.interface.new_array()
