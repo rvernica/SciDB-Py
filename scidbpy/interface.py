@@ -8,6 +8,8 @@ import csv
 from .scidbarray import SciDBArray, SciDBDataShape, SciDBAttribute
 from .errors import SHIM_ERROR_DICT
 
+__all__ = ['SciDBInterface', 'SciDBShimInterface']
+
 SCIDB_RAND_MAX = 2147483647  # 2 ** 31 - 1
 
 
@@ -396,7 +398,6 @@ class SciDBInterface(object):
         return self._apply_func(A, 'log10')
 
     def _aggregate(self, A, agg, ind=None):
-        # TODO: new value name could conflict.  How to generate a unique one?
         # TODO: ind behavior does not match numpy.  How to proceed?
 
         if ind is None:
@@ -449,6 +450,7 @@ class SciDBInterface(object):
         return self._aggregate(A, 'approxdc', index)
 
     def pairwise_distances(self, A, B):
+        # TODO: use (x-y)^2 = x^2 + y^2 - 2xy
         tmp = self.new_array()
         self.query(("store(project(apply(cross_join({A}, {B}, {Aj}, {Bj}),"
                     "                    sqdiff,"
@@ -462,6 +464,9 @@ class SciDBInterface(object):
                     "      {result})"), tmp=tmp, val=tmp.val(0, full=False),
                    i0=tmp.index(0), i2=tmp.index(2), result=result)
         return result
+
+    def argmin(self, A, axis=-1):
+        Amax = self.max(A, axis)
 
 
 class SciDBShimInterface(SciDBInterface):

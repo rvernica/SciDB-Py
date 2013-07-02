@@ -3,28 +3,161 @@ import numpy as np
 import re
 from .errors import SciDBError
 
+__all__ = ["sdbtype", "SciDBArray", "SciDBDataShape"]
+
+
+# Create mappings between scidb and numpy string representations
+SDB_TYPE_LIST = ['bool', 'float', 'double',
+                 'int8', 'int16', 'int32', 'int64',
+                 'uint8', 'uint16', 'uint32', 'uint64']
+
+# TODO: this uses system endian-ness.  We need to make sure that the local
+#       big/little end properties match those of the cluster, or else our
+#       data transfer will be corrupted
+
+# convert type strings to numpy type identifiers
+SDB_NP_TYPE_MAP = dict((typ, np.dtype(typ).descr[0][1])
+                       for typ in SDB_TYPE_LIST)
+NP_SDB_TYPE_MAP = dict((val, key) for key, val in SDB_NP_TYPE_MAP.iteritems())
+
+
+class sdbtype(object):
+    """Class to store info on SciDB types
+
+    also contains conversion tools to and from numpy dtypes"""
+    def __init__(self, typecode):
+        print "-----------"
+        print typecode
+        print "-----------"
+        # process array typecode: either a scidb descriptor or a numpy dtype
+        if isinstance(typecode, sdbtype):
+            self.descr = typecode.descr
+            self.dtype = typecode.dtype
+            self.full_rep = [t.copy() for t in typecode.full_rep]
+        else:
+            try:
+                self.dtype = np.dtype(typecode)
+                self.descr = None
+            except:
+                self.descr = self._regularize(typecode)
+                self.dtype = None
+
+            if self.dtype is None:
+                self.dtype = self._descr_to_dtype(self.descr)
+        
+            if self.descr is None:
+                self.descr = self._dtype_to_descr(self.dtype)
+
+            self.full_rep = self._descr_to_list(self.descr)
+
+    def __repr__(self):
+        return "sdbtype('{0}')".format(self.descr)
+
+    def __str__(self):
+        return self.descr
+
+    @classmethod
+    def _regularize(cls, descr):
+        # if a full descriptor is given, we need to split out the dtype
+        R = re.compile(r'\<(?P<descr>[\S\s]*?)\>')
+        results = R.search(descr)
+        try:
+            descr = results.groupdict()['descr']
+        except AttributeError:
+            pass
+        return '<{0}>'.format(descr)
+
+    @classmethod
+    def _descr_to_list(cls, descr):
+        """Convert a scidb type descriptor to a list representation
+
+        Parameters
+        ----------
+        descr : string
+            a SciDB type descriptor, for example
+            "<val:double,rank:int32>"
+
+        Returns
+        -------
+        sdbt_list : list of tuples
+            the correspo
+        """
+        descr = cls._regularize(descr)
+        descr = descr.lstrip('<').rstrip('>')
+
+        # assume that now we just have the dtypes themselves
+        # TODO: support default values?
+        sdbL = descr.split(',')
+        sdbL = [map(str.strip, s.split(':')) for s in sdbL]
+        sdbL = [(s[0], s[1].split()[0], ('NULL' in s[1])) for s in sdbL]
+
+        return sdbL
+
+    @classmethod
+    def _descr_to_dtype(cls, descr):
+        """Convert a scidb type descriptor to a numpy dtype
+
+        Parameters
+        ----------
+        descr : string
+            a SciDB type descriptor, for example
+            "<val:double,rank:int32>"
+
+        Returns
+        -------
+        dtype : np.dtype object
+            The corresponding numpy dtype descriptor
+        """
+        sdbL = cls._descr_to_list(descr)
+
+        # TODO: support NULLs - this changes the memory layout, adding a byte
+        #       for now, we'll just throw an error.
+        #if np.any([s[2] for s in sdbL]):
+        #    raise ValueError("NULL-able dtypes not supported")
+
+        if len(sdbL) == 1:
+            return np.dtype(sdbL[0][1])
+        else:
+            return np.dtype([(s[0], SDB_NP_TYPE_MAP[s[1]]) for s in sdbL])
+
+    @classmethod
+    def _dtype_to_descr(cls, dtype):
+        """Convert a scidb type descriptor to a numpy dtype
+
+        Parameters
+        ----------
+        dtype : np.dtype object
+            The corresponding numpy dtype descriptor
+
+        Returns
+        -------
+        descr : string
+            a SciDB type descriptor, for example "<val:double,rank:int32>"
+        """
+        dtype = np.dtype(dtype).descr
+
+        # Hack: if we re-encode this as a dtype, then de-encode again, numpy
+        #       will add default names where they are missing
+        dtype = np.dtype(dtype).descr
+        pairs = ["{0}:{1}".format(d[0], NP_SDB_TYPE_MAP[d[1]]) for d in dtype]
+        return '<{0}>'.format(','.join(pairs))
+    
 
 class SciDBDataShape(object):
     """Object to store SciDBArray data type and shape"""
-    def __init__(self, shape, dtype, dim_names=None,
-                 chunk_size=None, chunk_overlap=0):
+    def __init__(self, shape, typecode, dim_names=None,
+                 chunk_size=32, chunk_overlap=0):
+        # Process array shape
         try:
             self.shape = tuple(shape)
         except:
             self.shape = (shape,)
 
-        self.dtype = dtype
+        # process array typecode: either a scidb descriptor or a numpy dtype
+        self.sdbtype = sdbtype(typecode)
+        self.dtype = self.sdbtype.dtype
 
-        # TODO: make dtypes play well with numpy
-        if type(dtype) is str:
-            self.full_dtype = [('x0', dtype, '')]
-        else:
-            self.full_dtype = dtype
-
-        # If a single dimension, make dtype a simple type
-        if len(self.full_dtype) == 1:
-            self.dtype = self.full_dtype[0][1]
-
+        # process array dimension names; define defaults if needed
         if dim_names is None:
             dim_names = ['i{0}'.format(i) for i in range(len(self.shape))]
         if len(dim_names) != len(self.shape):
@@ -32,9 +165,7 @@ class SciDBDataShape(object):
                              "number of dimensions")
         self.dim_names = dim_names
 
-        # If not specified, make chunks have ~10^6 values
-        if chunk_size is None:
-            chunk_size = max(10, int(1E6 ** (1. / len(self.shape))))
+        # process chunk sizes.  Either an integer, or a list of integers
         if not hasattr(chunk_size, '__len__'):
             chunk_size = [chunk_size for s in self.shape]
         if len(chunk_size) != len(self.shape):
@@ -42,6 +173,7 @@ class SciDBDataShape(object):
                          "number of dimensions")
         self.chunk_size = chunk_size
 
+        # process chunk overlaps.  Either an integer, or a list of integers
         if not hasattr(chunk_overlap, '__len__'):
             chunk_overlap = [chunk_overlap for s in self.shape]
         if len(chunk_overlap) != len(self.shape):
@@ -60,30 +192,27 @@ class SciDBDataShape(object):
 
         parse it, and return a SciDBDataShape object.
         """
-        # First split out the array name, data types, and shapes.
-        # e.g. "myarray<val:double> [i=0:4,5,0]"
-        #      => arrname = "myarray"; dtypes="val:double"; dshapes="i=0:9,5,0"
-        R = re.compile(r'(?P<arrname>[\s\S]+)\<(?P<dtypes>[\S\s]*?)\>(?:\s*)'
+        # First split out the array name, data types, and shapes.  e.g. 
+        #
+        #   "myarray<val:double,rank:int32> [i=0:4,5,0,j=0:9,5,0]"
+        #
+        # will become
+        #
+        #   dict(arrname = "myarray"
+        #        dtypes  = "val:double,rank:int32"
+        #        dshapes = "i=0:9,5,0,j=0:9,5,0")
+        #
+        R = re.compile(r'(?P<arrname>[\s\S]+)\<(?P<descr>[\S\s]*?)\>(?:\s*)'
                        '\[(?P<dshapes>\S+)\]')
         descr = descr.lstrip('schema').strip()
         match = R.search(descr)
         try:
             D = match.groupdict()
             arrname = D['arrname']
-            dtypes = D['dtypes']
+            descr = D['descr']
             dshapes = D['dshapes']
         except:
             raise ValueError("no match for descr: {0}".format(descr))
-
-        #if 'NULL' in dtypes:
-        #    raise NotImplementedError("Nullable dtypes: {0}".format(dtypes))
-
-        # split dtypes.  TODO: how to represent NULLs?
-        R = re.compile(r'(\S*?):([\S ]*?)\s?(NULL)?,')
-        dtypes = R.findall(dtypes + ',')  # note added trailing comma
-
-        if len(dtypes) > 1:
-            raise NotImplementedError("Compound dtypes: {0}".format(dtypes))
 
         # split dshapes.  TODO: correctly handle '*' dimensions
         #                       handle non-integer dimensions?
@@ -91,21 +220,19 @@ class SciDBDataShape(object):
         dshapes = R.findall(dshapes + ',')  # note added trailing comma
 
         return cls(shape=[int(d[2]) - int(d[1]) + 1 for d in dshapes],
-                   dtype=dtypes,
+                   typecode=descr,
                    dim_names=[d[0] for d in dshapes],
                    chunk_size=[int(d[3]) for d in dshapes],
                    chunk_overlap=[int(d[4]) for d in dshapes])
 
     @property
     def descr(self):
-        type_arg = ','.join(['{0}:{1} {2}'.format(name, typ, null)
-                             for name, typ, null in self.full_dtype])
         shape_arg = ','.join(['{0}=0:{1},{2},{3}'.format(d, s - 1, cs, co)
                               for (d, s, cs, co) in zip(self.dim_names,
                                                         self.shape,
                                                         self.chunk_size,
                                                         self.chunk_overlap)])
-        return '<{0}> [{1}]'.format(type_arg, shape_arg)
+        return '{0} [{1}]'.format(self.sdbtype, shape_arg)
 
 
 class SciDBAttribute(object):
@@ -154,9 +281,9 @@ class SciDBValLabel(SciDBAttribute):
     def name(self):
         if self.full:
             return "{0}.{1}".format(self.arr.name,
-                                    self.arr.datashape.full_dtype[self.i][0])
+                                    self.arr.datashape.sdbtype.full_rep[self.i][0])
         else:
-            return self.arr.datashape.full_dtype[self.i][0]
+            return self.arr.datashape.sdbtype.full_rep[self.i][0]
 
 
 class SciDBArray(SciDBAttribute):
@@ -189,6 +316,10 @@ class SciDBArray(SciDBAttribute):
         return np.prod(self.shape)
 
     @property
+    def sdbtype(self):
+        return self.datashape.sdbtype
+
+    @property
     def dtype(self):
         return self.datashape.dtype
 
@@ -215,20 +346,23 @@ class SciDBArray(SciDBAttribute):
         # TODO: use bytes for formats other than double
         # TODO: correctly handle compound dtypes
         # TODO: correctly handle nullable values
+        print self.datashape
+
         dtype = self.datashape.dtype
         shape = self.datashape.shape
 
-        if dtype[-1][-1] == "NULL":
-            raise NotImplementedError("Nullable dtypes")
+        #if 'NULL' in str(self.datashape.sdbtype):
+        #    raise NotImplementedError("NULL-able data types")
 
-        if dtype == 'double':
+        if dtype == np.dtype('double'):
             # transfer bytes
             bytes_rep = self.interface._scan_array(self.name, n=0,
-                                                   fmt='({0})'.format(dtype))
+                                                   fmt='(double)')
             arr = np.fromstring(bytes_rep, dtype=dtype).reshape(shape)
         else:
             # transfer ASCII
-            dtype = np.dtype(dtype[:2])
+            # XXX this is broken for compound data types
+            # XXX need to parse commas
             str_rep = self.interface._scan_array(self.name, n=0, fmt='csv')
             arr = np.array(map(dtype.type, str_rep.strip().split('\n')[1:]),
                            dtype=dtype).reshape(shape)
