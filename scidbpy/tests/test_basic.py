@@ -10,6 +10,32 @@ sdb = interface.SciDBShimInterface('http://localhost:8080')
 RTOL = 1E-6
 
 
+def test_numpy_conversion():
+    X = np.random.random((10, 6))
+
+    Xsdb = sdb.from_array(X)
+
+    def check_toarray(transfer_bytes):
+        Xnp = Xsdb.toarray(transfer_bytes=transfer_bytes)
+        # set ATOL high because we're translating text
+        assert_allclose(Xnp, X, atol=1E-5)
+
+    for transfer_bytes in (True, False):
+        yield check_toarray, transfer_bytes
+
+
+def test_toarray_sparse():
+    try:
+        from scipy import sparse
+    except:
+        raise SkipTest("scipy.sparse required for this test")
+
+    X = np.random.random((10, 6))
+    Xsdb = sdb.from_array(X)
+    Xcsr = Xsdb.tosparse('csr')
+    assert_allclose(X, Xcsr.toarray())
+
+
 def test_array_creation():
     def check_array_creation(create_array):
         # Create an array with 5x5 elements
@@ -25,12 +51,7 @@ def test_array_creation():
         yield check_array_creation, create_array
 
 
-#def test_compound_attribute():
-#    arr = sdb.zeros(dtype=[('A',float),('B',int)])
-#    print arr
-
-
-def test_query():
+def test_raw_query():
     """Test a more involved raw query: creating a tri-diagonal matrix"""
     arr = sdb.new_array((10, 10))
     sdb.query('store(build({0},iif({i}={j},2,iif(abs({i}-{j})=1,1,0))),{0})',
@@ -46,15 +67,12 @@ def test_query():
 
 
 def test_identity():
-    A = sdb.identity(6)
-    assert_allclose(A.toarray(), np.identity(6), rtol=RTOL)
+    def check_identity(n, sparse):
+        I = sdb.identity(n, sparse=sparse)
+        assert_allclose(I.toarray(), np.identity(n))
 
-
-def test_numpy_conversion():
-    x_in = np.random.random((10, 6, 5))
-    x_sdb = sdb.from_array(x_in)
-    x_out = x_sdb.toarray()
-    assert_allclose(x_in, x_out, rtol=RTOL)
+    for sparse in (True, False):
+        yield check_identity, 6, sparse
 
 
 def test_dot():

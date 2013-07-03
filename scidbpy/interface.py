@@ -272,7 +272,7 @@ class SciDBInterface(object):
         self.query('store(build({0}, {1}), {0})', arr, fill_value)
         return arr
 
-    def identity(self, n, dtype='double', **kwargs):
+    def identity(self, n, dtype='double', sparse=False, **kwargs):
         """Return a 2-dimensional square identity matrix of size n
 
         Parameters
@@ -281,6 +281,8 @@ class SciDBInterface(object):
             the number of rows and columns in the matrix
         dtype: string or list
             The data type of the array
+        sparse: boolean
+            specify whether to create a sparse array (default=False)
         **kwargs:
             Additional keyword arguments are passed to SciDBDataShape.
 
@@ -290,8 +292,12 @@ class SciDBInterface(object):
             A SciDBArray containint an [n x n] identity matrix
         """
         arr = self.new_array((n, n), dtype, **kwargs)
-        self.query('store(build({0},iif({i}={j},1,0)),{0})',
-                   arr, i=arr.index(0, full=False),
+        if sparse:
+            query ='store(build_sparse({0},1,{i}={j}),{0})'
+        else:
+            query = 'store(build({0},iif({i}={j},1,0)),{0})'
+        self.query(query, arr,
+                   i=arr.index(0, full=False),
                    j=arr.index(1, full=False))
         return arr
 

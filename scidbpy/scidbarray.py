@@ -25,6 +25,8 @@ SDB_NP_TYPE_MAP = {'bool':_np_typename('bool'),
 
 NP_SDB_TYPE_MAP = dict((val, key) for key, val in SDB_NP_TYPE_MAP.iteritems())
 
+SDB_IND_TYPE = 'int64'
+
 
 class sdbtype(object):
     """SciDB data type class.
@@ -68,6 +70,12 @@ class sdbtype(object):
     @property
     def names(self):
         return [f[0] for f in self.full_rep]
+
+    @property
+    def bytes_fmt(self):
+        """The format used for transfering raw bytes to and from scidb"""
+        return '({0})'.format(','.join(rep[1] for rep in self.full_rep))
+        
 
     @classmethod
     def _regularize(cls, schema):
@@ -242,6 +250,18 @@ class SciDBDataShape(object):
                                                         self.chunk_overlap)])
         return '{0} [{1}]'.format(self.sdbtype, shape_arg)
 
+    @property
+    def ind_attr_dtype(self):
+        """Construct a numpy dtype that can hold indices and values.
+
+        This is useful in downloading sparse array data from SciDB.
+        """
+        keys = self.dim_names + self.sdbtype.names
+        dct = dict(f[:2] for f in self.sdbtype.full_rep)
+        types = [SDB_NP_TYPE_MAP[dct.get(key, SDB_IND_TYPE)]
+                 for key in keys]
+        return np.dtype(zip(keys, types))
+
 
 class SciDBAttribute(object):
     """
@@ -371,22 +391,22 @@ class SciDBArray(SciDBAttribute):
         return repr(self) + '\n' + self.interface._scan_array(self.name,
                                                               **kwargs)
 
-    def issparse(self):
-        """Check whether array is sparse.
-
-        Notes
-        -----
-        This uses the AFL count() operator, and compares it to the array size.
+    def nonempty(self):
+        """
+        Return the number of nonempty elements in the array.
         """
         query = "count({0})".format(self.name)
         response = self.interface._execute_query(query, response=True,
                                                  fmt='csv')
-        count = int(response.lstrip('count').strip())
-        return (count < self.size)
+        return int(response.lstrip('count').strip())
 
-    def toarray(self, transfer_bytes=True, sparse_fmt='coo'):
-        """Download data from the server and store in an array.
+    def issparse(self):
+        """Check whether array is sparse."""
+        return (self.nonempty() < self.size)
 
+    def _download_data(self, transfer_bytes=True, output='auto'):
+        """Utility routine to download data from SciDB database.
+        
         Parameters
         ----------
         transfer_bytes : boolean
@@ -394,70 +414,63 @@ class SciDBArray(SciDBAttribute):
             ASCII.  This will lead to less approximation of floating point
             data, but for sparse arrays will result in two scan operations,
             one for indices, and one for values.
-        sparse_fmt : str
-            The scipy sparse format to return.  Only referenced if the
-            array is sparse.  Options are
+        output : string
+            the output format.  The following are supported:
             
-            - None : (N-dimensional) return data as a dictionary of indices
-                     and values
-            - ['coo'|'csc'|'lil'|'csr'|'dok'] (2-dimensional, single attribute
-              only) return data as the given scipy sparse matrix type.
+            - 'auto' : choose the best representation for the data
+            - 'dense' : return a dense (numpy) array
+            - 'sparse' : return a record array containing the indices and
+                         values of non-empty elements.
         """
-        # TODO: this could be confusing if the user doesn't know an array
-        #       is sparse.  Should we force a dense array to be returned
-        #       unless a sparse argument is explicitly called?
+        if output not in ['auto', 'dense', 'sparse']:
+            raise ValueError("unrecognized output: '{0}'".format(output))
+
         dtype = self.datashape.dtype
+        sdbtype = self.sdbtype
         shape = self.datashape.shape
         array_is_sparse = self.issparse()
+        full_dtype = self.datashape.ind_attr_dtype
 
         if transfer_bytes:
             # Get byte-string containing array data.
             # This is needed for both sparse and dense outputs
-            fmt = '({0})'.format(','.join(rep[1] for rep
-                                          in self.sdbtype.full_rep))
-            bytes_rep = self.interface._scan_array(self.name, n=0, fmt=fmt)
+            bytes_rep = self.interface._scan_array(self.name, n=0,
+                                                   fmt=self.sdbtype.bytes_fmt)
             bytes_arr = np.fromstring(bytes_rep, dtype=dtype)
 
         if array_is_sparse:
-            # perform a CSV query to find all the index tuples
-            # which contain data.
+            # perform a CSV query to find all non-empty index tuples.
             str_rep = self.interface._scan_array(self.name, n=0, fmt='csv+')
             fhandle = cStringIO.StringIO(str_rep)
 
-            # prepare a dtype that can hold all indices and values
-            labels = fhandle.readline().strip().split(',')
-            D = dict(f[:2] for f in self.sdbtype.full_rep)
-            full_dtype = [(l, SDB_NP_TYPE_MAP[D.get(l, 'int32')])
-                          for l in labels]
+            # sanity check: make sure our labels are correct
+            if list(full_dtype.names) != fhandle.readline().strip().split(','):
+                print full_dtype.names
+                fhandle.reset()
+                print fhandle.readline().strip().split(',')
+                raise ValueError("labels are off...")
             fhandle.reset()
-            columns = np.genfromtxt(fhandle, delimiter=',', skip_header=1,
-                                    dtype=full_dtype)
+
+            # convert the ASCII representation into a numpy record array
+            arr = np.genfromtxt(fhandle, delimiter=',', skip_header=1,
+                                dtype=full_dtype)
             
             if transfer_bytes:
                 # replace parsed ASCII columns with more accurate bytes
                 names = self.sdbtype.names
                 if len(names) == 1:
-                    columns[names[0]] = bytes_arr
+                    arr[names[0]] = bytes_arr
                 else:
                     for name in self.sdbtype.names:
-                        columns[name] = bytes_arr[name]
+                        arr[name] = bytes_arr[name]
 
-            if self.ndim == 2 and sparse_fmt is not None:
-                # convert to a scipy sparse representation
+            if output == 'dense':
                 from scipy import sparse
-                try:
-                    spmat = getattr(sparse, sparse_fmt + "_matrix")
-                except AttributeError:
-                    raise ValueError("Invalid matrix format: "
-                                     "'{0}'".format(sparse_fmt))
-                # coo_matrix((data, (i, j)), shape)
-                arr = sparse.coo_matrix((columns[labels[2]],
-                                         (columns[labels[0]],
-                                          columns[labels[1]])),
-                                        shape=self.shape)
-                arr = spmat(arr)
-            else:
-                arr = dict((label, columns[label]) for label in labels)
+                data = arr[full_dtype.names[2]]
+                ij = (arr[full_dtype.names[0]], arr[full_dtype.names[1]])
+                arr_coo = sparse.coo_matrix((data, ij), shape=self.shape)
+                arr = arr_coo.toarray()
+                
         else:
             if transfer_bytes:
                 # reshape bytes_array to the correct shape
@@ -470,7 +483,91 @@ class SciDBArray(SciDBAttribute):
                 arr = np.genfromtxt(fhandle, delimiter=',', skip_header=1,
                                     dtype=dtype).reshape(shape)
 
+            if output == 'sparse':
+                index_arrays = map(np.ravel,
+                                   np.meshgrid(*[np.arange(s)
+                                                 for s in self.shape],
+                                               indexing='ij'))
+                arr = arr.ravel()
+                if len(sdbtype.names) == 1:
+                    value_arrays = [arr]
+                else:
+                    value_arrays = [arr[col] for col in sdbtype.names]
+                arr = np.rec.fromarrays(index_arrays + value_arrays,
+                                        dtype=full_dtype)
+
         return arr
+
+    def toarray(self, transfer_bytes=True):
+        """Download data from the server and store in an array.
+
+        Parameters
+        ----------
+        transfer_bytes : boolean
+            if True (default), then transfer data as bytes rather than as
+            ASCII.
+
+        Returns
+        -------
+        arr : np.ndarray
+            The dense array containing the data.
+        """
+        return self._download_data(transfer_bytes=transfer_bytes,
+                                   output='dense')
+
+    def tosparse(self, sparse_fmt='recarray', transfer_bytes=True):
+        """Download data from the server and store in a sparse array.
+
+        Parameters
+        ----------
+        transfer_bytes : boolean
+            if True (default), then transfer data as bytes rather than as
+            ASCII.  This is more accurate, but requires two passes over
+            the data (one for indices, one for values).
+        sparse_format : string or None
+            Specify the sparse format to use.  Available formats are:
+            - 'recarray' : a record array containing the indices and
+              values for each data point.  This is valid for arrays of
+              any dimension and with any number of attributes.
+            - ['coo'|'csc'|'csr'|'dok'|'lil'] : a scipy sparse matrix.
+              These are valid only for 2-dimensional arrays with a single
+              attribute.
+
+        Returns
+        -------
+        arr : ndarray or sparse matrix
+            The sparse representation of the data
+        """
+        if sparse_fmt == 'recarray':
+            spmat = None
+        else:
+            from scipy import sparse
+            try:
+                spmat = getattr(sparse, sparse_fmt + "_matrix")
+            except AttributeError:
+                raise ValueError("Invalid matrix format: "
+                                 "'{0}'".format(sparse_fmt))
+
+        columns = self._download_data(transfer_bytes=transfer_bytes,
+                                      output='sparse')
+
+        if sparse_fmt == 'recarray':
+            return columns
+        else:
+            from scipy import sparse
+            full_dtype = self.datashape.ind_attr_dtype
+            if self.ndim != 2:
+                raise ValueError("Only recarray format is valid for arrays "
+                                 "with ndim != 2.")
+            if len(full_dtype.names) > 3:
+                raise ValueError("Only recarray format is valid for arrays "
+                                 "with multiple attributes.")
+
+            labels = full_dtype.names
+            data = columns[labels[2]]
+            ij = (columns[labels[0]], columns[labels[1]])
+            arr = sparse.coo_matrix((data, ij), shape=self.shape)
+            return spmat(arr)
 
     def __getitem__(self, slices):
         # TODO: handle integer or None indices
