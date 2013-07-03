@@ -2,23 +2,27 @@
 import numpy as np
 import re
 import cStringIO
+import warnings
 from .errors import SciDBError
 
 __all__ = ["sdbtype", "SciDBArray", "SciDBDataShape"]
 
 
 # Create mappings between scidb and numpy string representations
-SDB_TYPE_LIST = ['bool', 'float', 'double',
-                 'int8', 'int16', 'int32', 'int64',
-                 'uint8', 'uint16', 'uint32', 'uint64']
+_np_typename = lambda s: np.dtype(s).descr[0][1]
+SDB_NP_TYPE_MAP = {'bool':_np_typename('bool'),
+                   'float':_np_typename('float32'),
+                   'double':_np_typename('float64'),
+                   'int8':_np_typename('int8'),
+                   'int16':_np_typename('int16'),
+                   'int32':_np_typename('int32'),
+                   'int64':_np_typename('int64'),
+                   'uint8':_np_typename('uint8'),
+                   'uint16':_np_typename('uint16'),
+                   'uint32':_np_typename('uint32'),
+                   'uint64':_np_typename('uint64'),
+                   'char':_np_typename('c')}
 
-# TODO: this uses system endian-ness.  We need to make sure that the local
-#       big/little end properties match those of the cluster, or else our
-#       data transfer will be corrupted
-
-# convert type strings to numpy type identifiers
-SDB_NP_TYPE_MAP = dict((typ, np.dtype(typ).descr[0][1])
-                       for typ in SDB_TYPE_LIST)
 NP_SDB_TYPE_MAP = dict((val, key) for key, val in SDB_NP_TYPE_MAP.iteritems())
 
 
@@ -60,6 +64,10 @@ class sdbtype(object):
 
     def __str__(self):
         return self.schema
+
+    @property
+    def names(self):
+        return [f[0] for f in self.full_rep]
 
     @classmethod
     def _regularize(cls, schema):
@@ -363,33 +371,113 @@ class SciDBArray(SciDBAttribute):
         return repr(self) + '\n' + self.interface._scan_array(self.name,
                                                               **kwargs)
 
-    def toarray(self):
-        # TODO: use bytes for formats other than double
-        # TODO: correctly handle compound dtypes
-        # TODO: correctly handle nullable values
+    def issparse(self):
+        """Check whether array is sparse.
 
+        Notes
+        -----
+        This uses the AFL count() operator, and compares it to the array size.
+        """
+        query = "count({0})".format(self.name)
+        response = self.interface._execute_query(query, response=True,
+                                                 fmt='csv')
+        count = int(response.lstrip('count').strip())
+        return (count < self.size)
+
+    def toarray(self, transfer_bytes=True, sparse_fmt='coo'):
+        """Download data from the server and store in an array.
+
+        Parameters
+        ----------
+        transfer_bytes : boolean
+            if True (default), then transfer data as bytes rather than as
+            ASCII.  This will lead to less approximation of floating point
+            data, but for sparse arrays will result in two scan operations,
+            one for indices, and one for values.
+        sparse_fmt : str
+            The scipy sparse format to return.  Only referenced if the
+            array is sparse.  Options are
+            
+            - None : (N-dimensional) return data as a dictionary of indices
+                     and values
+            - ['coo'|'csc'|'lil'|'csr'|'dok'] (2-dimensional, single attribute
+              only) return data as the given scipy sparse matrix type.
+        """
+        # TODO: this could be confusing if the user doesn't know an array
+        #       is sparse.  Should we force a dense array to be returned
+        #       unless a sparse argument is explicitly called?
         dtype = self.datashape.dtype
         shape = self.datashape.shape
+        array_is_sparse = self.issparse()
 
-        #if 'NULL' in str(self.datashape.sdbtype):
-        #    raise NotImplementedError("NULL-able data types")
+        if transfer_bytes:
+            # Get byte-string containing array data.
+            # This is needed for both sparse and dense outputs
+            fmt = '({0})'.format(','.join(rep[1] for rep
+                                          in self.sdbtype.full_rep))
+            bytes_rep = self.interface._scan_array(self.name, n=0, fmt=fmt)
+            bytes_arr = np.fromstring(bytes_rep, dtype=dtype)
 
-        if dtype == np.dtype('double'):
-            # transfer bytes
-            bytes_rep = self.interface._scan_array(self.name, n=0,
-                                                   fmt='(double)')
-            arr = np.fromstring(bytes_rep, dtype=dtype).reshape(shape)
-        else:
-            # transfer ASCII
-            str_rep = self.interface._scan_array(self.name, n=0, fmt='csv')
+        if array_is_sparse:
+            # perform a CSV query to find all the index tuples
+            # which contain data.
+            str_rep = self.interface._scan_array(self.name, n=0, fmt='csv+')
             fhandle = cStringIO.StringIO(str_rep)
-            arr = np.genfromtxt(fhandle, delimiter=',', skip_header=1,
-                                dtype=dtype).reshape(shape)
+
+            # prepare a dtype that can hold all indices and values
+            labels = fhandle.readline().strip().split(',')
+            D = dict(f[:2] for f in self.sdbtype.full_rep)
+            full_dtype = [(l, SDB_NP_TYPE_MAP[D.get(l, 'int32')])
+                          for l in labels]
+            fhandle.reset()
+            columns = np.genfromtxt(fhandle, delimiter=',', skip_header=1,
+                                    dtype=full_dtype)
+            
+            if transfer_bytes:
+                # replace parsed ASCII columns with more accurate bytes
+                names = self.sdbtype.names
+                if len(names) == 1:
+                    columns[names[0]] = bytes_arr
+                else:
+                    for name in self.sdbtype.names:
+                        columns[name] = bytes_arr[name]
+
+            if self.ndim == 2 and sparse_fmt is not None:
+                # convert to a scipy sparse representation
+                from scipy import sparse
+                try:
+                    spmat = getattr(sparse, sparse_fmt + "_matrix")
+                except AttributeError:
+                    raise ValueError("Invalid matrix format: "
+                                     "'{0}'".format(sparse_fmt))
+                # coo_matrix((data, (i, j)), shape)
+                arr = sparse.coo_matrix((columns[labels[2]],
+                                         (columns[labels[0]],
+                                          columns[labels[1]])),
+                                        shape=self.shape)
+                arr = spmat(arr)
+            else:
+                arr = dict((label, columns[label]) for label in labels)
+        else:
+            if transfer_bytes:
+                # reshape bytes_array to the correct shape
+                arr = bytes_arr.reshape(shape)
+            else:
+                # transfer via ASCII.  Here we don't need the indices, so we
+                # use 'csv' output.
+                str_rep = self.interface._scan_array(self.name, n=0, fmt='csv')
+                fhandle = cStringIO.StringIO(str_rep)
+                arr = np.genfromtxt(fhandle, delimiter=',', skip_header=1,
+                                    dtype=dtype).reshape(shape)
+
         return arr
 
     def __getitem__(self, slices):
+        # TODO: handle integer or None indices
+        # TODO: use slice() to enable slicing
+        # TODO: check for __len__
+
         # Note that slice steps must be a divisor of the chunk size.
-        # TODO: handle non-slice indices
         if len(slices) < self.ndim:
             slices = list(slices) + [slice(None)
                                      for i in range(self.ndim - len(slices))]
@@ -398,8 +486,9 @@ class SciDBArray(SciDBAttribute):
 
         indices = [sl.indices(sh) for sl, sh in zip(slices, self.shape)]
 
-        # TODO: do this more efficiently: is subarray needed? is thin needed?
-        #       remove tmp array?
+        # TODO: do this more efficiently:
+        #       check if subarray/thin is needed?
+        #       do this in one step, without tmp array?
         limits = [i[0] for i in indices] + [i[1] - 1 for i in indices]
         steps = sum([[0, i[2]] for i in indices], [])
         
@@ -416,6 +505,8 @@ class SciDBArray(SciDBAttribute):
     # note that these operations only work across the first attribute
     # in each array.
     def _join_operation(self, other, op):
+        # TODO: allow broadcasting operations through the use of cross-join.
+        # TODO: if other and self point to the same array, this breaks.
         if isinstance(other, SciDBArray):
             if self.shape != other.shape:
                 raise NotImplementedError("array shapes must match")

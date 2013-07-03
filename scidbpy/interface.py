@@ -545,7 +545,7 @@ class SciDBShimInterface(SciDBInterface):
                              query=urllib2.quote(query),
                              release=int(bool(release)))
         if save is not None:
-            url += "&save={0}".format(save)
+            url += "&save={0}".format(urllib2.quote(save))
 
         result = self._shim_urlopen(url)
         query_id = result.read()
