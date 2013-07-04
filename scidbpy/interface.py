@@ -455,21 +455,38 @@ class SciDBInterface(object):
     def approxdc(self, A, index=None):
         return self._aggregate(A, 'approxdc', index)
 
-    def pairwise_distances(self, A, B):
+    def pairwise_distances(self, X, Y=None):
+        """Compute the pairwise distances between arrays X and Y"""
         # TODO: use (x-y)^2 = x^2 + y^2 - 2xy
-        tmp = self.new_array()
-        self.query(("store(project(apply(cross_join({A}, {B}, {Aj}, {Bj}),"
-                    "                    sqdiff,"
-                    "                    pow({Aval} - {Bval}, 2)),"
-                    "              sqdiff),"
-                    "      {tmp})"), A=A, B=B, Aj=A.index(1), Bj=B.index(1),
-                   Aval=A.val(0), Bval=B.val(0), tmp=tmp)
-        result = self.new_array()
-        self.query(("store(project(apply(sum({tmp}, {val}, {i0}, {i2}),"
-                    "                    {val}, sqrt({val}_sum)), {val}),"
-                    "      {result})"), tmp=tmp, val=tmp.val(0, full=False),
-                   i0=tmp.index(0), i2=tmp.index(2), result=result)
-        return result
+        if Y is None:
+            Y = X
+
+        assert X.ndim == 2
+        assert Y.ndim == 2
+        assert X.shape[1] == Y.shape[1]
+
+        D = self.new_array()
+        query = ("store("
+                 "  aggregate("
+                 "    project("
+                 "      apply("
+                 "        cross_join({X} as X1,"
+                 "                   {Y} as X2,"
+                 "                   X1.{Xj}, X2.{Yj}),"
+                 "        {d}, (X1.{Xv} - X2.{Yv}) * (X1.{Xv} - X2.{Yv})),"
+                 "      {d}),"
+                 "    sum({d}), X1.{Xi}, X2.{Yi}),"
+                 "  {D})")
+
+        self.query(query,
+                   X=X, Xj=X.index(1, full=False),
+                   Xv=X.val(0, full=False),
+                   Xi=X.index(0, full=False),
+                   Y=Y, Yj=Y.index(1, full=False),
+                   Yv=Y.val(0, full=False),
+                   Yi=Y.index(0, full=False),
+                   D=D, d='d')
+        return D
 
     def join(self, A, B):
         """Perform a simple array join"""
