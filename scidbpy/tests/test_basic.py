@@ -55,8 +55,9 @@ def test_array_creation():
 def test_raw_query():
     """Test a more involved raw query: creating a tri-diagonal matrix"""
     arr = sdb.new_array((10, 10))
-    sdb.query('store(build({0},iif({i}={j},2,iif(abs({i}-{j})=1,1,0))),{0})',
-              arr, i=arr.index(0, full=False), j=arr.index(1, full=False))
+    sdb.query('store(build({A},iif({A.d0}={A.d1},2,'
+              'iif(abs({A.d0}-{A.d1})=1,1,0))),{A})',
+              A=arr)
 
     # Build the numpy equivalent
     np_arr = np.zeros((10, 10))

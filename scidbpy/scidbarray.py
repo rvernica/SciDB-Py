@@ -314,63 +314,6 @@ class ArrayAlias(object):
             return ret_str + attr_name
 
 
-class SciDBAttribute(object):
-    """
-    A simple class to reference SciDB attributes,
-    i.e. things with names in the SciDB database instance.
-    """
-    def __init__(self, name):
-        self.name = name
-
-    @staticmethod
-    def parse(obj):
-        """Parse object for insertion into a query.
-
-        If the object is a SciDBAttribute, the name attribute is returned.
-        Otherwise, the object itself is returned.
-        """
-        if isinstance(obj, SciDBArray):
-            return ArrayAlias(obj)
-        elif isinstance(obj, SciDBAttribute):
-            return obj.name
-        else:
-            return obj
-
-
-class SciDBIndexLabel(SciDBAttribute):
-    def __init__(self, arr, i, full=True, check_collision=None):
-        self.arr = arr
-        self.i = i
-        self.full = full
-        self.check_collision = check_collision
-
-    @property
-    def name(self):
-        dim_name = self.arr.datashape.dim_names[self.i]
-        if dim_name == self.parse(self.check_collision):
-            dim_name = "{0}_2".format(dim_name)
-        if self.full:
-            return "{0}.{1}".format(self.arr.name, dim_name)
-        else:
-            return dim_name
-
-
-class SciDBValLabel(SciDBAttribute):
-    def __init__(self, arr, i, full=True):
-        self.arr = arr
-        self.i = i
-        self.full = full
-
-    @property
-    def name(self):
-        if self.full:
-            full_rep = self.arr.datashape.sdbtype.full_rep[self.i][0]
-            return "{0}.{1}".format(self.arr.name, full_rep)
-                                    
-        else:
-            return self.arr.datashape.sdbtype.full_rep[self.i][0]
-
-
 def _new_attribute_label(suggestion='val', *arrays):
     """Return a new attribute label
 
@@ -390,7 +333,7 @@ def _new_attribute_label(suggestion='val', *arrays):
         return '{0}_{1}'.format(suggestion, max(nums) + 1)
 
 
-class SciDBArray(SciDBAttribute):
+class SciDBArray(object):
     def __init__(self, datashape, interface, name, persistent=False):
         self._datashape = datashape
         self.interface = interface
@@ -429,14 +372,6 @@ class SciDBArray(SciDBAttribute):
     @property
     def dtype(self):
         return self.datashape.dtype
-
-    def index(self, i, **kwargs):
-        """Return a SciDBAttribute representing the i^th index"""
-        return SciDBIndexLabel(self, i, **kwargs)
-
-    def val(self, i, **kwargs):
-        """Return a SciDBAttribute representing the i^th value in each cell"""
-        return SciDBValLabel(self, i, **kwargs)
 
     def __del__(self):
         if (self.datashape is not None) and (not self.persistent):
@@ -651,11 +586,9 @@ class SciDBArray(SciDBAttribute):
         tmp = self.interface.new_array()
         arr = self.interface.new_array()
         self.interface.query("store(subarray({0},{2}),{1})",
-                             self, tmp,
-                             SciDBAttribute(','.join(str(L) for L in limits)))
+                             self, tmp, ','.join(str(L) for L in limits))
         self.interface.query("store(thin({0},{2}),{1})",
-                             tmp, arr,
-                             SciDBAttribute(','.join(str(st) for st in steps)))
+                             tmp, arr, ','.join(str(st) for st in steps))
         return arr
 
     # note that these operations only work across the first attribute

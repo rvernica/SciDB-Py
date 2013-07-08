@@ -5,7 +5,7 @@ import abc
 import urllib2
 import re
 import csv
-from .scidbarray import SciDBArray, SciDBDataShape, SciDBAttribute
+from .scidbarray import SciDBArray, SciDBDataShape, ArrayAlias
 from .errors import SHIM_ERROR_DICT
 
 __all__ = ['SciDBInterface', 'SciDBShimInterface']
@@ -52,6 +52,18 @@ class SciDBInterface(object):
             # on subsequent calls, increment the array count
             self.array_count += 1
         return "{0}{1:05}".format(arr_key, self.array_count)
+
+    @staticmethod
+    def _parse_query_obj(obj):
+        """Parse object for insertion into a query.
+
+        If the object is a SciDBAttribute, the name attribute is returned.
+        Otherwise, the object itself is returned.
+        """
+        if isinstance(obj, SciDBArray):
+            return ArrayAlias(obj)
+        else:
+            return obj
 
     def _scan_array(self, name, **kwargs):
         """Return the contents of the given array"""
@@ -113,7 +125,7 @@ class SciDBInterface(object):
 
         See query() documentation for more information
         """
-        parse = SciDBAttribute.parse
+        parse = self._parse_query_obj
         args = (parse(v) for v in args)
         kwargs = dict((k, parse(v)) for k, v in kwargs.iteritems())
         query = query.format(*args, **kwargs)
