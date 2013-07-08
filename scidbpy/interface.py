@@ -293,12 +293,10 @@ class SciDBInterface(object):
         """
         arr = self.new_array((n, n), dtype, **kwargs)
         if sparse:
-            query ='store(build_sparse({0},1,{i}={j}),{0})'
+            query ='store(build_sparse({A},1,{A.d0}={A.d1}),{A})'
         else:
-            query = 'store(build({0},iif({i}={j},1,0)),{0})'
-        self.query(query, arr,
-                   i=arr.index(0, full=False),
-                   j=arr.index(1, full=False))
+            query = 'store(build({A},iif({A.d0}={A.d1},1,0)),{A})'
+        self.query(query, A=arr)
         return arr
 
     def dot(self, A, B):
@@ -372,8 +370,9 @@ class SciDBInterface(object):
     def _apply_func(self, A, func):
         # TODO: new value name could conflict.  How to generate a unique one?
         arr = self.new_array()
-        self.query("store(project(apply({0},{1}_val,{1}({2}))"
-                   ",{1}_val),{3})", A, func, A.val(0), arr)
+        self.query("store(project(apply({A},{func}_{A.a0},{func}({A.a0})),"
+                   "{func}_{A.a0}), {arr})",
+                   A=A, func=func, arr=arr)
         return arr
 
     def sin(self, A):
@@ -405,24 +404,20 @@ class SciDBInterface(object):
 
     def _aggregate(self, A, agg, ind=None):
         # TODO: ind behavior does not match numpy.  How to proceed?
-
         if ind is None:
-            qstring = "store(aggregate({0}, {agg}({val})), {1})"
-            index = ''
+            idx = ''
         else:
             try:
                 ind = tuple(ind)
             except:
                 ind = (ind,)
 
-            index_fmt = ', '.join(['{%i}' % i for i in range(len(ind))])
-            index = self._format_query_string(index_fmt, *[A.index(i) for
-                                                           i in ind])
+            idx= ',' + ', '.join(['{{A.d{0}}}'.format(i) for i in ind])
 
-            qstring = ("store(aggregate({0}, {agg}({val}), {index}), {1})")
-        
+        qstring = "store(aggregate({A}, {agg}({A.a0})" + idx + "), {arr})"
+
         arr = self.new_array()
-        self.query(qstring, A, arr, val=A.val(0), agg=agg, index=index)
+        self.query(qstring, A=A, arr=arr, agg=agg)
         return arr
 
     def min(self, A, index=None):
@@ -455,38 +450,37 @@ class SciDBInterface(object):
     def approxdc(self, A, index=None):
         return self._aggregate(A, 'approxdc', index)
 
-    def pairwise_distances(self, X, Y=None):
-        """Compute the pairwise distances between arrays X and Y"""
-        # TODO: use (x-y)^2 = x^2 + y^2 - 2xy
-        if Y is None:
-            Y = X
-
-        assert X.ndim == 2
-        assert Y.ndim == 2
-        assert X.shape[1] == Y.shape[1]
-
-        D = self.new_array()
-        query = ("store("
-                 "  aggregate("
-                 "    project("
-                 "      apply("
-                 "        cross_join({X} as X1,"
-                 "                   {Y} as X2,"
-                 "                   X1.{Xj}, X2.{Yj}),"
-                 "        {d}, (X1.{Xv} - X2.{Yv}) * (X1.{Xv} - X2.{Yv})),"
-                 "      {d}),"
-                 "    sum({d}), X1.{Xi}, X2.{Yi}),"
-                 "  {D})")
-
-        self.query(query,
-                   X=X, Xj=X.index(1, full=False),
-                   Xv=X.val(0, full=False),
-                   Xi=X.index(0, full=False),
-                   Y=Y, Yj=Y.index(1, full=False),
-                   Yv=Y.val(0, full=False),
-                   Yi=Y.index(0, full=False),
-                   D=D, d='d')
-        return D
+    #def pairwise_distances(self, X, Y=None):
+    #    """Compute the pairwise distances between arrays X and Y"""
+    #    if Y is None:
+    #        Y = X
+    #
+    #    assert X.ndim == 2
+    #    assert Y.ndim == 2
+    #    assert X.shape[1] == Y.shape[1]
+    #
+    #    D = self.new_array()
+    #    query = ("store("
+    #             "  aggregate("
+    #             "    project("
+    #             "      apply("
+    #             "        cross_join({X} as X1,"
+    #             "                   {Y} as X2,"
+    #             "                   X1.{Xj}, X2.{Yj}),"
+    #             "        {d}, (X1.{Xv} - X2.{Yv}) * (X1.{Xv} - X2.{Yv})),"
+    #             "      {d}),"
+    #             "    sum({d}), X1.{Xi}, X2.{Yi}),"
+    #             "  {D})")
+    #
+    #    self.query(query,
+    #               X=X, Xj=X.index(1, full=False),
+    #               Xv=X.val(0, full=False),
+    #               Xi=X.index(0, full=False),
+    #               Y=Y, Yj=Y.index(1, full=False),
+    #               Yv=Y.val(0, full=False),
+    #               Yi=Y.index(0, full=False),
+    #               D=D, d='d')
+    #    return D
 
     def join(self, A, B):
         """Perform a simple array join"""

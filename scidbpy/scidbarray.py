@@ -263,6 +263,57 @@ class SciDBDataShape(object):
         return np.dtype(zip(keys, types))
 
 
+class ArrayAlias(object):
+    """
+    An alias object used for constructing queries
+    """
+    def __init__(self, arr, name=None):
+        self.arr = arr
+        if name is None:
+            self.name = self.arr.name
+        else:
+            self.name = name
+
+    def __str__(self):
+        return self.name
+
+    def __repr__(self):
+        return self.name
+
+    def __getattr__(self, attr):
+        match = re.search(r'([da])(\d*)(f?)', attr)
+
+        if not match:
+            # exception text copied from Python2.6
+            raise AttributeError("%r object has no attribute %r" %
+                         (type(self).__name__, attr))
+        
+        groups = match.groups()
+        i = int(groups[1])
+
+        if groups[2]:
+            # seeking a full, qualified name
+            ret_str = self.arr.name + '.'
+        else:
+            ret_str = ''
+
+        if groups[0] == 'd':
+            # looking for a dimension name
+            try:
+                dim_name = self.arr.datashape.dim_names[i]
+            except IndexError:
+                raise ValueError("dimension index %i is out of bounds" % i)
+            return ret_str + dim_name
+            
+        else:
+            # looking for an attribute name
+            try:
+                attr_name = self.arr.datashape.sdbtype.full_rep[i][0]
+            except IndexError:
+                raise ValueError("attribute index %i is out of bounds" % i)
+            return ret_str + attr_name
+
+
 class SciDBAttribute(object):
     """
     A simple class to reference SciDB attributes,
@@ -278,25 +329,30 @@ class SciDBAttribute(object):
         If the object is a SciDBAttribute, the name attribute is returned.
         Otherwise, the object itself is returned.
         """
-        if isinstance(obj, SciDBAttribute):
+        if isinstance(obj, SciDBArray):
+            return ArrayAlias(obj)
+        elif isinstance(obj, SciDBAttribute):
             return obj.name
         else:
             return obj
 
 
 class SciDBIndexLabel(SciDBAttribute):
-    def __init__(self, arr, i, full=True):
+    def __init__(self, arr, i, full=True, check_collision=None):
         self.arr = arr
         self.i = i
         self.full = full
+        self.check_collision = check_collision
 
     @property
     def name(self):
+        dim_name = self.arr.datashape.dim_names[self.i]
+        if dim_name == self.parse(self.check_collision):
+            dim_name = "{0}_2".format(dim_name)
         if self.full:
-            return "{0}.{1}".format(self.arr.name,
-                                    self.arr.datashape.dim_names[self.i])
+            return "{0}.{1}".format(self.arr.name, dim_name)
         else:
-            return self.arr.datashape.dim_names[self.i]
+            return dim_name
 
 
 class SciDBValLabel(SciDBAttribute):
@@ -341,6 +397,9 @@ class SciDBArray(SciDBAttribute):
         self.name = name
         self.persistent = persistent
 
+    def alias(self, name=None):
+        return ArrayAlias(self, name)
+
     @property
     def datashape(self):
         if self._datashape is None:
@@ -371,13 +430,13 @@ class SciDBArray(SciDBAttribute):
     def dtype(self):
         return self.datashape.dtype
 
-    def index(self, i, full=True):
+    def index(self, i, **kwargs):
         """Return a SciDBAttribute representing the i^th index"""
-        return SciDBIndexLabel(self, i, full)
+        return SciDBIndexLabel(self, i, **kwargs)
 
-    def val(self, i, full=True):
+    def val(self, i, **kwargs):
         """Return a SciDBAttribute representing the i^th value in each cell"""
-        return SciDBValLabel(self, i, full)
+        return SciDBValLabel(self, i, **kwargs)
 
     def __del__(self):
         if (self.datashape is not None) and (not self.persistent):
@@ -607,23 +666,21 @@ class SciDBArray(SciDBAttribute):
         if isinstance(other, SciDBArray):
             if self.shape != other.shape:
                 raise NotImplementedError("array shapes must match")
-            arr = self.interface.new_array()
             attr = _new_attribute_label('x', self, other)
-            query = ("store(project(apply(join({0},{1}),{2},"
-                     + op + "),{2}),{3})")
-            self.interface.query(query, self, other, attr, arr,
-                                 left=self.val(0), right=other.val(0))
-            return arr
+            op = op.format(left='{A.a0f}', right='{B.a0f}')
+            query = ("store(project(apply(join({A},{B}),{attr},"
+                     + op + "), {attr}), {arr})")
         elif np.isscalar(other):
-            arr = self.interface.new_array()
             attr = _new_attribute_label('x', self)
-            query = ("store(project(apply({0},{1}," + op + "),{1}),{2})")
-
-            self.interface.query(query, self, attr, arr,
-                                 left=self.val(0), right=other)
-            return arr
+            op = op.format(left='{A.a0f}', right='{B}')
+            query = ("store(project(apply({A},{attr},"
+                     + op + "),{attr}),{arr})")
         else:
             raise ValueError("unrecognized value: {0}".format(other))
+
+        arr = self.interface.new_array()
+        self.interface.query(query,A=self, B=other, attr=attr, arr=arr)
+        return arr
 
     def __add__(self, other):
         return self._join_operation(other, '{left}+{right}')
