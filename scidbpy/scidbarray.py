@@ -633,6 +633,9 @@ class SciDBArray(object):
     def __pow__(self, other):
         return self._join_operation(other, 'pow({left},{right})')
 
+    def __abs__(self):
+        return self._join_operation('', 'abs({left})')
+
     def transpose(self):
         arr = self.interface.new_array()
         self.interface.query("store(transpose({0}), {1})",

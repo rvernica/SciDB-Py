@@ -5,8 +5,7 @@ from nose import SkipTest
 
 # In order to run tests, we need to connect to a valid SciDB engine
 from scidbpy import interface, SciDBQueryError
-#sdb = interface.SciDBShimInterface('http://localhost:8080')
-sdb = interface.SciDBShimInterface('http://vega.cs.washington.edu:8080')
+sdb = interface.SciDBShimInterface('http://localhost:8080')
 
 RTOL = 1E-6
 
@@ -139,6 +138,12 @@ def test_join_ops():
 
     for op in (add, sub, mul, div, mod):
         yield check_join_op, op
+
+
+def test_abs():
+    A = sdb.random((5, 5))
+    B = abs(A - 1)
+    assert_allclose(B.toarray(), abs(A.toarray() - 1))
 
 
 def test_transcendentals():
