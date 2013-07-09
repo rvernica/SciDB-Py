@@ -1,6 +1,16 @@
 """
-Low-level interface to Scidb
+Low-level Interface to SciDB
+============================
+These interfaces are designed to be extensible and allow various interfaces
+to the SciDB engine.
+
+The following interfaces are currently available:
+
+- 
 """
+# Authors: Jake Vanderplas <jakevdp@cs.washington.edu>
+# License: GPL, 2013
+
 import abc
 import urllib2
 import re
@@ -18,23 +28,75 @@ class SciDBInterface(object):
 
     This class provides a wrapper to the low-level interface to sciDB.  The
     actual communication with the database should be implemented in
-    subclasses
+    subclasses.
+
+    Subclasses should implement the following methods, with descriptions given
+    below:
+
+    - ``_execute_query``
+    - ``_upload_bytes``
     """
     __metaclass__ = abc.ABCMeta
 
     @abc.abstractmethod
     def _execute_query(self, query, response=False, n=0, fmt='auto'):
-        """Execute a query on the SciDB engine"""
+        """Execute a query on the SciDB engine
+
+        Parameters
+        ----------
+        query : string
+            A string representing a SciDB query.  This string will be
+            executed on the engine.
+        response : boolean (optional)
+            Indicate whether the query returns a response.  If True, then
+            the response is formatted according to the ``n`` and ``fmt``
+            keywords.  Default is False.
+        n : integer
+            number of lines to return.  If n=0 (default), then return all
+            lines.  Only accessed if response=True.
+        fmt : str
+            format code for the returned values.  Options are:
+            =================== ===============================================
+            Format Code         Description
+            =================== ===============================================
+            auto (default)      SciDB array format.
+            csv	                Comma-separated values (CSV)
+            csv+                CSV with dimension indices.
+            dcsv                CSV, distinguishing between dims and attrs
+            dense               Ideal for viewing 2-dimensional matrices.
+            lcsv+               Like csv+, with a flag indicating empty cells.
+            sparse              Sparse SciDB array format.
+            lsparse             Sparse format with flag indicating empty cells.
+            (type1, type2...)   Raw binary format
+            =================== ===============================================
+        Returns
+        -------
+        results : string, bytes, or None
+            If response is False, None is returned.  If response is True, then
+            either a string or a byte string is returned, depending on the
+            value of ``fmt``.
+        """
         if not hasattr(self, '_query_log'):
             self._query_log = []
         self._query_log.append(query)
 
     @abc.abstractmethod
     def _upload_bytes(self, data):
-        """Upload binary data to the SciDB engine"""
+        """Upload binary data to the SciDB engine
+
+        Parameters
+        ----------
+        data : bytestring
+            The raw byte data to upload to a file on the SciDB server.
+        Returns
+        -------
+        filename : string
+            The name of the resulting file on the SciDB server.
+        """
         pass
 
     def _db_array_name(self):
+        """Return a unique array name for a new array on the database"""
         # TODO: perhaps use a unique hash for each session?
         #       Otherwise two sessions connected to the same database
         #       will likely overwrite each other or result in errors.
@@ -52,18 +114,6 @@ class SciDBInterface(object):
             # on subsequent calls, increment the array count
             self.array_count += 1
         return "{0}{1:05}".format(arr_key, self.array_count)
-
-    @staticmethod
-    def _parse_query_obj(obj):
-        """Parse object for insertion into a query.
-
-        If the object is a SciDBAttribute, the name attribute is returned.
-        Otherwise, the object itself is returned.
-        """
-        if isinstance(obj, SciDBArray):
-            return ArrayAlias(obj)
-        else:
-            return obj
 
     def _scan_array(self, name, **kwargs):
         """Return the contents of the given array"""
@@ -125,7 +175,7 @@ class SciDBInterface(object):
 
         See query() documentation for more information
         """
-        parse = self._parse_query_obj
+        parse = lambda x: ArrayAlias(x) if isinstance(x, SciDBArray) else x
         args = (parse(v) for v in args)
         kwargs = dict((k, parse(v)) for k, v in kwargs.iteritems())
         query = query.format(*args, **kwargs)
@@ -136,7 +186,7 @@ class SciDBInterface(object):
 
         This wraps a query constructor which allows the creation of
         sophisticated SciDB queries which act on arrays wrapped by SciDBArray
-        objects.  See below for details.
+        objects.  See Notes below for details.
 
         Parameters
         ----------
@@ -155,30 +205,66 @@ class SciDBInterface(object):
         function as follows:
 
         >>> sdb = SciDBShimInterface('http://localhost:8080')
-        >>> arr = sdb.new_array((3, 3), dtype, **kwargs)
-        >>> sdb.query('store(build({0}, iif({i}={j}, 1, 0)), {0})',
-        ...           arr, i=arr.index(0), j=arr.index(1))
-        >>> arr.toarray()
+        >>> A = sdb.new_array((3, 3), dtype, **kwargs)
+        >>> sdb.query('store(build({A}, iif({A.d0}={A.d1}, 1, 0)), {A})', A=A)
+        >>> A.toarray()
         array([[ 1.,  0.,  0.],
                [ 0.,  1.,  0.],
                [ 0.,  0.,  1.]])
 
-        In the query string, substitutions are identified by braces
+        The query string follows the python string formatting conventions,
+        where variables to be replaced are indicated by curly braces
         ('{' and '}'). The contents of the braces should refer to either an
         argument index (e.g. ``{0}`` references the first non-keyword
-        argument) or the name of a keyword argument (e.g. ``{i}`` references
-        the keyword argument ``i``).  Arguments of type SciDBAttribute (such
+        argument) or the name of a keyword argument (e.g. ``{A}`` references
+        the keyword argument ``A``).  Arguments of type SciDBAttribute (such
         as SciDBArrays, SciDBArray indices, etc.) have their ``name`` attribute
-        inserted.  All other argument types are inserted as-is.
+        inserted.  Dimension and Attribute names can be inserted using the
+        following syntax.  As an example, we'll use an array with the following
+        schema:
+
+            myarray<val:double,label:int64> [i=0:4,5,0,j=0:4,5,0]
+
+        The dimension/attribute shortcuts are as follows:
+
+        - A.d0, A.d1, A.d2... : insert array dimension names.
+          For the above case, '{A.d0}' will be translated to 'i',
+          and '{A.d1}' will be translated to 'j'.
+        - A.d0f, A.d1f, A.d2f... : insert fully-qualified dimension names.
+          For the above case, '{A.d0f}' will be translated to 'myarray.i',
+          and '{A.d1f}' will be translated to 'myarray.j'.
+        - A.a0, A.a1, A.a2... : insert array attribute names.
+          For the above case, '{A.a0}' will be translated to 'val',
+          and '{A.a1}' will be translated to 'label'.
+        - A.a0f, A.a1f, A.a2f... : insert fully-qualified attribute names.
+          For the above case, '{A.a0f}' will be translated to 'myarray.val',
+          and '{A.a1f}' will be translated to 'myarray.label'.
+
+        All other argument types are inserted as-is, i.e. with their string
+        representation.
         """
-        return self._execute_query(self._format_query_string(query,
-                                                             *args, **kwargs))
+        qstring = self._format_query_string(query, *args, **kwargs)
+        return self._execute_query(qstring)
         
-    def list_arrays(self, parsed=True, **kwargs):
+    def list_arrays(self, parsed=True, n=0):
+        """List the arrays currently in the database
+
+        Parameters
+        ----------
+        parsed : boolean
+            If True (default), then parse the results into a dictionary of
+            array names as keys, schema as values
+        n : integer
+            the maximum number of arrays to list.  If n=0, then list all
+
+        Returns
+        -------
+        array_list : string or dictionary
+            The list of arrays.  If parsed=True, then the result is returned
+            as a dictionary.
+        """
         # TODO: more stable way to do this than string parsing?
-        if 'response' not in kwargs:
-            kwargs['response'] = True
-        arr_list = self._execute_query("list('arrays')", **kwargs)
+        arr_list = self._execute_query("list('arrays')", n=n, response=True)
         if parsed:
             R = re.compile(r'\(([^\(\)]*)\)')
             splits = R.findall(arr_list)
@@ -249,6 +335,8 @@ class SciDBInterface(object):
             A SciDBArray consisting of random floating point numbers,
             uniformly distributed between `lower` and `upper`.
         """
+        # TODO: can be done more efficiently
+        #       if lower is 0 or upper - lower is 1
         arr = self.new_array(shape, dtype, **kwargs)
         fill_value = ('random()*{0}/{2}+{1}'.format(upper - lower, lower,
                                                     float(SCIDB_RAND_MAX)))
@@ -312,16 +400,30 @@ class SciDBInterface(object):
         return arr
 
     def dot(self, A, B):
-        """Compute the matrix product of A and B"""
+        """Compute the matrix product of A and B
+
+        Parameters
+        ----------
+        A : SciDBArray
+            A must be a two-dimensional matrix of shape (n, p)
+        B : SciDBArray
+            B must be a two-dimensional matrix of shape (p, m)
+
+        Returns
+        -------
+        C : SciDBArray
+            The wrapper of the SciDB Array, of shape (n, m), consisting of the
+            matrix product of A and B
+        """
         # TODO: implement vector-vector and matrix-vector dot()
         if (A.ndim != 2) or (B.ndim != 2):
             raise ValueError("dot requires 2-dimensional arrays")
         if A.shape[1] != B.shape[0]:
             raise ValueError("array dimensions must match for matrix product")
 
-        result = self.new_array()
-        self.query('store(multiply({0},{1}),{2})', A, B, result)
-        return result
+        C = self.new_array()
+        self.query('store(multiply({0},{1}),{2})', A, B, C)
+        return C
 
     def svd(self, A, return_U=True, return_S=True, return_VT=True):
         """Compute the Singular Value Decomposition of the array A:
@@ -373,6 +475,10 @@ class SciDBInterface(object):
         """Convert a SciDB array to a numpy array"""
         return A.toarray()
 
+    def tosparse(self, A, sparse_fmt='recarray', transfer_bytes=True):
+        """Convert a SciDB array to a sparse representation"""
+        return A.tosparse(sparse_fmt=sparse_fmt, transfer_bytes=transfer_bytes)
+
     def from_file(self, filename, **kwargs):
         # TODO: allow creation of arrays from uploaded files
         # TODO: allow creation of arrays from pre-existing files within the
@@ -388,30 +494,39 @@ class SciDBInterface(object):
         return arr
 
     def sin(self, A):
+        """Element-wise trigonometric sine"""
         return self._apply_func(A, 'sin')
 
     def cos(self, A):
+        """Element-wise trigonometric cosine"""
         return self._apply_func(A, 'cos')
 
     def tan(self, A):
+        """Element-wise trigonometric tangent"""
         return self._apply_func(A, 'tan')
 
     def asin(self, A):
+        """Element-wise trigonometric inverse sine"""
         return self._apply_func(A, 'asin')
 
     def acos(self, A):
+        """Element-wise trigonometric inverse cosine"""
         return self._apply_func(A, 'acos')
 
     def atan(self, A):
+        """Element-wise trigonometric inverse tangent"""
         return self._apply_func(A, 'atan')
 
     def exp(self, A):
+        """Element-wise natural exponent"""
         return self._apply_func(A, 'exp')
 
     def log(self, A):
+        """Element-wise natural logarithm"""
         return self._apply_func(A, 'log')
 
     def log10(self, A):
+        """Element-wise base-10 logarithm"""
         return self._apply_func(A, 'log10')
 
     def min(self, A, index=None):

@@ -5,6 +5,9 @@ import cStringIO
 import warnings
 from .errors import SciDBError
 
+# Numpy 1.7 meshgrid backport
+from .utils import meshgrid
+
 __all__ = ["sdbtype", "SciDBArray", "SciDBDataShape"]
 
 
@@ -479,9 +482,9 @@ class SciDBArray(object):
 
             if output == 'sparse':
                 index_arrays = map(np.ravel,
-                                   np.meshgrid(*[np.arange(s)
-                                                 for s in self.shape],
-                                               indexing='ij'))
+                                   meshgrid(*[np.arange(s)
+                                              for s in self.shape],
+                                             indexing='ij'))
                 arr = arr.ravel()
                 if len(sdbtype.names) == 1:
                     value_arrays = [arr]
@@ -634,14 +637,20 @@ class SciDBArray(object):
         return self._join_operation(other, 'pow({left},{right})')
 
     def __abs__(self):
-        return self._join_operation('', 'abs({left})')
+        return self.interface._apply_func(self, 'abs')
 
     def transpose(self):
+        """Return the transpose of the array.
+
+        For an array with dimensions (d1, d2, d3...dn) the transpose has
+        dimensions (dn...d3, d2, d1)
+        """
         arr = self.interface.new_array()
         self.interface.query("store(transpose({0}), {1})",
                              self, arr)
         return arr
 
+    # This allows the transpose of A to be computed via A.T
     T = property(transpose)
 
     def _aggregate_operation(self, agg, index=None):
