@@ -643,3 +643,51 @@ class SciDBArray(object):
         return arr
 
     T = property(transpose)
+
+    def _aggregate_operation(self, agg, index=None):
+        # TODO: index behavior does not match numpy.  How to proceed?
+        if index is None:
+            idx = ''
+        else:
+            try:
+                ind = tuple(index)
+            except:
+                ind = (index,)
+
+            idx= ',' + ', '.join(['{{A.d{0}}}'.format(i) for i in ind])
+
+        qstring = "store(aggregate({A}, {agg}({A.a0})" + idx + "), {arr})"
+
+        arr = self.interface.new_array()
+        self.interface.query(qstring, A=self, arr=arr, agg=agg)
+        return arr
+
+    def min(self, index=None):
+        return self._aggregate_operation('min', index)
+
+    def max(self, index=None):
+        return self._aggregate_operation('max', index)
+
+    def sum(self, index=None):
+        return self._aggregate_operation('sum', index)
+
+    def var(self, index=None):
+        return self._aggregate_operation('var', index)
+
+    def stdev(self, index=None):
+        return self._aggregate_operation('stdev', index)
+
+    def std(self, index=None):
+        return self._aggregate_operation('stdev', index)
+
+    def avg(self, index=None):
+        return self._aggregate_operation('avg', index)
+
+    def mean(self, index=None):
+        return self._aggregate_operation('avg', index)
+
+    def count(self, index=None):
+        return self._aggregate_operation('count', index)
+
+    def approxdc(self, index=None):
+        return self._aggregate_operation('approxdc', index)

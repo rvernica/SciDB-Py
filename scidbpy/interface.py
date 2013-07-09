@@ -414,53 +414,35 @@ class SciDBInterface(object):
     def log10(self, A):
         return self._apply_func(A, 'log10')
 
-    def _aggregate(self, A, agg, ind=None):
-        # TODO: ind behavior does not match numpy.  How to proceed?
-        if ind is None:
-            idx = ''
-        else:
-            try:
-                ind = tuple(ind)
-            except:
-                ind = (ind,)
-
-            idx= ',' + ', '.join(['{{A.d{0}}}'.format(i) for i in ind])
-
-        qstring = "store(aggregate({A}, {agg}({A.a0})" + idx + "), {arr})"
-
-        arr = self.new_array()
-        self.query(qstring, A=A, arr=arr, agg=agg)
-        return arr
-
     def min(self, A, index=None):
-        return self._aggregate(A, 'min', index)
+        return A.min(index)
 
     def max(self, A, index=None):
-        return self._aggregate(A, 'max', index)
+        return A.max(index)
 
     def sum(self, A, index=None):
-        return self._aggregate(A, 'sum', index)
+        return A.sum(index)
 
     def var(self, A, index=None):
-        return self._aggregate(A, 'var', index)
+        return A.var(index)
 
     def stdev(self, A, index=None):
-        return self._aggregate(A, 'stdev', index)
+        return A.stdev(index)
 
     def std(self, A, index=None):
-        return self._aggregate(A, 'stdev', index)
+        return A.std(index)
 
     def avg(self, A, index=None):
-        return self._aggregate(A, 'avg', index)
+        return A.avg(index)
 
     def mean(self, A, index=None):
-        return self._aggregate(A, 'avg', index)
+        return A.mean(index)
 
     def count(self, A, index=None):
-        return self._aggregate(A, 'count', index)
+        return A.count(index)
 
     def approxdc(self, A, index=None):
-        return self._aggregate(A, 'approxdc', index)
+        return A.approxdc(index)
 
     #def pairwise_distances(self, X, Y=None):
     #    """Compute the pairwise distances between arrays X and Y"""
