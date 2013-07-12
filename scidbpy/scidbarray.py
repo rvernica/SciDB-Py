@@ -1,4 +1,8 @@
 """SciDB Array Wrapper"""
+
+# License: Simplified BSD
+# Author: Jake Vanderplas
+
 import numpy as np
 import re
 import cStringIO

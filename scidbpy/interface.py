@@ -8,8 +8,8 @@ The following interfaces are currently available:
 
 - 
 """
-# Authors: Jake Vanderplas <jakevdp@cs.washington.edu>
-# License: GPL, 2013
+# License: Simplified BSD, 2013
+# Author: Jake Vanderplas <jakevdp@cs.washington.edu>
 
 import abc
 import urllib2

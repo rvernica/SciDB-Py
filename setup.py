@@ -8,7 +8,7 @@ AUTHOR_EMAIL = "jakevdp@cs.washington.edu"
 MAINTAINER = "Jake VanderPlas"
 MAINTAINER_EMAIL = "jakevdp@cs.washington.edu"
 DOWNLOAD_URL = 'http://github.com/jakevdp/scidb-py'
-LICENSE = 'GPL'
+LICENSE = 'Simplified BSD'
 
 import scidbpy
 VERSION = scidbpy.__version__

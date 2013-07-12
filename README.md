@@ -1,7 +1,7 @@
 SciDB-py
 ========
-Author: Jake Vanderplas <jakevdp@cs.washington.edu>
-License: GPL
+- Author: Jake Vanderplas <jakevdp@cs.washington.edu>
+- License: BSD
 
 Python wrapper for SciDB queries
 

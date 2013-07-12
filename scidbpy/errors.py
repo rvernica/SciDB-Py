@@ -1,4 +1,13 @@
+"""
+Errors and Exceptions
+=====================
+These are custom errors and exceptions for SciDB queries.
+"""
+# License: Simplified BSD, 2013
+# Author: Jake Vanderplas <jakevdp@cs.washington.edu>
+
 from collections import defaultdict
+
 
 class SciDBError(Exception):
     pass
