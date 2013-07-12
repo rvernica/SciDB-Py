@@ -597,6 +597,25 @@ class SciDBInterface(object):
         self.query('store(join({0},{1}), {2})', A, B, arr)
         return arr
 
+    def cross_join(self, A, B, *dims):
+        """Perform a cross-join on arrays A and B.
+
+        Parameters
+        ----------
+        A, B : SciDBArray
+        *dims : tuples
+            The remaining arguments are tuples of dimension indices which
+            should be joined.
+        """
+        dims = ','.join(" {{A.d{0}f}}, {{B.d{1}f}}".format(*tup)
+                        for tup in dims)
+        query = ('store(cross_join({A}, {B},'
+                 + dims
+                 + '), {arr})')
+        arr = self.new_array()
+        self.query(query, A=A, B=B, arr=arr)
+        return arr
+
 
 class SciDBShimInterface(SciDBInterface):
     """HTTP interface to SciDB via shim [1]_

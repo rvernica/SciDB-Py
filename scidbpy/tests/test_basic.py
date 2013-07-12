@@ -5,8 +5,7 @@ from nose import SkipTest
 
 # In order to run tests, we need to connect to a valid SciDB engine
 from scidbpy import interface, SciDBQueryError
-#sdb = interface.SciDBShimInterface('http://localhost:8080')
-sdb = interface.SciDBShimInterface('http://vega.cs.washington.edu:8080')
+sdb = interface.SciDBShimInterface('http://localhost:8080')
 
 RTOL = 1E-6
 
@@ -196,6 +195,7 @@ def test_transpose():
     A = sdb.random((5, 3))
     assert_allclose(A.toarray().T, A.T.toarray(), rtol=RTOL)
 
+
 def test_join():
     A = sdb.randint(10)
     B = sdb.randint(10)
@@ -205,3 +205,16 @@ def test_join():
     names = Cnp.dtype.names
     assert_allclose(Cnp[names[0]], A.toarray())
     assert_allclose(Cnp[names[1]], B.toarray())
+
+
+def test_cross_join():
+    A = sdb.random((10, 5))
+    B = sdb.random(10)
+    AB = sdb.cross_join(A, B, (0, 0))
+
+    ABnp = AB.toarray()
+    names = ABnp.dtype.names
+    assert_allclose(ABnp[names[0]],
+                    A.toarray())
+    assert_allclose(ABnp[names[1]],
+                    B.toarray()[:, None] + np.zeros(A.shape[1]))
