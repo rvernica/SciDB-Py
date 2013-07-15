@@ -584,31 +584,32 @@ class SciDBArray(object):
         #  [reshape: This applies if a slice argument is newaxis.]
 
         # TODO: make this more efficient by using a single query
-        # TODO: allow accessing a single element
         # TODO: allow newaxis to be passed
 
-        # slice can be either a tuple or a single slice
-        if not hasattr(indices, '__len__'):
-            indices = [indices]
+        # slice can be either a tuple/iterable or a single integer/slice
+        try:
+            indices = tuple(indices)
+        except TypeError:
+            indices = (indices,)
 
         if len(indices) > self.ndim:
             raise ValueError("too many indices")
 
         if any(i is None for i in indices):
-            raise NotImplementedError("newaxis is not implemented")
+            raise NotImplementedError("newaxis in slicing")
 
-        # if the length of the slices is less than the number of dimensions,
-        # fill them in
-        if len(indices) < self.ndim:
-            indices = list(indices) + [slice(None)
-                                       for i in range(self.ndim
-                                                      - len(indices))]
+        # if num indices is less than num dimensions, right-fill them
+        indices = list(indices) + [slice(None)] * (self.ndim - len(indices))
 
+        # special case: accessing a single element (no slices)
         if all(not isinstance(i, slice) for i in indices):
-            raise NotImplementedError("Returning a single value. "
-                                      "Use a slice instead.")
+            limits = map(int, indices + indices)
+            arr = self.interface.new_array()
+            self.interface.query("store(subarray({0},{2}),{1})",
+                                 self, arr, ','.join(str(L) for L in limits))
+            return arr.toarray().flat[0]
 
-        # if any of the slices are simple integers, we'll first use SciDB's
+        # if any of the slices are integers, we'll first use SciDB's
         # slice() operation on these
         slices = [(dim, s) for (dim, s) in enumerate(indices)
                   if not isinstance(s, slice)]
@@ -623,11 +624,9 @@ class SciDBArray(object):
         else:
             arr1 = self
 
+        # pull out the indices from the slices
         shape = arr1.shape
         indices = [sl.indices(sh) for sl, sh in zip(indices, shape)]
-
-        lower_limits = [i[0] for i in indices]
-        upper_limits = [i[1] - 1 for i in indices]
         
         # if a subarray is required, then call the subarray() command
         if any(i[0] != 0 or i[1] != s for (i, s) in zip(indices, shape)):

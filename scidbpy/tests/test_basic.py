@@ -4,7 +4,7 @@ from numpy.testing import assert_allclose
 from nose import SkipTest
 
 # In order to run tests, we need to connect to a valid SciDB engine
-from scidbpy import interface, SciDBQueryError
+from scidbpy import interface, SciDBQueryError, SciDBArray
 sdb = interface.SciDBShimInterface('http://localhost:8080')
 
 RTOL = 1E-6
@@ -106,10 +106,14 @@ def test_slicing():
     A = sdb.random((10, 10), chunk_size=12)
     def check_subarray(slc):
         Aslc = A[slc]
-        assert_allclose(Aslc.toarray(), A.toarray()[slc], rtol=RTOL)
+        if isinstance(Aslc, SciDBArray):
+            Aslc = Aslc.toarray()
+        assert_allclose(Aslc, A.toarray()[slc], rtol=RTOL)
 
     for slc in [(slice(None), slice(None)),
+                (2, 3),
                 1,
+                slice(2, 6),
                 (slice(None), 2),
                 (slice(2, 8), slice(3, 7)),
                 (slice(2, 8, 2), slice(None, None, 3))]:
