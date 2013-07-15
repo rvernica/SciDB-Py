@@ -101,17 +101,19 @@ def test_svd():
     assert_allclose(VT.toarray(), VT2, rtol=RTOL)
 
 
-def test_subarray():
+def test_slicing():
     # note that slices must be a divisor of chunk size
     A = sdb.random((10, 10), chunk_size=12)
-    def check_subarray(slc1, slc2):
-        Aslc = A[slc1, slc2]
-        assert_allclose(Aslc.toarray(), A.toarray()[slc1, slc2], rtol=RTOL)
+    def check_subarray(slc):
+        Aslc = A[slc]
+        assert_allclose(Aslc.toarray(), A.toarray()[slc], rtol=RTOL)
 
-    for (slc1, slc2) in [(slice(None), slice(None)),
-                         (slice(2, 8), slice(3, 7)),
-                         (slice(2, 8, 2), slice(None, None, 3))]:
-        yield check_subarray, slc1, slc2
+    for slc in [(slice(None), slice(None)),
+                1,
+                (slice(None), 2),
+                (slice(2, 8), slice(3, 7)),
+                (slice(2, 8, 2), slice(None, None, 3))]:
+        yield check_subarray, slc
 
 
 def test_ops():

@@ -631,7 +631,7 @@ class SciDBShimInterface(SciDBInterface):
         self.hostname = hostname.rstrip('/')
         try:
             urllib2.urlopen(self.hostname)
-        except HTTPError:
+        except urllib2.HTTPError:
             raise ValueError("Invalid hostname: {0}".format(self.hostname))
 
     def _execute_query(self, query, response=False, n=0, fmt='auto'):

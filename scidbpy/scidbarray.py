@@ -570,33 +570,84 @@ class SciDBArray(object):
             arr = sparse.coo_matrix((data, ij), shape=self.shape)
             return spmat(arr)
 
-    def __getitem__(self, slices):
-        # TODO: handle integer or None indices
-        # TODO: use slice() to enable slicing
-        # TODO: check for __len__
+    def __getitem__(self, indices):
+        # The goal of getitem is to make a numpy-style interface perform
+        # the correct operations on a SciDB array.  The corresponding
+        # SciDB operations are:
+        #
+        #  subarray: produces an array of the same number of dimensions,
+        #            but only a certain range in each dimension
+        #  thin: produces an array of the same number of dimensions, but
+        #        uses only every 2nd, 3rd, 4th... value in each dimension
+        #  slice: produces an array of fewer dimensions by slicing at the
+        #         specified place in each dimension.
+        #  [reshape: This applies if a slice argument is newaxis.]
 
-        # Note that slice steps must be a divisor of the chunk size.
-        if len(slices) < self.ndim:
-            slices = list(slices) + [slice(None)
-                                     for i in range(self.ndim - len(slices))]
-        if len(slices) != self.ndim:
+        # TODO: make this more efficient by using a single query
+        # TODO: allow accessing a single element
+        # TODO: allow newaxis to be passed
+
+        # slice can be either a tuple or a single slice
+        if not hasattr(indices, '__len__'):
+            indices = [indices]
+
+        if len(indices) > self.ndim:
             raise ValueError("too many indices")
 
-        indices = [sl.indices(sh) for sl, sh in zip(slices, self.shape)]
+        if any(i is None for i in indices):
+            raise NotImplementedError("newaxis is not implemented")
 
-        # TODO: do this more efficiently:
-        #       check if subarray/thin is needed?
-        #       do this in one step, without tmp array?
-        limits = [i[0] for i in indices] + [i[1] - 1 for i in indices]
-        steps = sum([[0, i[2]] for i in indices], [])
+        # if the length of the slices is less than the number of dimensions,
+        # fill them in
+        if len(indices) < self.ndim:
+            indices = list(indices) + [slice(None)
+                                       for i in range(self.ndim
+                                                      - len(indices))]
+
+        if all(not isinstance(i, slice) for i in indices):
+            raise NotImplementedError("Returning a single value. "
+                                      "Use a slice instead.")
+
+        # if any of the slices are simple integers, we'll first use SciDB's
+        # slice() operation on these
+        slices = [(dim, s) for (dim, s) in enumerate(indices)
+                  if not isinstance(s, slice)]
+        indices = [i for i in indices if isinstance(i, slice)]
+        if slices:
+            query = ("store(slice({X}," +
+                     ','.join('{{X.d{0}}}, {1}'.format(*slc)
+                              for slc in slices) +
+                     "), {arr})")
+            arr1 = self.interface.new_array()
+            self.interface.query(query, X=self, arr=arr1)
+        else:
+            arr1 = self
+
+        shape = arr1.shape
+        indices = [sl.indices(sh) for sl, sh in zip(indices, shape)]
+
+        lower_limits = [i[0] for i in indices]
+        upper_limits = [i[1] - 1 for i in indices]
         
-        tmp = self.interface.new_array()
-        arr = self.interface.new_array()
-        self.interface.query("store(subarray({0},{2}),{1})",
-                             self, tmp, ','.join(str(L) for L in limits))
-        self.interface.query("store(thin({0},{2}),{1})",
-                             tmp, arr, ','.join(str(st) for st in steps))
-        return arr
+        # if a subarray is required, then call the subarray() command
+        if any(i[0] != 0 or i[1] != s for (i, s) in zip(indices, shape)):
+            limits = [i[0] for i in indices] + [i[1] - 1 for i in indices]
+            arr2 = self.interface.new_array()
+            self.interface.query("store(subarray({0},{2}),{1})",
+                                 arr1, arr2, ','.join(str(L) for L in limits))
+        else:
+            arr2 = arr1
+
+        # if thinning is required, then call the thin() command
+        if any(i[2] != 1 for i in indices):
+            steps = sum([[0, i[2]] for i in indices], [])
+            arr3 = self.interface.new_array()
+            self.interface.query("store(thin({0},{2}),{1})",
+                                 arr2, arr3, ','.join(str(st) for st in steps))
+        else:
+            arr3 = arr2
+
+        return arr3
 
     # note that these operations only work across the first attribute
     # in each array.
