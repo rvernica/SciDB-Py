@@ -466,6 +466,8 @@ class SciDBArray(object):
                         arr[name] = bytes_arr[name]
 
             if output == 'dense':
+                if self.ndim != 2:
+                    raise NotImplementedError("sparse to dense for ndim != 2")
                 from scipy import sparse
                 data = arr[full_dtype.names[2]]
                 ij = (arr[full_dtype.names[0]], arr[full_dtype.names[1]])
@@ -613,7 +615,6 @@ class SciDBArray(object):
         # slice() operation on these
         slices = [(dim, s) for (dim, s) in enumerate(indices)
                   if not isinstance(s, slice)]
-        indices = [i for i in indices if isinstance(i, slice)]
         if slices:
             query = ("store(slice({X}," +
                      ','.join('{{X.d{0}}}, {1}'.format(*slc)
@@ -624,8 +625,9 @@ class SciDBArray(object):
         else:
             arr1 = self
 
-        # pull out the indices from the slices
+        # pull out the indices from the remaining slices
         shape = arr1.shape
+        indices = [i for i in indices if isinstance(i, slice)]
         indices = [sl.indices(sh) for sl, sh in zip(indices, shape)]
         
         # if a subarray is required, then call the subarray() command
@@ -648,7 +650,7 @@ class SciDBArray(object):
 
         return arr3
 
-    # note that these operations only work across the first attribute
+    # joins: note that these operations only work across the first attribute
     # in each array.
     def _join_operation(self, other, op):
         # TODO: allow broadcasting operations through the use of cross-join.
@@ -708,7 +710,7 @@ class SciDBArray(object):
     T = property(transpose)
 
     def _aggregate_operation(self, agg, index=None):
-        # TODO: index behavior does not match numpy.  How to proceed?
+        # TODO: aggregate index behavior does not match numpy. How to proceed?
         if index is None:
             idx = ''
         else:
