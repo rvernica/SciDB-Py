@@ -133,6 +133,19 @@ def test_ops():
         yield check_join_op, op
 
 
+def test_reverse_ops():
+    from operator import add, sub, mul, div, mod, pow
+    A = 1.2
+    B = sdb.random((5, 5))
+
+    def check_join_op(op):
+        C = op(A, B)
+        assert_allclose(C.toarray(), op(A, B.toarray()), rtol=RTOL)
+
+    for op in (add, sub, mul, div, mod):
+        yield check_join_op, op
+
+
 def test_join_ops():
     from operator import add, sub, mul, div, mod, pow
     A = sdb.random((5, 5))

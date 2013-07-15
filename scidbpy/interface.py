@@ -23,6 +23,25 @@ __all__ = ['SciDBInterface', 'SciDBShimInterface']
 SCIDB_RAND_MAX = 2147483647  # 2 ** 31 - 1
 
 
+def _new_attribute_label(suggestion='val', *arrays):
+    """Return a new attribute label
+
+    The label will not clash with any attribute labels in the given arrays
+    """
+    label_list = sum([[dim[0] for dim in arr.sdbtype.full_rep]
+                      for arr in arrays], [])
+    if suggestion not in label_list:
+        return suggestion
+    else:
+        # find all labels of the form val_0, val_1, val_2 ... etc.
+        # where `val` is replaced by suggestion
+        R = re.compile(r'^{0}_(\d+)$'.format(suggestion))
+        nums = sum([map(int, R.findall(label)) for label in label_list], [])
+
+        nums.append(-1)  # in case it's empty
+        return '{0}_{1}'.format(suggestion, max(nums) + 1)
+
+
 class SciDBInterface(object):
     """SciDBInterface Abstract Base Class.
 
@@ -614,6 +633,75 @@ class SciDBInterface(object):
                  + '), {arr})')
         arr = self.new_array()
         self.query(query, A=A, B=B, arr=arr)
+        return arr
+
+    def _join_operation(self, left, right, op):
+        """Perform a join operation across arrays or values.
+
+        See e.g. SciDBArray.__add__ for an example usage.
+        """
+        # TODO: allow broadcasting operations through the use of cross-join.
+        if isinstance(left, SciDBArray):
+            left_name = left.name
+            left_fmt = '{left.a0f}'
+            left_is_sdb = True
+        else:
+            left_name = None
+            left_fmt = '{left}'
+            left_is_sdb = False
+
+        if isinstance(right, SciDBArray):
+            right_name = right.name
+            right_fmt = '{right.a0f}'
+            right_is_sdb = True
+        else:
+            right_name = None
+            right_fmt = '{right}'
+            right_is_sdb = False
+
+        op = op.format(left=left_fmt, right=right_fmt)
+        
+        # Neither entry is a SciDBArray
+        if not (left_is_sdb or right_is_sdb):
+            raise ValueError("One of left/right needs to be a SciDBArray")
+
+        # Both entries are SciDBArrays
+        elif (left_is_sdb and right_is_sdb):
+            if left.shape != right.shape:
+                raise ValueError("Shapes of arrays must match")
+
+            attr = _new_attribute_label('x', left, right)
+            if left_name == right_name:
+                # same array: we can do this without a join
+                query = ("store(project(apply({left}, {attr}, "
+                         + op + "), {attr}), {arr})")
+            else:
+                query = ("store(project(apply(join({left},{right}),{attr},"
+                         + op + "), {attr}), {arr})")
+
+        # only left entry is a SciDBArray
+        elif left_is_sdb:
+            try:
+                _ = float(right)
+            except:
+                raise ValueError("rhs must be a scalar")
+            attr = _new_attribute_label('x', left)
+            query = ("store(project(apply({left}, {attr}, "
+                     + op + "), {attr}), {arr})")
+
+        # only right entry is a SciDBArray
+        elif right_is_sdb:
+            try:
+                _ = float(left)
+            except:
+                raise ValueError("lhs must be a scalar")
+            attr = _new_attribute_label('x', right)
+            query = ("store(project(apply({right}, {attr}, "
+                     + op + "), {attr}), {arr})")
+                
+        arr = self.new_array()
+        self.query(query, left=left, right=right,
+                   attr=attr, arr=arr)
         return arr
 
 

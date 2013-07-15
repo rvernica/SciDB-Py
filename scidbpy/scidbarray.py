@@ -321,25 +321,6 @@ class ArrayAlias(object):
             return ret_str + attr_name
 
 
-def _new_attribute_label(suggestion='val', *arrays):
-    """Return a new attribute label
-
-    The label will not clash with any attribute labels in the given arrays
-    """
-    label_list = sum([[dim[0] for dim in arr.sdbtype.full_rep]
-                      for arr in arrays], [])
-    if suggestion not in label_list:
-        return suggestion
-    else:
-        # find all labels of the form val_0, val_1, val_2 ... etc.
-        # where `val` is replaced by suggestion
-        R = re.compile(r'^{0}_(\d+)$'.format(suggestion))
-        nums = sum([map(int, R.findall(label)) for label in label_list], [])
-
-        nums.append(-1)  # in case it's empty
-        return '{0}_{1}'.format(suggestion, max(nums) + 1)
-
-
 class SciDBArray(object):
     def __init__(self, datashape, interface, name, persistent=False):
         self._datashape = datashape
@@ -650,54 +631,45 @@ class SciDBArray(object):
 
         return arr3
 
-    # joins: note that these operations only work across the first attribute
-    # in each array.
-    def _join_operation(self, other, op):
-        # TODO: allow broadcasting operations through the use of cross-join.
-        # TODO: implement __radd__, __rsub__, etc.
-        if isinstance(other, SciDBArray):
-            if self.shape != other.shape:
-                raise NotImplementedError("array shapes must match")
-            attr = _new_attribute_label('x', self, other)
-            if self.name == other.name:
-                # same array: we can do this without a join
-                op = op.format(left='{A.a0}', right='{A.a0}')
-                query = ("store(project(apply({A}, {attr}, "
-                         + op + "), {attr}), {arr})")
-            else:
-                op = op.format(left='{A.a0f}', right='{B.a0f}')
-                query = ("store(project(apply(join({A},{B}),{attr},"
-                         + op + "), {attr}), {arr})")
-        elif np.isscalar(other):
-            attr = _new_attribute_label('x', self)
-            op = op.format(left='{A.a0f}', right='{B}')
-            query = ("store(project(apply({A},{attr},"
-                     + op + "),{attr}),{arr})")
-        else:
-            raise ValueError("unrecognized value: {0}".format(other))
-
-        arr = self.interface.new_array()
-        self.interface.query(query, A=self, B=other,
-                             attr=attr, arr=arr)
-        return arr
-
+    # join operations: note that these ignore all but the first attribute
+    # of each array.
     def __add__(self, other):
-        return self._join_operation(other, '{left}+{right}')
+        return self.interface._join_operation(self, other, '{left}+{right}')
+
+    def __radd__(self, other):
+        return self.interface._join_operation(other, self, '{left}+{right}')
 
     def __sub__(self, other):
-        return self._join_operation(other, '{left}-{right}')
+        return self.interface._join_operation(self, other, '{left}-{right}')
+
+    def __rsub__(self, other):
+        return self.interface._join_operation(other, self, '{left}-{right}')
 
     def __mul__(self, other):
-        return self._join_operation(other, '{left}*{right}')
+        return self.interface._join_operation(self, other, '{left}*{right}')
+
+    def __rmul__(self, other):
+        return self.interface._join_operation(other, self, '{left}*{right}')
 
     def __div__(self, other):
-        return self._join_operation(other, '{left}/{right}')
+        return self.interface._join_operation(self, other, '{left}/{right}')
+
+    def __rdiv__(self, other):
+        return self.interface._join_operation(other, self, '{left}/{right}')
 
     def __mod__(self, other):
-        return self._join_operation(other, '{left}%{right}')
+        return self.interface._join_operation(self, other, '{left}%{right}')
+
+    def __rmod__(self, other):
+        return self.interface._join_operation(other, self, '{left}%{right}')
 
     def __pow__(self, other):
-        return self._join_operation(other, 'pow({left},{right})')
+        return self.interface._join_operation(self, other,
+                                              'pow({left},{right})')
+
+    def __rpow__(self, other):
+        return self.interface._join_operation(other, self,
+                                              'pow({left},{right})')
 
     def __abs__(self):
         return self.interface._apply_func(self, 'abs')
