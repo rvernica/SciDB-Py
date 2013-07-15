@@ -300,7 +300,7 @@ class ArrayAlias(object):
 
         if groups[2]:
             # seeking a full, qualified name
-            ret_str = self.arr.name + '.'
+            ret_str = self.name + '.'
         else:
             ret_str = ''
 
@@ -654,14 +654,20 @@ class SciDBArray(object):
     # in each array.
     def _join_operation(self, other, op):
         # TODO: allow broadcasting operations through the use of cross-join.
-        # TODO: if other and self point to the same array, this breaks.
+        # TODO: implement __radd__, __rsub__, etc.
         if isinstance(other, SciDBArray):
             if self.shape != other.shape:
                 raise NotImplementedError("array shapes must match")
             attr = _new_attribute_label('x', self, other)
-            op = op.format(left='{A.a0f}', right='{B.a0f}')
-            query = ("store(project(apply(join({A},{B}),{attr},"
-                     + op + "), {attr}), {arr})")
+            if self.name == other.name:
+                # same array: we can do this without a join
+                op = op.format(left='{A.a0}', right='{A.a0}')
+                query = ("store(project(apply({A}, {attr}, "
+                         + op + "), {attr}), {arr})")
+            else:
+                op = op.format(left='{A.a0f}', right='{B.a0f}')
+                query = ("store(project(apply(join({A},{B}),{attr},"
+                         + op + "), {attr}), {arr})")
         elif np.isscalar(other):
             attr = _new_attribute_label('x', self)
             op = op.format(left='{A.a0f}', right='{B}')
@@ -671,7 +677,8 @@ class SciDBArray(object):
             raise ValueError("unrecognized value: {0}".format(other))
 
         arr = self.interface.new_array()
-        self.interface.query(query,A=self, B=other, attr=attr, arr=arr)
+        self.interface.query(query, A=self, B=other,
+                             attr=attr, arr=arr)
         return arr
 
     def __add__(self, other):
@@ -710,7 +717,7 @@ class SciDBArray(object):
     T = property(transpose)
 
     def _aggregate_operation(self, agg, index=None):
-        # TODO: aggregate index behavior does not match numpy. How to proceed?
+        # TODO: aggregate index behavior is opposite of numpy. How to proceed?
         if index is None:
             idx = ''
         else:

@@ -134,7 +134,7 @@ def test_ops():
 
 
 def test_join_ops():
-    from operator import add, sub, mul, div, mod
+    from operator import add, sub, mul, div, mod, pow
     A = sdb.random((5, 5))
     B = sdb.random((5, 5))
 
@@ -142,7 +142,18 @@ def test_join_ops():
         C = op(A, B)
         assert_allclose(C.toarray(), op(A.toarray(), B.toarray()), rtol=RTOL)
 
-    for op in (add, sub, mul, div, mod):
+    for op in (add, sub, mul, div, mod, pow):
+        yield check_join_op, op
+
+def test_join_ops_same_array():
+    from operator import add, sub, mul, div, mod, pow
+    A = sdb.random((5, 5))
+
+    def check_join_op(op):
+        C = op(A, A)
+        assert_allclose(C.toarray(), op(A.toarray(), A.toarray()), rtol=RTOL)
+
+    for op in (add, sub, mul, div, mod, pow):
         yield check_join_op, op
 
 
