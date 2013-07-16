@@ -235,8 +235,14 @@ def test_aggregates():
 
 
 def test_transpose():
-    A = sdb.random((5, 3))
-    assert_allclose(A.toarray().T, A.T.toarray(), rtol=RTOL)
+    A = sdb.random((5, 4, 3))
+
+    for args in [(1, 0, 2), ((2, 0, 1),), (None,), (2, 1, 0)]:
+        AT = A.transpose(*args).toarray()
+        npAT = A.toarray().transpose(*args)
+        assert_allclose(AT, npAT)
+
+    assert_allclose(A.T.toarray(), A.toarray().T)
 
 
 def test_join():

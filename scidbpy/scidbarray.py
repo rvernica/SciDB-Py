@@ -7,6 +7,7 @@ import numpy as np
 import re
 import cStringIO
 import warnings
+from copy import copy
 from .errors import SciDBError
 
 # Numpy 1.7 meshgrid backport
@@ -50,7 +51,7 @@ class sdbtype(object):
         if isinstance(typecode, sdbtype):
             self.schema = typecode.schema
             self.dtype = typecode.dtype
-            self.full_rep = [t.copy() for t in typecode.full_rep]
+            self.full_rep = [copy(t) for t in typecode.full_rep]
 
         else:
             try:
@@ -352,6 +353,10 @@ class SciDBArray(object):
     @property
     def chunk_overlap(self):
         return self.datashape.chunk_overlap
+
+    @property
+    def dim_names(self):
+        return self.datashape.dim_names
 
     @property
     def ndim(self):
@@ -682,15 +687,60 @@ class SciDBArray(object):
     def __abs__(self):
         return self.interface._apply_func(self, 'abs')
 
-    def transpose(self):
-        """Return the transpose of the array.
+    def transpose(self, *axes):
+        """Permute the dimensions of an array.
 
-        For an array with dimensions (d1, d2, d3...dn) the transpose has
-        dimensions (dn...d3, d2, d1)
+        Parameters
+        ----------
+        axes : None, tuple of ints, or `n` ints
+
+         * None or no argument: reverses the order of the axes.
+
+         * tuple of ints: `i` in the `j`-th place in the tuple means `a`'s
+           `i`-th axis becomes `a.transpose()`'s `j`-th axis.
+
+         * `n` ints: same as an n-tuple of the same ints (this form is
+           intended simply as a "convenience" alternative to the tuple form)
+
+        Returns
+        -------
+        out : ndarray
+            Copy of `a`, with axes suitably permuted.
         """
-        arr = self.interface.new_array()
-        self.interface.query("store(transpose({0}), {1})",
-                             self, arr)
+        if len(axes) == 0:
+            axes = None
+        elif len(axes) == 1:
+            if axes[0] is None:
+                axes = None
+            else:
+                try:
+                    axes = tuple(axes[0])
+                except:
+                    pass
+        
+        if not axes:
+            arr = self.interface.new_array()
+            self.interface.query("store(transpose({0}), {1})", self, arr)
+        else:
+            # first validate the axes
+            axes = map(lambda a: a + self.ndim if a < 0 else a, axes)
+            if any([(a < 0 or a >= self.ndim) for a in axes]):
+                raise ValueError("invalid axis for this array")
+            if (len(axes) != self.ndim or len(set(axes)) != self.ndim):
+                raise ValueError("axes don't match array")
+
+            # set up the new array
+            shape=[self.shape[a] for a in axes]
+            chunk_size = [self.chunk_size[a] for a in axes]
+            chunk_overlap = [self.chunk_overlap[a] for a in axes]
+            dim_names = [self.dim_names[a] for a in axes]
+            arr = self.interface.new_array(shape=shape,
+                                           dtype=self.sdbtype,
+                                           chunk_size=chunk_size,
+                                           chunk_overlap=chunk_overlap,
+                                           dim_names=dim_names)
+            self.interface.query("redimension_store({input}, {output})",
+                                 input=self, output=arr)
         return arr
 
     # This allows the transpose of A to be computed via A.T
