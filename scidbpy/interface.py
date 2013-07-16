@@ -17,6 +17,7 @@ import re
 import csv
 from .scidbarray import SciDBArray, SciDBDataShape, ArrayAlias
 from .errors import SHIM_ERROR_DICT
+from .utils import broadcastable
 
 __all__ = ['SciDBInterface', 'SciDBShimInterface']
 
@@ -659,7 +660,9 @@ class SciDBInterface(object):
             right_fmt = '{right}'
             right_is_sdb = False
 
+        # some common names needed below
         op = op.format(left=left_fmt, right=right_fmt)
+        aL = aR = None
         
         # Neither entry is a SciDBArray
         if not (left_is_sdb or right_is_sdb):
@@ -667,17 +670,68 @@ class SciDBInterface(object):
 
         # Both entries are SciDBArrays
         elif (left_is_sdb and right_is_sdb):
-            if left.shape != right.shape:
-                raise ValueError("Shapes of arrays must match")
+            # array shapes match: use a join
+            if left.shape == right.shape:
+                attr = _new_attribute_label('x', left, right)
+                if left_name == right_name:
+                    # same array: we can do this without a join
+                    query = ("store(project(apply({left}, {attr}, "
+                             + op + "), {attr}), {arr})")
+                else:
+                    query = ("store(project(apply(join({left},{right}),{attr},"
+                             + op + "), {attr}), {arr})")
 
-            attr = _new_attribute_label('x', left, right)
-            if left_name == right_name:
-                # same array: we can do this without a join
-                query = ("store(project(apply({left}, {attr}, "
-                         + op + "), {attr}), {arr})")
+            # array shapes are broadcastable: use a cross_join
+            elif broadcastable(left.shape, right.shape):
+                # TODO: make sure dimension order is correct!
+                join_indices = []
+                left_slices = []
+                right_slices = []
+                for tup in zip(reversed(list(enumerate(left.shape))),
+                               reversed(list(enumerate(right.shape)))):
+                    (i1, s1), (i2, s2) = tup
+                    if (s1 == s2 and s1 != 1 and s2 != 1):
+                        join_indices.append((i1, i2))
+                    if s1 == 1:
+                        left_slices.append(i1)
+                    if s2 == 1:
+                        right_slices.append(i2)
+
+                # build the left slice query if needed
+                if left_slices:
+                    dims = ','.join("{{left.d{0}f}},0".format(sl)
+                                    for sl in left_slices)
+                    left_query = "slice({left}," + dims + ") as {aL}"
+                    aL = ArrayAlias(left, "alias_left")
+                else:
+                    left_query = "{aL}"
+                    aL = left
+
+                # build the right slice query if needed
+                if right_slices:
+                    dims = ','.join("{{right.d{0}f}},0".format(sl)
+                                    for sl in right_slices)
+                    right_query = "slice({right}," + dims + ") as {aR}"
+                    aR = ArrayAlias(right, "alias_right")
+                else:
+                    right_query = "{aR}"
+                    aR = right
+
+                # build the cross_join query
+                dims = ','.join("{{aL.d{0}f}}, {{aR.d{1}f}}".format(i, j)
+                                for i, j in join_indices)
+                if dims:
+                    dims = ',' + dims
+
+                query = ("store(project(apply(cross_join(" +
+                         left_query + "," + right_query + dims  + "),{attr}," +
+                         op + "), {attr}), {arr})")
+                attr = _new_attribute_label('x', left, right)
+
             else:
-                query = ("store(project(apply(join({left},{right}),{attr},"
-                         + op + "), {attr}), {arr})")
+                raise ValueError("Array of shape {0} can not be "
+                                 "broadcasted with array of shape "
+                                 "{1}".format(left.shape, right.shape))
 
         # only left entry is a SciDBArray
         elif left_is_sdb:
@@ -701,6 +755,7 @@ class SciDBInterface(object):
                 
         arr = self.new_array()
         self.query(query, left=left, right=right,
+                   aL=aL, aR=aR,
                    attr=attr, arr=arr)
         return arr
 

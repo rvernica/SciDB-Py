@@ -158,6 +158,7 @@ def test_join_ops():
     for op in (add, sub, mul, div, mod, pow):
         yield check_join_op, op
 
+
 def test_join_ops_same_array():
     from operator import add, sub, mul, div, mod, pow
     A = sdb.random((5, 5))
@@ -168,6 +169,18 @@ def test_join_ops_same_array():
 
     for op in (add, sub, mul, div, mod, pow):
         yield check_join_op, op
+
+
+def test_array_broadcast():
+    def check_array_broadcast(shape1, shape2):
+        A = sdb.random(shape1)
+        B = sdb.random(shape2)
+        C = A + B
+        assert_allclose(C.toarray(), A.toarray() + B.toarray())
+
+    for shapes in [((5, 1), 10), ((5, 1), (1, 4)), ((5, 1), (5, 5)),
+                   ((1, 5, 1), 4), ((5, 1, 3), (4, 1))]:
+        yield check_array_broadcast, shapes[0], shapes[1]
 
 
 def test_abs():

@@ -131,3 +131,22 @@ def meshgrid(*xi, **kwargs):
             return [x * mult_fact for x in output]
         else:
             return np.broadcast_arrays(*output)
+
+
+def broadcastable(shape1, shape2):
+    """Check whether two array shapes are broadcastable in NumPy
+
+    Parameters
+    ----------
+    shape1 : list or tuple
+        shape of the first array
+    shape2 : list or tuple
+        shape of the second array
+
+    Returns
+    -------
+    broadcastable : boolean
+        True if an array of shape1 and an array of shape2 are broadcastable
+    """
+    return all((i1 == 1 or i2 == 1 or i1 == i2)
+               for (i1, i2) in zip(reversed(shape1), reversed(shape2)))
