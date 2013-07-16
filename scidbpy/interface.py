@@ -629,7 +629,9 @@ class SciDBInterface(object):
         """
         dims = ','.join(" {{A.d{0}f}}, {{B.d{1}f}}".format(*tup)
                         for tup in dims)
-        query = ('store(cross_join({A}, {B},'
+        if dims:
+            dims = ',' + dims
+        query = ('store(cross_join({A}, {B}'
                  + dims
                  + '), {arr})')
         arr = self.new_array()
@@ -641,7 +643,6 @@ class SciDBInterface(object):
 
         See e.g. SciDBArray.__add__ for an example usage.
         """
-        # TODO: allow broadcasting operations through the use of cross-join.
         if isinstance(left, SciDBArray):
             left_name = left.name
             left_fmt = '{left.a0f}'
@@ -672,6 +673,10 @@ class SciDBInterface(object):
         elif (left_is_sdb and right_is_sdb):
             # array shapes match: use a join
             if left.shape == right.shape:
+                if (left.chunk_size != right.chunk_size or
+                    left.chunk_overlap != right.chunk_overlap):
+                    raise ValueError("join operations require chunk_size/"
+                                     "chunk_overlap to match.")
                 attr = _new_attribute_label('x', left, right)
                 if left_name == right_name:
                     # same array: we can do this without a join
@@ -690,12 +695,17 @@ class SciDBInterface(object):
                 for tup in zip(reversed(list(enumerate(left.shape))),
                                reversed(list(enumerate(right.shape)))):
                     (i1, s1), (i2, s2) = tup
-                    if (s1 == s2 and s1 != 1 and s2 != 1):
+                    if (s1 == s2):
                         join_indices.append((i1, i2))
-                    if s1 == 1:
-                        left_slices.append(i1)
-                    if s2 == 1:
-                        right_slices.append(i2)
+                        if (left.chunk_size[i1] != right.chunk_size[i2] or
+                            left.chunk_overlap[i1] != right.chunk_overlap[i2]):
+                            raise ValueError("join operations require chunk_"
+                                             "size/chunk_overlap to match.")
+                    else:
+                        if s1 == 1:
+                            left_slices.append(i1)
+                        if s2 == 1:
+                            right_slices.append(i2)
 
                 # build the left slice query if needed
                 if left_slices:
@@ -738,7 +748,7 @@ class SciDBInterface(object):
             try:
                 _ = float(right)
             except:
-                raise ValueError("rhs must be a scalar")
+                raise ValueError("rhs must be a scalar or SciDBArray")
             attr = _new_attribute_label('x', left)
             query = ("store(project(apply({left}, {attr}, "
                      + op + "), {attr}), {arr})")
@@ -748,7 +758,7 @@ class SciDBInterface(object):
             try:
                 _ = float(left)
             except:
-                raise ValueError("lhs must be a scalar")
+                raise ValueError("lhs must be a scalar or SciDBArray")
             attr = _new_attribute_label('x', right)
             query = ("store(project(apply({right}, {attr}, "
                      + op + "), {attr}), {arr})")

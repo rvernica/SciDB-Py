@@ -346,6 +346,14 @@ class SciDBArray(object):
         return self.datashape.shape
 
     @property
+    def chunk_size(self):
+        return self.datashape.chunk_size
+
+    @property
+    def chunk_overlap(self):
+        return self.datashape.chunk_overlap
+
+    @property
     def ndim(self):
         return len(self.datashape.shape)
 
