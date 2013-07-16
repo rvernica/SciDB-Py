@@ -664,6 +664,7 @@ class SciDBInterface(object):
         # some common names needed below
         op = op.format(left=left_fmt, right=right_fmt)
         aL = aR = None
+        permutation = None
         
         # Neither entry is a SciDBArray
         if not (left_is_sdb or right_is_sdb):
@@ -688,10 +689,10 @@ class SciDBInterface(object):
 
             # array shapes are broadcastable: use a cross_join
             elif broadcastable(left.shape, right.shape):
-                # TODO: make sure dimension order is correct!
                 join_indices = []
                 left_slices = []
                 right_slices = []
+
                 for tup in zip(reversed(list(enumerate(left.shape))),
                                reversed(list(enumerate(right.shape)))):
                     (i1, s1), (i2, s2) = tup
@@ -701,11 +702,13 @@ class SciDBInterface(object):
                             left.chunk_overlap[i1] != right.chunk_overlap[i2]):
                             raise ValueError("join operations require chunk_"
                                              "size/chunk_overlap to match.")
+                    elif s1 == 1:
+                        left_slices.append(i1)
+                    elif s2 == 1:
+                        right_slices.append(i2)
                     else:
-                        if s1 == 1:
-                            left_slices.append(i1)
-                        if s2 == 1:
-                            right_slices.append(i2)
+                        # should never get here, but just in case...
+                        raise ValueError("shapes cannot be broadcast")
 
                 # build the left slice query if needed
                 if left_slices:
@@ -738,6 +741,42 @@ class SciDBInterface(object):
                          op + "), {attr}), {arr})")
                 attr = _new_attribute_label('x', left, right)
 
+                # determine the dimension permutation
+                # Here's the problem: cross_join puts all the left array dims
+                # first, and the right array dims second.  This is different
+                # than numpy's broadcast behavior.  It's also difficult to do
+                # in a single operation because conflicting dimension names
+                # have a rename scheme that might be difficult to duplicate.
+                # So we compromise, and perform a dimension permutation on
+                # the result if needed.
+                left_shape = list(left.shape)
+                right_shape = list(right.shape)
+                i_left = 0
+                i_right = len(join_indices) + len(right_slices)
+                permutation = [-1] * max(left.ndim, right.ndim)
+
+                # first pad the shapes so they're the same length
+                if left.ndim > right.ndim:
+                    i_right += left.ndim - right.ndim
+                    right_shape = [-1] * (left.ndim - right.ndim) + right_shape
+                else:
+                    left_shape = [-1] * (right.ndim - left.ndim) + left_shape
+                
+                # now loop through dimensions and build permutation
+                for i, (L, R) in enumerate(zip(left_shape, right_shape)):
+                    if L == R or R == -1 or (R == 1 and L >= 0):
+                        permutation[i] = i_left
+                        i_left += 1
+                    elif L == -1 or (L == 1 and R >= 0):
+                        permutation[i] = i_right
+                        i_right += 1
+                    else:
+                        # This should never happen, but just to be sure...
+                        raise ValueError("shapes are not compatible")
+
+                if permutation == range(len(permutation)):
+                    permutation = None
+
             else:
                 raise ValueError("Array of shape {0} can not be "
                                  "broadcasted with array of shape "
@@ -767,6 +806,10 @@ class SciDBInterface(object):
         self.query(query, left=left, right=right,
                    aL=aL, aR=aR,
                    attr=attr, arr=arr)
+
+        # reorder the dimensions if needed (for cross_join)
+        if permutation is not None:
+            arr = arr.transpose(permutation)
         return arr
 
 

@@ -178,8 +178,11 @@ def test_array_broadcast():
         C = A + B
         assert_allclose(C.toarray(), A.toarray() + B.toarray())
 
-    for shapes in [((5, 1), 10), ((5, 1), (1, 4)), ((5, 1), (5, 5)),
-                   ((1, 5, 1), 4), ((5, 1, 3), (4, 1))]:
+    for shapes in [((5, 1), 4), (4, (5, 1)),
+                   ((5, 1), (1, 4)), ((1, 4), (5, 1)),
+                   ((5, 1), (5, 5)), ((5, 5), (5, 1)),
+                   ((1, 5, 1), 4), (4, (1, 5, 1)),
+                   ((5, 1, 3), (4, 1)), ((4, 1), (5, 1, 3))]:
         yield check_array_broadcast, shapes[0], shapes[1]
 
 
