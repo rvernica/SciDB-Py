@@ -51,6 +51,35 @@ def test_array_creation():
         yield check_array_creation, create_array
 
 
+def test_arange():
+    def check_arange(args):
+        A = sdb.arange(*args)
+        Anp = np.arange(*args)
+        assert_allclose(A.toarray(), Anp)
+    for args in [(10,), (0, 10), (0, 9.9, 0.5)]:
+        yield check_arange, args
+
+
+def test_linspace():
+    def check_linspace(args):
+        A = sdb.linspace(*args)
+        Anp = np.linspace(*args)
+        assert_allclose(A.toarray(), Anp)
+    for args in [(0.2, 1.5), (0.2, 1.5, 10)]:
+        yield check_linspace, args
+
+
+def test_reshape():
+    A = sdb.random(12)
+    def check_reshape(shape):
+        B = A.reshape(shape)
+        Bnp = A.toarray().reshape(shape)
+        assert_allclose(B.toarray(), Bnp)
+    
+    for shape in [(3, 4), (2, 2, 3), (1, 3, 4)]:
+        yield check_reshape, shape
+
+
 def test_raw_query():
     """Test a more involved raw query: creating a tri-diagonal matrix"""
     arr = sdb.new_array((10, 10))

@@ -746,6 +746,31 @@ class SciDBArray(object):
     # This allows the transpose of A to be computed via A.T
     T = property(transpose)
 
+    def reshape(self, shape, **kwargs):
+        """Reshape data into a new array
+
+        Parameters
+        ----------
+        shape : tuple or int
+            The shape of the new array.  Must be compatible with the current
+            shape
+        **kwargs :
+            additional keyword arguments will be passed to SciDBDatashape
+        
+        Returns
+        -------
+        arr : SciDBArray
+            new array of the specified shape
+        """
+        if np.prod(shape) != np.prod(self.shape):
+            raise ValueError("new shape is incompatible")
+        arr = self.interface.new_array(shape=shape,
+                                       dtype=self.sdbtype,
+                                       **kwargs)
+        self.interface.query("store(reshape({input}, {output}), {output})",
+                             input=self, output=arr)
+        return arr
+
     def _aggregate_operation(self, agg, index=None):
         # TODO: aggregate index behavior is opposite of numpy. How to proceed?
         if index is None:
