@@ -603,7 +603,7 @@ class SciDBInterface(object):
         data = A.tostring(order='C')
         filename = self._upload_bytes(A.tostring(order='C'))
         arr = self.new_array(A.shape, 'double', **kwargs)
-        self.query("load({0},'{1}',{2},'{3}')", arr, filename, -1, '(double)')
+        self.query("load({0},'{1}',{2},'{3}')", arr, filename, 0, '(double)')
         return arr
 
     def toarray(self, A):
