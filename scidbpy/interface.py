@@ -154,10 +154,8 @@ class SciDBInterface(object):
             kwargs['response'] = True
         return self._execute_query("dimensions({0})".format(name), **kwargs)
 
-    # TODO: allow creation of arrays wrapping pre-existing objects within
-    #       the database?
     def new_array(self, shape=None, dtype='double', persistent=False,
-                  **kwargs):
+                  scidbname=None, **kwargs):
         """
         Create a new array, either instantiating it in SciDB or simply
         reserving the name for use in a later query.
@@ -174,6 +172,10 @@ class SciDBInterface(object):
             whether the created array should be persistent, i.e. survive
             in SciDB past when the object wrapper goes out of scope.  Default
             is False.
+        scidbname : (optional string)
+            If `scidbname` is specified, use the existing scidb array referred
+            to by the name. Other options will be ignored and persistent will
+            be set true in this case.
         **kwargs : (optional)
             If `shape` is specified, additional keyword arguments are passed
             to SciDBDataShape.  Otherwise, these will not be referenced.
@@ -182,6 +184,10 @@ class SciDBInterface(object):
         arr : SciDBArray
             wrapper of the new SciDB array instance.
         """
+        if scidbname is not None:
+            schema = self._show_array(scidbname, fmt='csv')
+            datashape = SciDBDataShape.from_schema(schema)
+            return SciDBArray(datashape, self, scidbname, persistent=True)
         name = self._db_array_name()
         if shape is not None:
             datashape = SciDBDataShape(shape, dtype, **kwargs)
@@ -551,6 +557,8 @@ class SciDBInterface(object):
             matrix product of A and B
         """
         # TODO: implement vector-vector and matrix-vector dot()
+        # XXX Need a check here for conformable array partitioning. If arrays don't
+        # conform, then insert repartitions as required.
         if (A.ndim != 2) or (B.ndim != 2):
             raise ValueError("dot requires 2-dimensional arrays")
         if A.shape[1] != B.shape[0]:
