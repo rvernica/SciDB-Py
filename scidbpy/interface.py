@@ -1011,6 +1011,11 @@ class SciDBShimInterface(SciDBInterface):
         if save is not None:
             url += "&save={0}".format(urllib2.quote(save))
 
+        # Don't know the accepted way in Python to do something like this.
+        # For now, just set the 'debug' attribute on this SciDB array object.
+        if hasattr(self, 'debug'):
+          print(query)
+
         result = self._shim_urlopen(url)
         query_id = result.read()
         return query_id
