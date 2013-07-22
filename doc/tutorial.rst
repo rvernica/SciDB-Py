@@ -353,11 +353,14 @@ Element-wise sums and products::
   (S + D - M).sum()[0]
   -1.1102230246251565e-16
 
+  0.5*(X + X.T)
+
 
 Linear algebra operations::
 
   sdb.dot(X,Y)
-  sdb.dot(X,Y[:,1])    XXX
+  sdb.dot(X,Y[:,1])
+  sdb.dot(X.T, X)
 
 
 Broadasting
