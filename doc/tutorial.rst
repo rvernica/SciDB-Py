@@ -43,7 +43,9 @@ Loading the scidbpy package and connecting to SciDB
 ----
 
 The following example loads the package and defines an object named `sdb`
-that represents the SciDB interface::
+that represents the SciDB interface. The example assumes that the SciDB
+coordinator is on the computer with host name 'localhost'--adjust the
+host name as required if SciDB is on a different computer::
 
   import numpy as np
   from scidbpy import interface, SciDBQueryError, SciDBArray
