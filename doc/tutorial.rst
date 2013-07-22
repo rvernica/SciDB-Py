@@ -362,3 +362,18 @@ Linear algebra operations::
 
 Broadcasting
 ^^^^
+
+Examples
+----
+
+Correlation matrices::
+
+from scidbpy import interface, SciDBQueryError, SciDBArray; sdb = interface.SciDBShimInterface('http://arbitrage:8080'); sdb.debug=True; import numpy as np
+X =sdb.from_array(np.random.random((5,5)))
+xmean=sdb.new_array((5,1))
+sdb.query("store(reshape(substitute(aggregate({A},stdev({A.a0}),{A.d0}),build(<x:double>[i=0:0,1,0],0)),<v:double>[i=0:4,1000,0,j=0:0,1000,0]),{B})",A=X,B=xmean)
+# Use recycling to center array...
+Xc = X - xmean
+COV = sdb.dot(Xc.T, Xc)/(X.shape[0]-1)
+  
+

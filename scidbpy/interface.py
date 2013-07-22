@@ -566,9 +566,9 @@ class SciDBInterface(object):
         # Make partitioning conformable, converting left argument to a row vector as needed
         # and the right argument to a column vector as needed:
         if(A.ndim<2):
-          m = A.size
-          pA = m
-          qA = "reshape("+qA+",<{A.a0}:double>["+A.datashape.dim_names[0]+"1=0:0,32,0,"+A.datashape.dim_names[0]+"=0:"+str(m-1)+",32,0])"
+          m = 1
+          pA = A.size
+          qA = "reshape("+qA+",<{A.a0}:double>["+A.datashape.dim_names[0]+"1=0:0,32,0,"+A.datashape.dim_names[0]+"=0:"+str(pA-1)+",32,0])"
         else:
           m = A.shape[0]
           pA = A.shape[1]
@@ -590,7 +590,7 @@ class SciDBInterface(object):
         if(len(btype)>0):
           btype=B.dtype[0]
         if((atype=="float64") and (btype=="float64")):
-          # Use GEMM
+          # Use GEMM:
           z = "build(<{A.a0}:double>[i=0:"+str(m-1)+",32,0,j=0:"+str(n-1)+",32,0],0)"
           q = "store(repart(gemm(" + qA + "," + qB + "," + z + "),<v:double>[i0=0:"+str(m-1)+","+str(A.datashape.chunk_size[0])+",0,i1=0:"+str(n-1)+","+str(cB)+",0]),{C})"
         else:
