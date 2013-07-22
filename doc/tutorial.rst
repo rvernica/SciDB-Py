@@ -365,5 +365,5 @@ Linear algebra operations::
   sdb.dot(X.T, X)
 
 
-Broadasting
+Broadcasting
 ^^^^
