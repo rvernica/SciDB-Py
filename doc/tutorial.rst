@@ -108,11 +108,6 @@ The package takes care of naming the SciDB array in this example (use
 `Xsdb.name` to see the SciDB array name).
 
 
-    from scipy import sparse
-    X = np.random.random((10, 6))
-    Xsdb = sdb.from_array(X)
-    Xcsr = Xsdb.tosparse('csr')
-
 Convenience array creation functions
 ^^^^^
 
