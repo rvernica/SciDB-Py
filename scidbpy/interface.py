@@ -287,9 +287,16 @@ class SciDBInterface(object):
         # TODO: more stable way to do this than string parsing?
         arr_list = self._execute_query("list('arrays')", n=n, response=True)
         if parsed:
+            # find the correct quote char for the output.  Depending on the
+            # SciDB version, it could be " or '
+            quotechar = arr_list[2]
+            if quotechar not in ["'", '"']:
+                raise ValueError("output of list('arrays') "
+                                 "is not in the expected format")
             R = re.compile(r'\(([^\(\)]*)\)')
             splits = R.findall(arr_list)
-            arr_list = dict((a[0], a[1:]) for a in csv.reader(splits))
+            arr_list = dict((a[0], a[1:])
+                            for a in csv.reader(splits, quotechar=quotechar))
         return arr_list
 
     def ones(self, shape, dtype='double', **kwargs):
