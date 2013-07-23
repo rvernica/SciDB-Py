@@ -575,17 +575,38 @@ class SciDBInterface(object):
             The wrapper of the SciDB Array, of shape (n, m), consisting of the
             matrix product of A and B
         """
-        # TODO: implement vector-vector and matrix-vector dot()
-        # TODO: use GEMM and repartition where applicable.
-        if (A.ndim != 2) or (B.ndim != 2):
-            raise ValueError("dot requires 2-dimensional arrays")
-        
-        if A.shape[1] != B.shape[0]:
-            raise ValueError("array dimensions must match for matrix product")
- 
+        # TODO: use GEMM and repartition where applicable.  GEMM requires the
+        #       chunk size to be 32.  We should probably not repartition the
+        #       arrays silently, but instead raise an efficiency warning and
+        #       provide a flag that enables automatic repartitioning.
+
+        # TODO: make matrix-vector and vector-vector cases more efficient.
+        #       Currently they involve creating copies of the arrays, but this
+        #       is just a place-holder for a more efficient implementation.
+
+        if A.ndim not in (1, 2) or B.ndim not in (1, 2):
+            raise ValueError("dot requires 1 or 2-dimensional arrays")
+
+        if A.shape[-1] != B.shape[0]:
+            raise ValueError("array dimensions must match for dot product")
+
+        output_shape = A.shape[:-1] + B.shape[1:]
+
+        if A.ndim == 1:
+            A = A.reshape((1, A.size))
+
+        if B.ndim == 1:
+            B = B.reshape((B.size, 1))
+
         C = self.new_array()
         self.query('store(multiply({0},{1}),{2})', A, B, C)
-        return C
+
+        if C.shape == output_shape:
+            return C
+        elif len(output_shape) == 0:
+            return C[0, 0]
+        else:
+            return C.reshape(output_shape)
 
     def svd(self, A, return_U=True, return_S=True, return_VT=True):
         """Compute the Singular Value Decomposition of the array A:

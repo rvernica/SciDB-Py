@@ -106,11 +106,19 @@ def test_identity():
 
 
 def test_dot():
-    A = sdb.random((4, 6))
-    B = sdb.random((6, 5))
-    C = sdb.dot(A, B)
-
-    assert_allclose(C.toarray(), np.dot(A.toarray(), B.toarray()), rtol=RTOL)
+    def check_dot(Ashape, Bshape):
+        A = sdb.random(Ashape)
+        B = sdb.random(Bshape)
+        C = sdb.dot(A, B)
+        Cnp = np.dot(A.toarray(), B.toarray())
+        if isinstance(C, SciDBArray):
+            assert_allclose(C.toarray(), Cnp, rtol=RTOL)
+        else:
+            assert_allclose(C, Cnp, rtol=RTOL)
+        
+    for Ashape in [(4, 5), 5]:
+        for Bshape in [(5, 6), 5]:
+            yield check_dot, Ashape, Bshape
 
 
 def test_svd():
