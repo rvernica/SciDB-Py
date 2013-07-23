@@ -170,7 +170,7 @@ class sdbtype(object):
 class SciDBDataShape(object):
     """Object to store SciDBArray data type and shape"""
     def __init__(self, shape, typecode, dim_names=None,
-                 chunk_size=32, chunk_overlap=0):
+                 chunk_size=1000, chunk_overlap=0):
         # Process array shape
         try:
             self.shape = tuple(shape)

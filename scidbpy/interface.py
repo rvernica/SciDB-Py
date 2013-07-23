@@ -116,25 +116,24 @@ class SciDBInterface(object):
         """
         pass
 
+    @abc.abstractmethod
+    def _get_uid(self):
+        """Get a unique query ID from the database"""
+        pass
+
     def _db_array_name(self):
         """Return a unique array name for a new array on the database"""
-        # TODO: perhaps use a unique hash for each session?
-        #       Otherwise two sessions connected to the same database
-        #       will likely overwrite each other or result in errors.
-        arr_key = 'pyarray'
+        arr_key = 'py'
+
+        if not hasattr(self, 'uid'):
+            self.uid = self._get_uid()
 
         if not hasattr(self, 'array_count'):
-            # for the first number, search database to make sure there are
-            # no collisions
-            current = self.list_arrays(parsed=False)
-            nums = map(int, re.findall("[\'\"]{0}(\d+)[\'\"]".format(arr_key),
-                                       current))
-            nums.append(0)
-            self.array_count = max(nums) + 1
+            self.array_count = 1
         else:
             # on subsequent calls, increment the array count
             self.array_count += 1
-        return "{0}{1:05}".format(arr_key, self.array_count)
+        return "{0}{1}_{2:05}".format(arr_key, self.uid, self.array_count)
 
     def _scan_array(self, name, **kwargs):
         """Return the contents of the given array"""
@@ -154,8 +153,23 @@ class SciDBInterface(object):
             kwargs['response'] = True
         return self._execute_query("dimensions({0})".format(name), **kwargs)
 
-    # TODO: allow creation of arrays wrapping pre-existing objects within
-    #       the database?
+    def wrap_array(self, scidbname):
+        """
+        Create a new SciDBArray object that references an existing SciDB
+        array
+
+        Parameters
+        ----------
+        scidbname : (optional string)
+            Use an existing scidb array referred to by `scidbname`. The
+            SciDB array object persistent value will be set to True, and
+            the object shape, datashape and data type values will be
+            determined by the SciDB array.
+        """
+        schema = self._show_array(scidbname, fmt='csv')
+        datashape = SciDBDataShape.from_schema(schema)
+        return SciDBArray(datashape, self, scidbname, persistent=True)
+
     def new_array(self, shape=None, dtype='double', persistent=False,
                   **kwargs):
         """
@@ -562,11 +576,13 @@ class SciDBInterface(object):
             matrix product of A and B
         """
         # TODO: implement vector-vector and matrix-vector dot()
+        # TODO: use GEMM and repartition where applicable.
         if (A.ndim != 2) or (B.ndim != 2):
             raise ValueError("dot requires 2-dimensional arrays")
+        
         if A.shape[1] != B.shape[0]:
             raise ValueError("array dimensions must match for matrix product")
-
+ 
         C = self.new_array()
         self.query('store(multiply({0},{1}),{2})', A, B, C)
         return C
@@ -614,7 +630,7 @@ class SciDBInterface(object):
         data = A.tostring(order='C')
         filename = self._upload_bytes(A.tostring(order='C'))
         arr = self.new_array(A.shape, 'double', **kwargs)
-        self.query("load({0},'{1}',{2},'{3}')", arr, filename, -1, '(double)')
+        self.query("load({0},'{1}',{2},'{3}')", arr, filename, 0, '(double)')
         return arr
 
     def toarray(self, A):
@@ -956,6 +972,14 @@ class SciDBShimInterface(SciDBInterface):
         except urllib2.HTTPError:
             raise ValueError("Invalid hostname: {0}".format(self.hostname))
 
+    def _get_uid(self):
+        # load a library to get a query id
+        session = self._shim_new_session()
+        uid = self._shim_execute_query(session,
+                                       "load_library('dense_linear_algebra')",
+                                       release=True)
+        return uid        
+
     def _execute_query(self, query, response=False, n=0, fmt='auto'):
         # log the query
         SciDBInterface._execute_query(self, query, response, n, fmt)
@@ -1013,6 +1037,11 @@ class SciDBShimInterface(SciDBInterface):
                              release=int(bool(release)))
         if save is not None:
             url += "&save={0}".format(urllib2.quote(save))
+
+        # Don't know the accepted way in Python to do something like this.
+        # For now, just set the 'debug' attribute on this SciDB array object.
+        if hasattr(self, 'debug'):
+            print(query)
 
         result = self._shim_urlopen(url)
         query_id = result.read()
