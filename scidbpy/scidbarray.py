@@ -818,3 +818,41 @@ class SciDBArray(object):
 
     def approxdc(self, index=None):
         return self._aggregate_operation('approxdc', index)
+
+    def regrid(self, size, aggregate="avg"):
+        """Regrid the array using the specified aggregate
+
+        Parameters
+        ----------
+        size : int or tuple of ints
+            Specify the size of the regridding along each dimension.  If a
+            single integer, then use the same regridding along each dimension.
+        aggregate : string
+            specify the aggregation function to use when creating the new
+            grid.  Default is 'avg'.  Possible values are:
+            ['avg', 'sum', 'min', 'max', 'count', 'stdev', 'var', 'approxdc']
+
+        Returns
+        -------
+        A : scidbarray
+            The re-gridded version of the array.  The size of dimension i
+            is ceil(self.shape[i] / size[i])
+        """
+        if hasattr(size, '__len__'):
+            if len(size) != self.ndim:
+                raise ValueError("grid sizes must match array shape")
+        else:
+            size = [size for s in self.shape]
+        sizes = map(int, size)
+
+        if aggregate not in ['avg', 'sum', 'min', 'max', 'count',
+                             'stdev', 'var', 'approxdc']:
+            raise ValueError("aggregate='{0}' "
+                             "not recognized".format(aggregate))
+
+        arr = self.interface.new_array()
+        query = "store(regrid({A}, {dims}, {agg}({A.a0})), {arr})"
+        self.interface.query(query,
+                             A=self, agg=aggregate, arr=arr,
+                             dims=','.join(map(str, sizes)))
+        return arr
