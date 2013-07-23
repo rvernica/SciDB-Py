@@ -566,38 +566,38 @@ class SciDBInterface(object):
         # Make partitioning conformable, converting left argument to a row vector as needed
         # and the right argument to a column vector as needed:
         if(A.ndim<2):
-          m = 1
-          pA = A.size
-          qA = "reshape("+qA+",<{A.a0}:double>["+A.datashape.dim_names[0]+"1=0:0,32,0,"+A.datashape.dim_names[0]+"=0:"+str(pA-1)+",32,0])"
+            m = 1
+            pA = A.size
+            qA = "reshape("+qA+",<{A.a0}:double>["+A.datashape.dim_names[0]+"1=0:0,32,0,"+A.datashape.dim_names[0]+"=0:"+str(pA-1)+",32,0])"
         else:
-          m = A.shape[0]
-          pA = A.shape[1]
-          qA = "repart("+qA+",<{A.a0}:double>["+A.datashape.dim_names[0]+"=0:"+str(m-1)+",32,0,"+A.datashape.dim_names[1]+"=0:"+str(pA-1)+",32,0])"
+            m = A.shape[0]
+            pA = A.shape[1]
+            qA = "repart("+qA+",<{A.a0}:double>["+A.datashape.dim_names[0]+"=0:"+str(m-1)+",32,0,"+A.datashape.dim_names[1]+"=0:"+str(pA-1)+",32,0])"
         pB = B.shape[0]
         if(B.ndim<2):
-          n = 1
-          cB = B.datashape.chunk_size[0]
-          qB = "reshape("+qB+",<{B.a0}:double>["+B.datashape.dim_names[0]+"=0:"+str(pB-1)+",32,0,"+B.datashape.dim_names[0]+"1=0:0,32,0])"
+            n = 1
+            cB = B.datashape.chunk_size[0]
+            qB = "reshape("+qB+",<{B.a0}:double>["+B.datashape.dim_names[0]+"=0:"+str(pB-1)+",32,0,"+B.datashape.dim_names[0]+"1=0:0,32,0])"
         else:
-          n = B.shape[1]
-          cB = B.datashape.chunk_size[1]
-          qB = "repart("+qB+",<{B.a0}:double>["+B.datashape.dim_names[0]+"=0:"+str(pB-1)+",32,0,"+B.datashape.dim_names[1]+"=0:"+str(n-1)+",32,0])"
+            n = B.shape[1]
+            cB = B.datashape.chunk_size[1]
+            qB = "repart("+qB+",<{B.a0}:double>["+B.datashape.dim_names[0]+"=0:"+str(pB-1)+",32,0,"+B.datashape.dim_names[1]+"=0:"+str(n-1)+",32,0])"
         # Check types (only using first attribute):
         atype = A.dtype
         btype = B.dtype
         if(len(atype)>0):
-          atype=A.dtype[0]
+            atype=A.dtype[0]
         if(len(btype)>0):
-          btype=B.dtype[0]
+            btype=B.dtype[0]
         if((atype=="float64") and (btype=="float64")):
-          # Use GEMM:
-          z = "build(<{A.a0}:double>[i=0:"+str(m-1)+",32,0,j=0:"+str(n-1)+",32,0],0)"
-          q = "store(repart(gemm(" + qA + "," + qB + "," + z + "),<v:double>[i0=0:"+str(m-1)+","+str(A.datashape.chunk_size[0])+",0,i1=0:"+str(n-1)+","+str(cB)+",0]),{C})"
+            # Use GEMM:
+            z = "build(<{A.a0}:double>[i=0:"+str(m-1)+",32,0,j=0:"+str(n-1)+",32,0],0)"
+            q = "store(repart(gemm(" + qA + "," + qB + "," + z + "),<v:double>[i0=0:"+str(m-1)+","+str(A.datashape.chunk_size[0])+",0,i1=0:"+str(n-1)+","+str(cB)+",0]),{C})"
         else:
-          # Use more general but much slower multiply:
-          q = "store(repart(multiply(" + qA + "," + qB + "),<v:double>[i0=0:"+str(m-1)+","+str(A.datashape.chunk_size[0])+",0,i1=0:"+str(n-1)+","+str(cB)+",0]),{C})"
+            # Use more general but much slower multiply:
+            q = "store(repart(multiply(" + qA + "," + qB + "),<v:double>[i0=0:"+str(m-1)+","+str(A.datashape.chunk_size[0])+",0,i1=0:"+str(n-1)+","+str(cB)+",0]),{C})"
         if(pB!=pA):
-           raise ValueError("array dimensions must match for matrix product")
+             raise ValueError("array dimensions must match for matrix product")
         self.query(q,A=A,B=B,C=C)
 
         return C
@@ -1048,7 +1048,7 @@ class SciDBShimInterface(SciDBInterface):
         # Don't know the accepted way in Python to do something like this.
         # For now, just set the 'debug' attribute on this SciDB array object.
         if hasattr(self, 'debug'):
-          print(query)
+            print(query)
 
         result = self._shim_urlopen(url)
         query_id = result.read()

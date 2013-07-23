@@ -93,7 +93,7 @@ From a numpy array
 ^^^^^
 
 The simplest approach to creating a `SciDBarray` object is to upload a numpy
-array into SciDB with the `new_array` function. Although this approach is
+array into SciDB with the `from_array` function. Although this approach is
 super-convenient, it is not really suitable for very big arrays (which might
 exceed memory availability in a single computer, for example). In such cases,
 consider other options described below.
@@ -126,7 +126,7 @@ the data are generated at the SciDB back-end.
 Examples follow::
 
   # Create a 10x10 array of double-precision zeros:
-  A = sdb.zeros( (10,10,) )
+  A = sdb.zeros( (10,10) )
 
   # Create a 10x10 array of 64-bit signed integer ones:
   A = sdb.ones( (10,10), dtype='int64' )
@@ -275,7 +275,7 @@ example from the last section::
          [ 0.,  0., -1.,  2.,  1.,  0.,  0.,  0.,  0.,  0.],
          [ 0.,  0.,  0., -1.,  2.,  1.,  0.,  0.,  0.,  0.]])
 
-Tuple-based subarray indexing is not yet supported.
+Fancy (tuple-based) subarray indexing is not yet supported.
 
 Note that subarray indexing of `SciDBArray` objects follows numpy convention.
 SciDB arrays with negative-valued coordinate indices should be translated to a

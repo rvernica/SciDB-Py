@@ -2,7 +2,6 @@
 Installation
 ============
 
-Making and installing using pip:
+Install the development package directly from Github with:
 
-    >>> python setup.py sdist
-    >>> pip install dist/SciDB-Py-0.1.tar.gz
+    >>> pip install git+ssh://github.com/jakevdp/scidb-py.git
