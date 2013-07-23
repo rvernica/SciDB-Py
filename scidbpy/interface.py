@@ -116,16 +116,24 @@ class SciDBInterface(object):
         """
         pass
 
+    @abc.abstractmethod
+    def _get_uid(self):
+        """Get a unique query ID from the database"""
+        pass
+
     def _db_array_name(self):
         """Return a unique array name for a new array on the database"""
-        arr_key = 'pyarray'
+        arr_key = 'py'
+
+        if not hasattr(self, 'uid'):
+            self.uid = self._get_uid()
 
         if not hasattr(self, 'array_count'):
             self.array_count = 1
         else:
             # on subsequent calls, increment the array count
             self.array_count += 1
-        return "{0}{1:05}{2}".format(arr_key, self.array_count,self.uid)
+        return "{0}{1}_{2:05}".format(arr_key, self.uid, self.array_count)
 
     def _scan_array(self, name, **kwargs):
         """Return the contents of the given array"""
@@ -163,7 +171,7 @@ class SciDBInterface(object):
         return SciDBArray(datashape, self, scidbname, persistent=True)
 
     def new_array(self, shape=None, dtype='double', persistent=False,
-                  scidbname=None, **kwargs):
+                  **kwargs):
         """
         Create a new array, either instantiating it in SciDB or simply
         reserving the name for use in a later query.
@@ -570,7 +578,8 @@ class SciDBInterface(object):
         # Project A and B into one attribute, and set their origin to zero:
         qA = "subarray(project({A},{A.a0})," + "NULL,"*(2*A.ndim-1)+"NULL)"
         qB = "subarray(project({B},{B.a0})," + "NULL,"*(2*B.ndim-1)+"NULL)"
-        # Make partitioning conformable, converting left argument to a row vector as needed
+        # Make partitioning conformable,
+        # converting left argument to a rowvector as needed
         # and the right argument to a column vector as needed:
         if(A.ndim<2):
             m = 1
@@ -993,8 +1002,14 @@ class SciDBShimInterface(SciDBInterface):
             urllib2.urlopen(self.hostname)
         except urllib2.HTTPError:
             raise ValueError("Invalid hostname: {0}".format(self.hostname))
-        session  = self._shim_new_session()
-        self.uid = self._shim_execute_query(session,"load_library('dense_linear_algebra')",release=True)
+
+    def _get_uid(self):
+        # load a library to get a query id
+        session = self._shim_new_session()
+        uid = self._shim_execute_query(session,
+                                       "load_library('dense_linear_algebra')",
+                                       release=True)
+        return uid        
 
     def _execute_query(self, query, response=False, n=0, fmt='auto'):
         # log the query
