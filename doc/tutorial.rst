@@ -374,22 +374,14 @@ centers a matrix by subtracting its column average from each column::
   # Create a small test array with 5 columns:
   X = sdb.from_array(np.random.random((10,5)))
 
-  # Create a vector of column means directly using a SciDB aggregation function:
-  xcolmean = sdb.new_array((5,))
-  sdb.query("store(substitute(aggregate({A},avg({A.a0}),{A.d1}),build(<x:double>[i=0:0,1,0],0)),{B})",A=X,B=xcolmean)
+  # Create a vector of column means:
+  xcolmean = X.mean(1)
 
   # Subtract the column means from the original matrix using broadcasting:
   XC = X - xcolmean
 
 The example populates the column mean values in the vector `xcolmean` by
-directly issuing a SciDB aggregation query. The query string uses the scidbpy
-replacement syntax to fill in SciDB array values. For example, "{A}" is
-replaced by the SciDB array name associated with the `SciDBArray` X, and
-"{A.a0}" and "{A.d1}" are replaced by the corresponding SciDB array first
-attribute name and second dimension name, respectively.
-
-The SciDB query uses the `substitute` operator to yield a result with
-a non-nullable value to conform with the `xcolmean` array.
+issuing a SciDB aggregation query along the columns of X.
 
 
 Example applications
@@ -419,13 +411,11 @@ Part 1, set up some example matrices::
 Part 2, center the example matrices::
 
   # Subtract the column means from X using broadcasting:
-  xcolmean = sdb.new_array((5,))
-  sdb.query("store(substitute(aggregate({A},avg({A.a0}),{A.d1}),build(<x:double>[i=0:0,1,0],0)),{B})",A=X,B=xcolmean)
+  xcolmean = X.mean(1)
   XC = X - xcolmean
 
   # Similarly subtract the column means from Y:
-  ycolmean = sdb.new_array((10,))
-  sdb.query("store(substitute(aggregate({A},avg({A.a0}),{A.d1}),build(<x:double>[i=0:0,1,0],0)),{B})",A=Y,B=ycolmean)
+  ycolmean = Y.mean(1)
   YC = Y - ycolmean
 
 Part 3, compute the covariance matrix::
