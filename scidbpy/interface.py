@@ -118,23 +118,14 @@ class SciDBInterface(object):
 
     def _db_array_name(self):
         """Return a unique array name for a new array on the database"""
-        # TODO: perhaps use a unique hash for each session?
-        #       Otherwise two sessions connected to the same database
-        #       will likely overwrite each other or result in errors.
         arr_key = 'pyarray'
 
         if not hasattr(self, 'array_count'):
-            # for the first number, search database to make sure there are
-            # no collisions
-            current = self.list_arrays(parsed=False)
-            nums = map(int, re.findall("[\'\"]{0}(\d+)[\'\"]".format(arr_key),
-                                       current))
-            nums.append(0)
-            self.array_count = max(nums) + 1
+            self.array_count = 1
         else:
             # on subsequent calls, increment the array count
             self.array_count += 1
-        return "{0}{1:05}".format(arr_key, self.array_count)
+        return "{0}{1:05}{2}".format(arr_key, self.array_count,self.uid)
 
     def _scan_array(self, name, **kwargs):
         """Return the contents of the given array"""
@@ -1002,6 +993,8 @@ class SciDBShimInterface(SciDBInterface):
             urllib2.urlopen(self.hostname)
         except urllib2.HTTPError:
             raise ValueError("Invalid hostname: {0}".format(self.hostname))
+        session  = self._shim_new_session()
+        self.uid = self._shim_execute_query(session,"echo('')",release=True)
 
     def _execute_query(self, query, response=False, n=0, fmt='auto'):
         # log the query
