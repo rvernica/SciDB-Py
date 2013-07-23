@@ -571,51 +571,16 @@ class SciDBInterface(object):
             The wrapper of the SciDB Array, of shape (n, m), consisting of the
             matrix product of A and B
         """
-        C = self.new_array()
-        if (A.ndim > 2) or (B.ndim > 2):
+        # TODO: implement vector-vector and matrix-vector dot()
+        # TODO: use GEMM and repartition where applicable.
+        if (A.ndim != 2) or (B.ndim != 2):
             raise ValueError("dot requires 2-dimensional arrays")
-
-        # Project A and B into one attribute, and set their origin to zero:
-        qA = "subarray(project({A},{A.a0})," + "NULL,"*(2*A.ndim-1)+"NULL)"
-        qB = "subarray(project({B},{B.a0})," + "NULL,"*(2*B.ndim-1)+"NULL)"
-        # Make partitioning conformable,
-        # converting left argument to a rowvector as needed
-        # and the right argument to a column vector as needed:
-        if(A.ndim<2):
-            m = 1
-            pA = A.size
-            qA = "reshape("+qA+",<{A.a0}:double>["+A.datashape.dim_names[0]+"1=0:0,32,0,"+A.datashape.dim_names[0]+"=0:"+str(pA-1)+",32,0])"
-        else:
-            m = A.shape[0]
-            pA = A.shape[1]
-            qA = "repart("+qA+",<{A.a0}:double>["+A.datashape.dim_names[0]+"=0:"+str(m-1)+",32,0,"+A.datashape.dim_names[1]+"=0:"+str(pA-1)+",32,0])"
-        pB = B.shape[0]
-        if(B.ndim<2):
-            n = 1
-            cB = B.datashape.chunk_size[0]
-            qB = "reshape("+qB+",<{B.a0}:double>["+B.datashape.dim_names[0]+"=0:"+str(pB-1)+",32,0,"+B.datashape.dim_names[0]+"1=0:0,32,0])"
-        else:
-            n = B.shape[1]
-            cB = B.datashape.chunk_size[1]
-            qB = "repart("+qB+",<{B.a0}:double>["+B.datashape.dim_names[0]+"=0:"+str(pB-1)+",32,0,"+B.datashape.dim_names[1]+"=0:"+str(n-1)+",32,0])"
-        # Check types (only using first attribute):
-        atype = A.dtype
-        btype = B.dtype
-        if(len(atype)>0):
-            atype=A.dtype[0]
-        if(len(btype)>0):
-            btype=B.dtype[0]
-        if((atype=="float64") and (btype=="float64")):
-            # Use GEMM:
-            z = "build(<{A.a0}:double>[i=0:"+str(m-1)+",32,0,j=0:"+str(n-1)+",32,0],0)"
-            q = "store(repart(gemm(" + qA + "," + qB + "," + z + "),<v:double>[i0=0:"+str(m-1)+","+str(A.datashape.chunk_size[0])+",0,i1=0:"+str(n-1)+","+str(cB)+",0]),{C})"
-        else:
-            # Use more general but much slower multiply:
-            q = "store(repart(multiply(" + qA + "," + qB + "),<v:double>[i0=0:"+str(m-1)+","+str(A.datashape.chunk_size[0])+",0,i1=0:"+str(n-1)+","+str(cB)+",0]),{C})"
-        if(pB!=pA):
-             raise ValueError("array dimensions must match for matrix product")
-        self.query(q,A=A,B=B,C=C)
-
+        
+        if A.shape[1] != B.shape[0]:
+            raise ValueError("array dimensions must match for matrix product")
+ 
+        C = self.new_array()
+        self.query('store(multiply({0},{1}),{2})', A, B, C)
         return C
 
     def svd(self, A, return_U=True, return_S=True, return_VT=True):
