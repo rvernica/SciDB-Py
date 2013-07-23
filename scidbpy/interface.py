@@ -994,7 +994,7 @@ class SciDBShimInterface(SciDBInterface):
         except urllib2.HTTPError:
             raise ValueError("Invalid hostname: {0}".format(self.hostname))
         session  = self._shim_new_session()
-        self.uid = self._shim_execute_query(session,"echo('')",release=True)
+        self.uid = self._shim_execute_query(session,"load_library('dense_linear_algebra')",release=True)
 
     def _execute_query(self, query, response=False, n=0, fmt='auto'):
         # log the query

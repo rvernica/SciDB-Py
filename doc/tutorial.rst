@@ -424,10 +424,11 @@ Part 3, compute the covariance matrix::
 
 Part 4, compute the correlation matrix::
 
-  xsd = sdb.new_array((5,1))
-  sdb.query("store(reshape(substitute(aggregate({A},stdev({A.a0}),{A.d1}),build(<x:double>[i=0:0,1,0],0)),<v:double>[i=0:4,1000,0,j=0:0,1000,0]),{B})",A=X,B=xsd)
-  ysd = sdb.new_array((1,10))
-  sdb.query("store(reshape(substitute(aggregate({A},stdev({A.a0}),{A.d1}),build(<x:double>[i=0:0,1,0],0)),<v:double>[i=0:0,1000,0,j=0:9,1000,0]),{B})",A=Y,B=ysd)
+  # Column vector with column standard deviations of X matrix:
+  xsd = X.std(1).reshape((5,1))
+  # Row vector with column standard deviations of Y matrix:
+  ysd = Y.std(1).reshape((1,10))
+  # Their outer product:
   outersd = sdb.dot(xsd,ysd)
 
   COR = COV/outersd
