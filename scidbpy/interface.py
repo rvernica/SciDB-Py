@@ -154,6 +154,23 @@ class SciDBInterface(object):
             kwargs['response'] = True
         return self._execute_query("dimensions({0})".format(name), **kwargs)
 
+    def wrap_array(self, scidbname):
+        """
+        Create a new SciDBArray object that references an existing SciDB
+        array
+
+        Parameters
+        ----------
+        scidbname : (optional string)
+            Use an existing scidb array referred to by `scidbname`. The
+            SciDB array object persistent value will be set to True, and
+            the object shape, datashape and data type values will be
+            determined by the SciDB array.
+        """
+        schema = self._show_array(scidbname, fmt='csv')
+        datashape = SciDBDataShape.from_schema(schema)
+        return SciDBArray(datashape, self, scidbname, persistent=True)
+
     def new_array(self, shape=None, dtype='double', persistent=False,
                   scidbname=None, **kwargs):
         """
@@ -172,10 +189,6 @@ class SciDBInterface(object):
             whether the created array should be persistent, i.e. survive
             in SciDB past when the object wrapper goes out of scope.  Default
             is False.
-        scidbname : (optional string)
-            If `scidbname` is specified, use the existing scidb array referred
-            to by the name. Other options will be ignored and persistent will
-            be set true in this case.
         **kwargs : (optional)
             If `shape` is specified, additional keyword arguments are passed
             to SciDBDataShape.  Otherwise, these will not be referenced.
@@ -184,10 +197,6 @@ class SciDBInterface(object):
         arr : SciDBArray
             wrapper of the new SciDB array instance.
         """
-        if scidbname is not None:
-            schema = self._show_array(scidbname, fmt='csv')
-            datashape = SciDBDataShape.from_schema(schema)
-            return SciDBArray(datashape, self, scidbname, persistent=True)
         name = self._db_array_name()
         if shape is not None:
             datashape = SciDBDataShape(shape, dtype, **kwargs)
