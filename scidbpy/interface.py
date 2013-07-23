@@ -127,7 +127,7 @@ class SciDBInterface(object):
             # for the first number, search database to make sure there are
             # no collisions
             current = self.list_arrays(parsed=False)
-            nums = map(int, re.findall("\"{0}(\d+)\"".format(arr_key),
+            nums = map(int, re.findall("[\'\"]{0}(\d+)[\'\"]".format(arr_key),
                                        current))
             nums.append(0)
             self.array_count = max(nums) + 1
