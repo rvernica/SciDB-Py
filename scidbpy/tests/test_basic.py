@@ -299,3 +299,13 @@ def test_cross_join():
                     A.toarray())
     assert_allclose(ABnp[names[1]],
                     B.toarray()[:, None] + np.zeros(A.shape[1]))
+
+
+def test_regrid():
+    A = sdb.random((8, 4))
+    Ag = A.regrid(2, "sum")
+    
+    np_A = A.toarray()
+    np_Ag = sum(np_A[i::2,j::2] for i in range(2) for j in range(2))
+
+    assert_allclose(Ag.toarray(), np_Ag)
