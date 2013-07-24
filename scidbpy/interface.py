@@ -6,7 +6,9 @@ to the SciDB engine.
 
 The following interfaces are currently available:
 
-- 
+- SciDBShimInterface : interface via HTTP using Shim [1]_
+
+[1] https://github.com/Paradigm4/shim
 """
 # License: Simplified BSD, 2013
 # Author: Jake Vanderplas <jakevdp@cs.washington.edu>
@@ -280,7 +282,7 @@ class SciDBInterface(object):
         """
         qstring = self._format_query_string(query, *args, **kwargs)
         return self._execute_query(qstring)
-        
+
     def list_arrays(self, parsed=True, n=0):
         """List the arrays currently in the database
 
@@ -389,8 +391,7 @@ class SciDBInterface(object):
         self.query('store(build({0}, {1}), {0})', arr, fill_value)
         return arr
 
-    def randint(self, shape, dtype='uint32',
-                lower=0, upper=SCIDB_RAND_MAX, 
+    def randint(self, shape, dtype='uint32', lower=0, upper=SCIDB_RAND_MAX,
                 **kwargs):
         """Return an array of random integers between lower and upper
 
@@ -462,7 +463,7 @@ class SciDBInterface(object):
             ``ceil((stop - start)/step)``.  Because of floating point overflow,
             this rule may result in the last element of `out` being greater
             than `stop`.
-        """        
+        """
         if stop is None:
             stop = start
             start = 0
@@ -553,7 +554,7 @@ class SciDBInterface(object):
         """
         arr = self.new_array((n, n), dtype, **kwargs)
         if sparse:
-            query ='store(build_sparse({A},1,{A.d0}={A.d1}),{A})'
+            query = 'store(build_sparse({A},1,{A.d0}={A.d1}),{A})'
         else:
             query = 'store(build({A},iif({A.d0}={A.d1},1,0)),{A})'
         self.query(query, A=arr)
@@ -831,7 +832,7 @@ class SciDBInterface(object):
         op = op.format(left=left_fmt, right=right_fmt)
         aL = aR = None
         permutation = None
-        
+
         # Neither entry is a SciDBArray
         if not (left_is_sdb or right_is_sdb):
             raise ValueError("One of left/right needs to be a SciDBArray")
@@ -903,7 +904,7 @@ class SciDBInterface(object):
                     dims = ',' + dims
 
                 query = ("store(project(apply(cross_join(" +
-                         left_query + "," + right_query + dims  + "),{attr}," +
+                         left_query + "," + right_query + dims + "),{attr}," +
                          op + "), {attr}), {arr})")
                 attr = _new_attribute_label('x', left, right)
 
@@ -927,7 +928,7 @@ class SciDBInterface(object):
                     right_shape = [-1] * (left.ndim - right.ndim) + right_shape
                 else:
                     left_shape = [-1] * (right.ndim - left.ndim) + left_shape
-                
+
                 # now loop through dimensions and build permutation
                 for i, (L, R) in enumerate(zip(left_shape, right_shape)):
                     if L == R or R == -1 or (R == 1 and L >= 0):
@@ -967,7 +968,7 @@ class SciDBInterface(object):
             attr = _new_attribute_label('x', right)
             query = ("store(project(apply({right}, {attr}, "
                      + op + "), {attr}), {arr})")
-                
+
         arr = self.new_array()
         self.query(query, left=left, right=right,
                    aL=aL, aR=aR,
@@ -1002,7 +1003,7 @@ class SciDBShimInterface(SciDBInterface):
         uid = self._shim_execute_query(session,
                                        "load_library('dense_linear_algebra')",
                                        release=True)
-        return uid        
+        return uid
 
     def _execute_query(self, query, response=False, n=0, fmt='auto'):
         # log the query

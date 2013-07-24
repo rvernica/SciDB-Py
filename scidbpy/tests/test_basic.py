@@ -71,11 +71,12 @@ def test_linspace():
 
 def test_reshape():
     A = sdb.random(12)
+
     def check_reshape(shape):
         B = A.reshape(shape)
         Bnp = A.toarray().reshape(shape)
         assert_allclose(B.toarray(), Bnp)
-    
+
     for shape in [(3, 4), (2, 2, 3), (1, 3, 4)]:
         yield check_reshape, shape
 
@@ -115,7 +116,7 @@ def test_dot():
             assert_allclose(C.toarray(), Cnp, rtol=RTOL)
         else:
             assert_allclose(C, Cnp, rtol=RTOL)
-        
+
     for Ashape in [(4, 5), 5]:
         for Bshape in [(5, 6), 5]:
             yield check_dot, Ashape, Bshape
@@ -141,6 +142,7 @@ def test_svd():
 def test_slicing():
     # note that slices must be a divisor of chunk size
     A = sdb.random((10, 10), chunk_size=12)
+
     def check_subarray(slc):
         Aslc = A[slc]
         if isinstance(Aslc, SciDBArray):
@@ -256,7 +258,7 @@ def test_substitute():
 def test_aggregates():
     A = sdb.random((5, 5))
 
-    ind_dict = {1:0, 0:1, None:None}
+    ind_dict = {1: 0, 0: 1, None: None}
 
     def check_op(op, ind):
         C = getattr(sdb, op)(A, ind)
@@ -319,8 +321,8 @@ def test_cross_join():
 def test_regrid():
     A = sdb.random((8, 4))
     Ag = A.regrid(2, "sum")
-    
+
     np_A = A.toarray()
-    np_Ag = sum(np_A[i::2,j::2] for i in range(2) for j in range(2))
+    np_Ag = sum(np_A[i::2, j::2] for i in range(2) for j in range(2))
 
     assert_allclose(Ag.toarray(), np_Ag)

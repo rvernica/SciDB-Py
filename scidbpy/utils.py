@@ -2,6 +2,7 @@ import numpy as np
 
 __all__ = ['meshgrid']
 
+
 # This is back-ported from numpy version 1.7
 # The earlier version of meshgrid only accepts two arrays
 def meshgrid(*xi, **kwargs):
@@ -41,8 +42,9 @@ def meshgrid(*xi, **kwargs):
 
     Notes
     -----
-    This function supports both indexing conventions through the indexing keyword
-    argument.  Giving the string 'ij' returns a meshgrid with matrix indexing,
+    This function supports both indexing conventions through the indexing
+    keyword argument.
+    Giving the string 'ij' returns a meshgrid with matrix indexing,
     while 'xy' returns a meshgrid with Cartesian indexing.  In the 2-D case
     with inputs of length M and N, the outputs are of shape (N, M) for 'xy'
     indexing and (M, N) for 'ij' indexing.  In the 3-D case with inputs of
@@ -96,7 +98,8 @@ def meshgrid(*xi, **kwargs):
 
     """
     if len(xi) < 2:
-        msg = 'meshgrid() takes 2 or more arguments (%d given)' % int(len(xi) > 0)
+        msg = ('meshgrid() takes 2 or more arguments (%d given)'
+               % int(len(xi) > 0))
         raise ValueError(msg)
 
     args = np.atleast_1d(*xi)
@@ -109,7 +112,8 @@ def meshgrid(*xi, **kwargs):
         raise ValueError("Valid values for `indexing` are 'xy' and 'ij'.")
 
     s0 = (1,) * ndim
-    output = [x.reshape(s0[:i] + (-1,) + s0[i + 1::]) for i, x in enumerate(args)]
+    output = [x.reshape(s0[:i] + (-1,) + s0[i + 1::])
+              for i, x in enumerate(args)]
 
     shape = [x.size for x in output]
 

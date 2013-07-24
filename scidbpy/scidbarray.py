@@ -18,18 +18,18 @@ __all__ = ["sdbtype", "SciDBArray", "SciDBDataShape"]
 
 # Create mappings between scidb and numpy string representations
 _np_typename = lambda s: np.dtype(s).descr[0][1]
-SDB_NP_TYPE_MAP = {'bool':_np_typename('bool'),
-                   'float':_np_typename('float32'),
-                   'double':_np_typename('float64'),
-                   'int8':_np_typename('int8'),
-                   'int16':_np_typename('int16'),
-                   'int32':_np_typename('int32'),
-                   'int64':_np_typename('int64'),
-                   'uint8':_np_typename('uint8'),
-                   'uint16':_np_typename('uint16'),
-                   'uint32':_np_typename('uint32'),
-                   'uint64':_np_typename('uint64'),
-                   'char':_np_typename('c')}
+SDB_NP_TYPE_MAP = {'bool': _np_typename('bool'),
+                   'float': _np_typename('float32'),
+                   'double': _np_typename('float64'),
+                   'int8': _np_typename('int8'),
+                   'int16': _np_typename('int16'),
+                   'int32': _np_typename('int32'),
+                   'int64': _np_typename('int64'),
+                   'uint8': _np_typename('uint8'),
+                   'uint16': _np_typename('uint16'),
+                   'uint32': _np_typename('uint32'),
+                   'uint64': _np_typename('uint64'),
+                   'char': _np_typename('c')}
 
 NP_SDB_TYPE_MAP = dict((val, key) for key, val in SDB_NP_TYPE_MAP.iteritems())
 
@@ -45,7 +45,7 @@ class sdbtype(object):
     Parameters
     ----------
     typecode : string, list, sdbtype, or dtype
-        An object representing a datatype.  
+        An object representing a datatype.
     """
     def __init__(self, typecode):
         if isinstance(typecode, sdbtype):
@@ -83,7 +83,6 @@ class sdbtype(object):
     def bytes_fmt(self):
         """The format used for transfering raw bytes to and from scidb"""
         return '({0})'.format(','.join(rep[1] for rep in self.full_rep))
-        
 
     @classmethod
     def _regularize(cls, schema):
@@ -165,7 +164,7 @@ class sdbtype(object):
         dtype = np.dtype(dtype).descr
         pairs = ["{0}:{1}".format(d[0], NP_SDB_TYPE_MAP[d[1]]) for d in dtype]
         return '<{0}>'.format(','.join(pairs))
-    
+
 
 class SciDBDataShape(object):
     """Object to store SciDBArray data type and shape"""
@@ -194,7 +193,7 @@ class SciDBDataShape(object):
             chunk_size = [chunk_size for s in self.shape]
         if len(chunk_size) != len(self.shape):
             raise ValueError("length of chunk_size should match "
-                         "number of dimensions")
+                             "number of dimensions")
         self.chunk_size = chunk_size
 
         # process chunk overlaps.  Either an integer, or a list of integers
@@ -216,7 +215,7 @@ class SciDBDataShape(object):
 
         parse it, and return a SciDBDataShape object.
         """
-        # First split out the array name, data types, and shapes.  e.g. 
+        # First split out the array name, data types, and shapes.  e.g.
         #
         #   "myarray<val:double,rank:int32> [i=0:4,5,0,j=0:9,5,0]"
         #
@@ -294,8 +293,8 @@ class ArrayAlias(object):
         if not match:
             # exception text copied from Python2.6
             raise AttributeError("%r object has no attribute %r" %
-                         (type(self).__name__, attr))
-        
+                                 (type(self).__name__, attr))
+
         groups = match.groups()
         i = int(groups[1])
 
@@ -312,7 +311,7 @@ class ArrayAlias(object):
             except IndexError:
                 raise ValueError("dimension index %i is out of bounds" % i)
             return ret_str + dim_name
-            
+
         else:
             # looking for an attribute name
             try:
@@ -401,7 +400,7 @@ class SciDBArray(object):
 
     def _download_data(self, transfer_bytes=True, output='auto'):
         """Utility routine to download data from SciDB database.
-        
+
         Parameters
         ----------
         transfer_bytes : boolean
@@ -411,7 +410,7 @@ class SciDBArray(object):
             one for indices, and one for values.
         output : string
             the output format.  The following are supported:
-            
+
             - 'auto' : choose the best representation for the data
             - 'dense' : return a dense (numpy) array
             - 'sparse' : return a record array containing the indices and
@@ -449,7 +448,7 @@ class SciDBArray(object):
             # convert the ASCII representation into a numpy record array
             arr = np.genfromtxt(fhandle, delimiter=',', skip_header=1,
                                 dtype=full_dtype)
-            
+
             if transfer_bytes:
                 # replace parsed ASCII columns with more accurate bytes
                 names = self.sdbtype.names
@@ -467,7 +466,7 @@ class SciDBArray(object):
                 ij = (arr[full_dtype.names[0]], arr[full_dtype.names[1]])
                 arr_coo = sparse.coo_matrix((data, ij), shape=self.shape)
                 arr = arr_coo.toarray()
-                
+
         else:
             if transfer_bytes:
                 # reshape bytes_array to the correct shape
@@ -484,7 +483,7 @@ class SciDBArray(object):
                 index_arrays = map(np.ravel,
                                    meshgrid(*[np.arange(s)
                                               for s in self.shape],
-                                             indexing='ij'))
+                                            indexing='ij'))
                 arr = arr.ravel()
                 if len(sdbtype.names) == 1:
                     value_arrays = [arr]
@@ -623,7 +622,7 @@ class SciDBArray(object):
         shape = arr1.shape
         indices = [i for i in indices if isinstance(i, slice)]
         indices = [sl.indices(sh) for sl, sh in zip(indices, shape)]
-        
+
         # if a subarray is required, then call the subarray() command
         if any(i[0] != 0 or i[1] != s for (i, s) in zip(indices, shape)):
             limits = [i[0] for i in indices] + [i[1] - 1 for i in indices]
@@ -717,7 +716,7 @@ class SciDBArray(object):
                     axes = tuple(axes[0])
                 except:
                     pass
-        
+
         if not axes:
             arr = self.interface.new_array()
             self.interface.query("store(transpose({0}), {1})", self, arr)
@@ -730,7 +729,7 @@ class SciDBArray(object):
                 raise ValueError("axes don't match array")
 
             # set up the new array
-            shape=[self.shape[a] for a in axes]
+            shape = [self.shape[a] for a in axes]
             chunk_size = [self.chunk_size[a] for a in axes]
             chunk_overlap = [self.chunk_overlap[a] for a in axes]
             dim_names = [self.dim_names[a] for a in axes]
@@ -756,7 +755,7 @@ class SciDBArray(object):
             shape
         **kwargs :
             additional keyword arguments will be passed to SciDBDatashape
-        
+
         Returns
         -------
         arr : SciDBArray
@@ -776,7 +775,7 @@ class SciDBArray(object):
         Parameters
         ----------
         value : value to replace nulls (required)
-        
+
         Returns
         -------
         arr : SciDBArray
@@ -798,7 +797,7 @@ class SciDBArray(object):
             except:
                 ind = (index,)
 
-            idx= ',' + ', '.join(['{{A.d{0}}}'.format(i) for i in ind])
+            idx = ',' + ', '.join(['{{A.d{0}}}'.format(i) for i in ind])
 
         qstring = "store(aggregate({A}, {agg}({A.a0})" + idx + "), {arr})"
 
