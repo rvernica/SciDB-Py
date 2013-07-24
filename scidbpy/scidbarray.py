@@ -782,9 +782,10 @@ class SciDBArray(object):
         arr : SciDBArray
             new non-nullable array
         """
-        qstring = "store(substitute({A}, build({T}[i=0:0,1,0]," + format(value) + ")),{arr})"
+        qstring = "store(substitute({A}, build({T}[i=0:0,1,0],{value})),{arr})"
         arr = self.interface.new_array()
-        self.interface.query(qstring, A=self, arr=arr, T=sdbtype(self.dtype))
+        self.interface.query(qstring, A=self, arr=arr,
+                             T=self.sdbtype, value=value)
         return arr
 
     def _aggregate_operation(self, agg, index=None):

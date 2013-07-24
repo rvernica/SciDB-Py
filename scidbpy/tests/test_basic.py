@@ -245,12 +245,13 @@ def test_transcendentals():
                'exp', 'log', 'log10']:
         yield check_op, op
 
+
 def test_substitute():
     # Generate a SciDB array with nullable attribtue
-    x = sdb.new_array((5,))
-    sdb.query("remove({A})",A=x)
-    sdb.query("store(build(<v:double null>[i=1:5,5,0],null),{N})",N=x.name)
-    assert_allclose(np.zeros(5), x.substitute(0).toarray())
+    arr = sdb.new_array()
+    sdb.query("store(build(<v:double null>[i=1:5,5,0],null),{0})", arr)
+    assert_allclose(np.zeros(5), arr.substitute(0).toarray())
+
 
 def test_aggregates():
     A = sdb.random((5, 5))
