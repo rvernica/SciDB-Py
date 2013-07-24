@@ -1,5 +1,5 @@
 import numpy as np
-from numpy.testing import assert_allclose
+from numpy.testing import assert_allclose, assert_equal, assert_
 
 from nose import SkipTest
 
@@ -22,6 +22,21 @@ def test_numpy_conversion():
 
     for transfer_bytes in (True, False):
         yield check_toarray, transfer_bytes
+
+
+def test_nonzero_nonnull():
+    # create a matrix with empty, null, and non-null entries
+    N = 4
+    tridiag = sdb.new_array((N, N), dtype='<v:double null>')
+    sdb.query('store(build_sparse({A}, '
+              '    iif({A.d0}={A.d1}, 1, null), '
+              '    {A.d0} <= {A.d1}+1 and {A.d0} >= {A.d1}-1), '
+              '  {A})',
+              A=tridiag)
+
+    assert_(tridiag.contains_nulls())
+    assert_equal(tridiag.nonempty(),  N + 2 * (N - 1))
+    assert_equal(tridiag.nonnull(), N)
 
 
 def test_toarray_sparse():

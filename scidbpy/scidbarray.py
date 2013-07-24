@@ -80,6 +80,10 @@ class sdbtype(object):
         return [f[0] for f in self.full_rep]
 
     @property
+    def nullable(self):
+        return np.asarray([f[2] for f in self.full_rep])
+
+    @property
     def bytes_fmt(self):
         """The format used for transfering raw bytes to and from scidb"""
         return '({0})'.format(','.join(rep[1] for rep in self.full_rep))
@@ -117,9 +121,12 @@ class sdbtype(object):
         # TODO: support default values?
         sdbL = schema.split(',')
         sdbL = [map(str.strip, s.split(':')) for s in sdbL]
-        sdbL = [(s[0], s[1].split()[0], ('NULL' in s[1])) for s in sdbL]
-
-        return sdbL
+        
+        names = [s[0] for s in sdbL]
+        dtypes = [s[1].split()[0] for s in sdbL]
+        nullable = ['null' in str.lower(''.join(s[1].split()[1:]))
+                    for s in sdbL]
+        return zip(names, dtypes, nullable)
 
     @classmethod
     def _schema_to_dtype(cls, schema):
@@ -307,7 +314,7 @@ class ArrayAlias(object):
         if groups[0] == 'd':
             # looking for a dimension name
             try:
-                dim_name = self.arr.datashape.dim_names[i]
+                dim_name = self.arr.dimension(i)
             except IndexError:
                 raise ValueError("dimension index %i is out of bounds" % i)
             return ret_str + dim_name
@@ -315,13 +322,18 @@ class ArrayAlias(object):
         else:
             # looking for an attribute name
             try:
-                attr_name = self.arr.datashape.sdbtype.full_rep[i][0]
+                attr_name = self.arr.attribute(i)
             except IndexError:
                 raise ValueError("attribute index %i is out of bounds" % i)
             return ret_str + attr_name
 
 
 class SciDBArray(object):
+    """SciDBArray class
+
+    It is not recommended to instantiate this class directly; use a
+    convenience routine from SciDBInterface.
+    """
     def __init__(self, datashape, interface, name, persistent=False):
         self._datashape = datashape
         self.interface = interface
@@ -329,7 +341,16 @@ class SciDBArray(object):
         self.persistent = persistent
 
     def alias(self, name=None):
+        """Return an alias of the array, optionally with a new name"""
         return ArrayAlias(self, name)
+
+    def dimension(self, d):
+        """Return the dimension name of the array"""
+        return self.datashape.dim_names[d]
+
+    def attribute(self, a):
+        """Return the attribute name of the array"""
+        return self.datashape.sdbtype.full_rep[a][0]
 
     @property
     def datashape(self):
@@ -388,11 +409,71 @@ class SciDBArray(object):
     def nonempty(self):
         """
         Return the number of nonempty elements in the array.
+
+        Nonempty refers to the sparsity of an array, and thus includes in the
+        count elements with values which are set to NULL.
+
+        See Also
+        --------
+        nonnull()
         """
         query = "count({0})".format(self.name)
         response = self.interface._execute_query(query, response=True,
-                                                 fmt='csv')
-        return int(response.lstrip('count').strip())
+                                                 fmt='(int64)')
+        return np.fromstring(response, dtype='int64')[0]
+
+    def nonnull(self, attr=0):
+        """
+        Return the number of non-empty and non-null values.
+
+        This query must be done for each attribute: the default is the first
+        attribute.
+
+        Parameters
+        ----------
+        attr : None, int or array_like
+            the attribute or attributes to query.  If None, then query all
+            attributes.
+
+        Returns
+        -------
+        nonnull : array_like
+            the nonnull count for each attribute.  The returned value is the
+            same shape as the input ``attr``.
+
+        See Also
+        --------
+        nonempty()
+        """
+        if attr is None:
+            attr = range(len(self.sdbtype.names))
+        attr = np.asarray(attr)
+        nonnull = np.zeros_like(attr)
+
+        for i in range(attr.size):
+            attr_name = self.attribute(attr.flat[i])
+            query = "aggregate({0}, count({1}))".format(self.name, attr_name)
+            response = self.interface._execute_query(query, response=True,
+                                                     fmt='(int64)')
+            nonnull.flat[i] = np.fromstring(response, dtype='int64')[0]
+        return nonnull
+
+    def contains_nulls(self, attr=None):
+        """Return True if the array contains null values.
+
+        Parameters
+        ----------
+        attr : None, int, or array_like
+            the attribute index/indices to check.  If None, then check all.
+
+        Returns
+        -------
+        contains_nulls : boolean
+        """
+        if np.any(self.sdbtype.nullable):
+            return np.any(self.nonempty() != self.nonnull(attr))
+        else:
+            return False
 
     def issparse(self):
         """Check whether array is sparse."""
@@ -424,6 +505,13 @@ class SciDBArray(object):
         shape = self.datashape.shape
         array_is_sparse = self.issparse()
         full_dtype = self.datashape.ind_attr_dtype
+
+        # check for nulls
+        if self.contains_nulls():
+            raise NotImplementedError("Arrays with nulls are not supported. "
+                                      "Until this is addressed, see the "
+                                      "substitute() function to remove nulls "
+                                      "from your array.")
 
         if transfer_bytes:
             # Get byte-string containing array data.
@@ -771,7 +859,8 @@ class SciDBArray(object):
         return arr
 
     def substitute(self, value):
-        """Reshape data into a new array
+        """Reshape data into a new array, substituting a default for any nulls.
+
         Parameters
         ----------
         value : value to replace nulls (required)
