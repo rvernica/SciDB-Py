@@ -742,6 +742,9 @@ class SciDBInterface(object):
     def approxdc(self, A, index=None):
         return A.approxdc(index)
 
+    def substitute(self, A, value):
+        return A.substitute(value)
+
     #def pairwise_distances(self, X, Y=None):
     #    """Compute the pairwise distances between arrays X and Y"""
     #    if Y is None:

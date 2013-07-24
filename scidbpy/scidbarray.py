@@ -771,6 +771,22 @@ class SciDBArray(object):
                              input=self, output=arr)
         return arr
 
+    def substitute(self, value):
+        """Reshape data into a new array
+        Parameters
+        ----------
+        value : value to replace nulls (required)
+        
+        Returns
+        -------
+        arr : SciDBArray
+            new non-nullable array
+        """
+        qstring = "store(substitute({A}, build({T}[i=0:0,1,0]," + format(value) + ")),{arr})"
+        arr = self.interface.new_array()
+        self.interface.query(qstring, A=self, arr=arr, T=sdbtype(self.dtype))
+        return arr
+
     def _aggregate_operation(self, agg, index=None):
         # TODO: aggregate index behavior is opposite of numpy. How to proceed?
         if index is None:
