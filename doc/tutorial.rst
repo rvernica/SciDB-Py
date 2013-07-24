@@ -158,11 +158,25 @@ dimension names to the query. The replacement syntax is fully outlined in the
 documentation.
 
 The general approach first creates a new `SciDBArray` object and then issues
-a query to populate data. The following example creates a 10x10 sparse (in
-the SciDB sense) tridiagonal array::
+a query to populate data. The following example creates a 10x10 sparse
+tridiagonal array::
 
-  arr = sdb.new_array((10, 10))
-  sdb.query('store(build_sparse({A},iif({A.d0}={A.d1},2,{A.d1}-{A.d0}),{A.d0}<={A.d1}+1 and {A.d0}>={A.d1}-1), {A})', A=arr)
+  tridiag = sdb.new_array((10, 10))
+  sdb.query('store(build_sparse({A}, \
+                   iif({A.d0}={A.d1}, 2, -1), \
+                   {A.d0} <= {A.d1}+1 and {A.d0} >= {A.d1}-1), \
+             {A})', A=tridiag)
+
+The query builds a sparse tridiagonal array with 2 on the diagonal and -1 on
+the sub- and super-diagonals. The query uses a special print replacement
+syntax provided by the scidbpy package. The symbol `{A}` in the print statement
+is replaced with the SciDB name associated with the `SciDBArray` object named
+`tridiag`. The symbol `{A.d0}` is replaced with the name of the first coordinate
+dimension of the underlying SciDB array. Similarly, `{A.d1}` is replaced
+with the 2nd dimension name.
+
+The full replacement syntax is outlined in the package documentation. It's
+a nifty way to help simplify writing SciDB queries when you have to.
 
 
 From an existing SciDB array
@@ -175,12 +189,12 @@ using the SciDB parallel bulk loader or similar facility.)
 
 The following example uses the `query` function to build and store a small 10x5
 SciDB array named "A" independently of Python. We then create a `SciDBArray`
-object from the SciDB array with the `new_array` function using the `scidbname`
+object from the SciDB array with the `wrap_array` function using the `scidbname`
 argument::
 
   sdb.query("remove(A)")
-  sdb.query("store(build(<v:double>[i=1:10,5,0,j=1:5,5,0],i+j),A)")
-  A = sdb.new_array(scidbname="A")
+  sdb.query("store(build(<v:double>[i=1:10,10,0,j=1:5,5,0],i+j),A)")
+  A = sdb.wrap_array(scidbname="A")
 
 Note that subarray indexing of `SciDBArray` objects follows numpy convention.
 SciDB arrays with negative-valued coordinate indices don't fit this convention
@@ -214,15 +228,12 @@ Python. Use the `toarray` function to bring data back as a numpy array,
 and the `tosparse` function to return data in a form compatible with
 scipy sparse arrays.
 
-Let's revisit an earler example and retrieve its data in dense and
+Let's revisit the earler example that created a sparse tridiagonal
+`SciDBArray` object named `tridiag` and retrieve its data in dense and
 sparse formats::
 
-  # Build a sparse tridiagonal SciDB array:
-  arr = sdb.new_array((10, 10))
-  sdb.query('store(build_sparse({A},iif({A.d0}={A.d1},2,{A.d1}-{A.d0}),{A.d0}<={A.d1}+1 and {A.d0}>={A.d1}-1), {A})', A=arr)
-
   # Materialize SciDB array to Python as a numpy array:
-  arr.toarray()
+  tridiag.toarray()
   # Produces output like:
   array([[ 2.,  1.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.],
          [-1.,  2.,  1.,  0.,  0.,  0.,  0.,  0.,  0.,  0.],
@@ -237,7 +248,7 @@ sparse formats::
 
   # Materialize SciDB array to Python as a sparse array:
   from scipy import sparse
-  arr.tosparse('csr')
+  tridiag.tosparse('csr')
   # Produces output like:
   <10x10 sparse matrix of type '<type 'numpy.float64'>'
         with 28 stored elements in Compressed Sparse Row format>
@@ -263,13 +274,10 @@ Subarrays
 
 Rectilinear subarrays are selected with standard numpy syntax. Subarrays of
 `SciDBArray` objects are new `SciDBArray` objects. Consider the
-example from the last section::
-
-  arr = sdb.new_array((10, 10))
-  sdb.query('store(build_sparse({A},iif({A.d0}={A.d1},2,{A.d1}-{A.d0}),{A.d0}<={A.d1}+1 and {A.d0}>={A.d1}-1), {A})', A=arr)
+example sparse tridiagonal array used previously::
 
   # Define a 3x10 subarray (returned as a new SciDBArray object)
-  X = arr[2:5,:]
+  X = tridiag[2:5,:]
   X.toarray()
   array([[ 0., -1.,  2.,  1.,  0.,  0.,  0.,  0.,  0.,  0.],
          [ 0.,  0., -1.,  2.,  1.,  0.,  0.,  0.,  0.,  0.],
@@ -279,7 +287,7 @@ Fancy (tuple-based) subarray indexing is not yet supported.
 
 Note that subarray indexing of `SciDBArray` objects follows numpy convention.
 SciDB arrays with negative-valued coordinate indices should be translated to a
-coordinate system with a nonnegative origin before use.
+coordinate system with a nonnegative origin.
 
 Scalar functions of SciDBArray objects (aggregations)
 ^^^^
@@ -294,19 +302,19 @@ These operations return new `SciDBArray` objects consisting of scalar values.
 Here are a few examples that materialize their results to Python (using
 the `arr` array defined in the last example)::
 
-  sdb.count(arr).toarray()[0]
+  sdb.count(tridiag).toarray()[0]
   28
 
-  sdb.sum(arr).toarray()[0]
+  sdb.sum(tridiag).toarray()[0]
   20.0
 
-  sdb.var(arr).toarray()[0]
+  sdb.var(tridiag).toarray()[0]
   1.6190476190476193
 
 Note that a count of nonempty cells is also directly available from the
 `nonempty` function::
 
-  arr.nonempty()
+  tridiag.nonempty()
   28
 
 Pointwise application of scalar functions
@@ -317,7 +325,7 @@ element-wise to SciDB arrays: `sin, cos, tan, asin, acos, atan, exp, log` and
 `log10`. Here is a simple example that compares a computation in SciDB with
 a local one (using the `arr` array defined in the last examples)::
 
-  np.linalg.norm(sdb.sin(arr).toarray() - np.sin(arr.toarray()))
+  np.linalg.norm(sdb.sin(tridiag).toarray() - np.sin(tridiag.toarray()))
   0.0
 
 
@@ -327,8 +335,8 @@ Shape and layout functions
 Arrays may be transposed and their data re-arranged into new shapes
 with the usual `transpose` and `reshape` functions::
 
-  arr.transpose()
-  arr.reshape((20,5)).shape
+  tridiag.transpose()
+  tridiag.reshape((20,5)).shape
   (20,5)
 
 
@@ -367,10 +375,6 @@ Numpy broadcasting conventions are generally followed in operations involving
 differently-sized `SciDBArray` objects. Consider the following example that
 centers a matrix by subtracting its column average from each column::
 
-  from scidbpy import interface, SciDBQueryError, SciDBArray
-  sdb = interface.SciDBShimInterface('http://localhost:8080')
-  import numpy as np
-
   # Create a small test array with 5 columns:
   X = sdb.from_array(np.random.random((10,5)))
 
@@ -381,7 +385,7 @@ centers a matrix by subtracting its column average from each column::
   XC = X - xcolmean
 
 The example populates the column mean values in the vector `xcolmean` by
-issuing a SciDB aggregation query along the columns of X.
+issuing a SciDB aggregation query along dimension 1 (the columns).
 
 
 Example applications
@@ -397,10 +401,6 @@ the columns of the matrices X and Y. We break the example up into
 a few parts for clarity.
 
 Part 1, set up some example matrices::
-
-  from scidbpy import interface, SciDBQueryError, SciDBArray
-  sdb = interface.SciDBShimInterface('http://localhost:8080')
-  import numpy as np
 
   # Create a small test array with 5 columns:
   X = sdb.from_array(np.random.random((10,5)))
