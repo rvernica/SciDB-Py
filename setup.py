@@ -2,7 +2,7 @@ from distutils.core import setup
 
 DESCRIPTION = "Python wrappers for SciDB"
 LONG_DESCRIPTION = open('README.md').read()
-NAME = "SciDB-Py"
+NAME = "scidb-py"
 AUTHOR = "Jake Vanderplas"
 AUTHOR_EMAIL = "jakevdp@cs.washington.edu"
 MAINTAINER = "Jake Vanderplas"
