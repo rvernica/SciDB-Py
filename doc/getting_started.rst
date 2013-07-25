@@ -1,5 +1,8 @@
+.. _getting_started:
+
+
 ===============
 Getting Started
 ===============
 
-Some information here
+See the :ref:`tutorial` for more information.
