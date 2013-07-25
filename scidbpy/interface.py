@@ -593,11 +593,21 @@ class SciDBInterface(object):
 
         output_shape = A.shape[:-1] + B.shape[1:]
 
+        # TODO: the following four transformations should be done by building
+        #       a single query rather than executing separate queries.
+        #       The following should be considered a place-holder for right
+        #       now.
         if A.ndim == 1:
             A = A.reshape((1, A.size))
 
         if B.ndim == 1:
             B = B.reshape((B.size, 1))
+
+        if A.sdbtype.nullable[0]:
+            A = A.substitute(0)
+
+        if B.sdbtype.nullable[0]:
+            B = B.substitute(0)
 
         C = self.new_array()
         self.query('store(multiply({0},{1}),{2})', A, B, C)

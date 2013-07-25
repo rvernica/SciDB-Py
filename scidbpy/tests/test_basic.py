@@ -137,6 +137,18 @@ def test_dot():
             yield check_dot, Ashape, Bshape
 
 
+def test_dot_nullable():
+    """Test the dot product of arrays with nullable attributes"""
+    X = sdb.random((5, 5), dtype='<f0:double null>')
+    Y = sdb.random((5, 5), dtype='<f0:double null>')
+
+    assert_(X.sdbtype.nullable[0])
+    assert_(Y.sdbtype.nullable[0])
+
+    Z = sdb.dot(X, Y)
+    assert_allclose(Z.toarray(), np.dot(X.toarray(), Y.toarray()))
+
+
 def test_svd():
     # chunk_size=32 currently required for svd
     A = sdb.random((6, 10), chunk_size=32)
