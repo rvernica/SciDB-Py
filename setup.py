@@ -7,7 +7,7 @@ LONG_DESCRIPTION = "Python wrappers for SciDB"
 NAME = "SciDB-Py"
 AUTHOR = "Jake Vanderplas"
 AUTHOR_EMAIL = "jakevdp@cs.washington.edu"
-MAINTAINER = "Jake VanderPlas"
+MAINTAINER = "Jake Vanderplas"
 MAINTAINER_EMAIL = "jakevdp@cs.washington.edu"
 DOWNLOAD_URL = 'http://github.com/jakevdp/scidb-py'
 LICENSE = 'Simplified BSD'
@@ -30,7 +30,7 @@ setup(name=NAME,
         'Development Status :: 4 - Beta',
         'Environment :: Console',
         'Intended Audience :: Science/Research',
-        'License :: OSI Approved :: GNU Affero General Public License v3',
+        'License :: OSI Approved :: BSD License',
         'Natural Language :: English',
         'Programming Language :: Python :: 2.6',
         'Topic :: Database :: Front-Ends',
