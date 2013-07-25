@@ -1,4 +1,4 @@
-__version__ = "0.1beta"
+__version__ = "0.1.b1"
 
 from .interface import *
 from .scidbarray import *

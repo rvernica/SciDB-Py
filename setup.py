@@ -1,9 +1,7 @@
 from distutils.core import setup
 
 DESCRIPTION = "Python wrappers for SciDB"
-# This was throwing an error when creating a pip-installable package
-#LONG_DESCRIPTION = open('README.md').read()
-LONG_DESCRIPTION = "Python wrappers for SciDB"
+LONG_DESCRIPTION = open('README.md').read()
 NAME = "SciDB-Py"
 AUTHOR = "Jake Vanderplas"
 AUTHOR_EMAIL = "jakevdp@cs.washington.edu"

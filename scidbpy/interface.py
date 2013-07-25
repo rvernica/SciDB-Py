@@ -756,38 +756,6 @@ class SciDBInterface(object):
     def substitute(self, A, value):
         return A.substitute(value)
 
-    #def pairwise_distances(self, X, Y=None):
-    #    """Compute the pairwise distances between arrays X and Y"""
-    #    if Y is None:
-    #        Y = X
-    #
-    #    assert X.ndim == 2
-    #    assert Y.ndim == 2
-    #    assert X.shape[1] == Y.shape[1]
-    #
-    #    D = self.new_array()
-    #    query = ("store("
-    #             "  aggregate("
-    #             "    project("
-    #             "      apply("
-    #             "        cross_join({X} as X1,"
-    #             "                   {Y} as X2,"
-    #             "                   X1.{Xj}, X2.{Yj}),"
-    #             "        {d}, (X1.{Xv} - X2.{Yv}) * (X1.{Xv} - X2.{Yv})),"
-    #             "      {d}),"
-    #             "    sum({d}), X1.{Xi}, X2.{Yi}),"
-    #             "  {D})")
-    #
-    #    self.query(query,
-    #               X=X, Xj=X.index(1, full=False),
-    #               Xv=X.val(0, full=False),
-    #               Xi=X.index(0, full=False),
-    #               Y=Y, Yj=Y.index(1, full=False),
-    #               Yv=Y.val(0, full=False),
-    #               Yi=Y.index(0, full=False),
-    #               D=D, d='d')
-    #    return D
-
     def join(self, A, B):
         """Perform a simple array join"""
         arr = self.new_array()
