@@ -11,5 +11,7 @@ near-term!
 
 Support
 -------
-This work has been supported by NSF Grant number
-[1226371](http://www.nsf.gov/awardsearch/showAward?AWD_ID=1226371).
+This work has been supported by NSF Grant number 1226371_.
+
+
+.. _1226371: http://www.nsf.gov/awardsearch/showAward?AWD_ID=1226371
