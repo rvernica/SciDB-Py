@@ -1,8 +1,8 @@
 from distutils.core import setup
 
 DESCRIPTION = "Python wrappers for SciDB"
-LONG_DESCRIPTION = open('README.md').read()
-NAME = "scidb-py"
+LONG_DESCRIPTION = open('README.rst').read()
+NAME = "scidbpy"
 AUTHOR = "Jake Vanderplas"
 AUTHOR_EMAIL = "jakevdp@cs.washington.edu"
 MAINTAINER = "Jake Vanderplas"
