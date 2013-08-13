@@ -146,7 +146,7 @@ class sdbtype(object):
         sdbL = cls._schema_to_list(schema)
 
         if len(sdbL) == 1:
-            return np.dtype(sdbL[0][1])
+            return np.dtype(SDB_NP_TYPE_MAP[sdbL[0][1]])
         else:
             return np.dtype([(s[0], SDB_NP_TYPE_MAP[s[1]]) for s in sdbL])
 
