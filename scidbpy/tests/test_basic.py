@@ -5,8 +5,7 @@ from nose import SkipTest
 
 # In order to run tests, we need to connect to a valid SciDB engine
 from scidbpy import interface, SciDBQueryError, SciDBArray
-#sdb = interface.SciDBShimInterface('http://localhost:8080')
-sdb = interface.SciDBShimInterface('http://vega.cs.washington.edu:8080')
+sdb = interface.SciDBShimInterface('http://localhost:8080')
 
 RTOL = 1E-6
 
