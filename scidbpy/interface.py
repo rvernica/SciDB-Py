@@ -723,35 +723,35 @@ class SciDBInterface(object):
         """Element-wise base-10 logarithm"""
         return self._apply_func(A, 'log10')
 
-    def min(self, A, index=None):
-        return A.min(index)
+    def min(self, A, index=None, numpy_syntax=True):
+        return A.min(index, numpy_syntax)
 
-    def max(self, A, index=None):
-        return A.max(index)
+    def max(self, A, index=None, numpy_syntax=True):
+        return A.max(index, numpy_syntax)
 
-    def sum(self, A, index=None):
-        return A.sum(index)
+    def sum(self, A, index=None, numpy_syntax=True):
+        return A.sum(index, numpy_syntax)
 
-    def var(self, A, index=None):
-        return A.var(index)
+    def var(self, A, index=None, numpy_syntax=True):
+        return A.var(index, numpy_syntax)
 
-    def stdev(self, A, index=None):
-        return A.stdev(index)
+    def stdev(self, A, index=None, numpy_syntax=True):
+        return A.stdev(index, numpy_syntax)
 
-    def std(self, A, index=None):
-        return A.std(index)
+    def std(self, A, index=None, numpy_syntax=True):
+        return A.std(index, numpy_syntax)
 
-    def avg(self, A, index=None):
-        return A.avg(index)
+    def avg(self, A, index=None, numpy_syntax=True):
+        return A.avg(index, numpy_syntax)
 
-    def mean(self, A, index=None):
-        return A.mean(index)
+    def mean(self, A, index=None, numpy_syntax=True):
+        return A.mean(index, numpy_syntax)
 
-    def count(self, A, index=None):
-        return A.count(index)
+    def count(self, A, index=None, numpy_syntax=True):
+        return A.count(index, numpy_syntax)
 
-    def approxdc(self, A, index=None):
-        return A.approxdc(index)
+    def approxdc(self, A, index=None, numpy_syntax=True):
+        return A.approxdc(index, numpy_syntax)
 
     def substitute(self, A, value):
         return A.substitute(value)

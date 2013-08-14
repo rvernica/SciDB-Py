@@ -282,13 +282,13 @@ def test_substitute():
     assert_allclose(np.zeros(5), arr.substitute(0).toarray())
 
 
-def test_aggregates():
+def test_scidb_aggregates():
     A = sdb.random((5, 5))
 
-    ind_dict = {1: 0, 0: 1, None: None}
+    ind_dict = {1: 0, 0: 1, (0, 1): (), (): (0, 1), None: None}
 
     def check_op(op, ind):
-        C = getattr(sdb, op)(A, ind)
+        C = getattr(sdb, op)(A, ind, numpy_syntax=False)
         if op in ['var', 'std']:
             C_np = getattr(np, op)(A.toarray(), ind_dict[ind], ddof=1)
         else:
@@ -296,7 +296,29 @@ def test_aggregates():
         assert_allclose(C.toarray(), C_np, rtol=1E-6)
 
     for op in ['min', 'max', 'sum', 'var', 'std', 'mean']:
-        for ind in [None, 0, 1]:
+        for ind in [None, 0, 1, (0, 1), ()]:
+            # some aggregates produce nulls.  We won't test these
+            if ind == (0, 1) and op in ['var', 'std', 'mean']:
+                continue
+            yield check_op, op, ind
+
+
+def test_numpy_aggregates():
+    A = sdb.random((5, 5))
+
+    def check_op(op, ind):
+        C = getattr(sdb, op)(A, ind)
+        if op in ['var', 'std']:
+            C_np = getattr(np, op)(A.toarray(), ind, ddof=1)
+        else:
+            C_np = getattr(np, op)(A.toarray(), ind)
+        assert_allclose(C.toarray(), C_np, rtol=1E-6)
+
+    for op in ['min', 'max', 'sum', 'var', 'std', 'mean']:
+        for ind in [None, 0, 1, (0, 1), ()]:
+            # some aggregates produce nulls.  We won't test these
+            if ind == () and op in ['var', 'std', 'mean']:
+                continue
             yield check_op, op, ind
 
 
