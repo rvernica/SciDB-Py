@@ -5,7 +5,8 @@ from nose import SkipTest
 
 # In order to run tests, we need to connect to a valid SciDB engine
 from scidbpy import interface, SciDBQueryError, SciDBArray
-sdb = interface.SciDBShimInterface('http://localhost:8080')
+#sdb = interface.SciDBShimInterface('http://localhost:8080')
+sdb = interface.SciDBShimInterface('http://vega.cs.washington.edu:8080')
 
 RTOL = 1E-6
 
@@ -288,7 +289,7 @@ def test_scidb_aggregates():
     ind_dict = {1: 0, 0: 1, (0, 1): (), (): (0, 1), None: None}
 
     def check_op(op, ind):
-        C = getattr(sdb, op)(A, ind, numpy_syntax=False)
+        C = getattr(sdb, op)(A, ind, scidb_syntax=True)
         if op in ['var', 'std']:
             C_np = getattr(np, op)(A.toarray(), ind_dict[ind], ddof=1)
         else:

@@ -723,35 +723,35 @@ class SciDBInterface(object):
         """Element-wise base-10 logarithm"""
         return self._apply_func(A, 'log10')
 
-    def min(self, A, index=None, numpy_syntax=True):
-        return A.min(index, numpy_syntax)
+    def min(self, A, index=None, scidb_syntax=False):
+        return A.min(index, scidb_syntax)
 
-    def max(self, A, index=None, numpy_syntax=True):
-        return A.max(index, numpy_syntax)
+    def max(self, A, index=None, scidb_syntax=False):
+        return A.max(index, scidb_syntax)
 
-    def sum(self, A, index=None, numpy_syntax=True):
-        return A.sum(index, numpy_syntax)
+    def sum(self, A, index=None, scidb_syntax=False):
+        return A.sum(index, scidb_syntax)
 
-    def var(self, A, index=None, numpy_syntax=True):
-        return A.var(index, numpy_syntax)
+    def var(self, A, index=None, scidb_syntax=False):
+        return A.var(index, scidb_syntax)
 
-    def stdev(self, A, index=None, numpy_syntax=True):
-        return A.stdev(index, numpy_syntax)
+    def stdev(self, A, index=None, scidb_syntax=False):
+        return A.stdev(index, scidb_syntax)
 
-    def std(self, A, index=None, numpy_syntax=True):
-        return A.std(index, numpy_syntax)
+    def std(self, A, index=None, scidb_syntax=False):
+        return A.std(index, scidb_syntax)
 
-    def avg(self, A, index=None, numpy_syntax=True):
-        return A.avg(index, numpy_syntax)
+    def avg(self, A, index=None, scidb_syntax=False):
+        return A.avg(index, scidb_syntax)
 
-    def mean(self, A, index=None, numpy_syntax=True):
-        return A.mean(index, numpy_syntax)
+    def mean(self, A, index=None, scidb_syntax=False):
+        return A.mean(index, scidb_syntax)
 
-    def count(self, A, index=None, numpy_syntax=True):
-        return A.count(index, numpy_syntax)
+    def count(self, A, index=None, scidb_syntax=False):
+        return A.count(index, scidb_syntax)
 
-    def approxdc(self, A, index=None, numpy_syntax=True):
-        return A.approxdc(index, numpy_syntax)
+    def approxdc(self, A, index=None, scidb_syntax=False):
+        return A.approxdc(index, scidb_syntax)
 
     def substitute(self, A, value):
         return A.substitute(value)

@@ -876,7 +876,7 @@ class SciDBArray(object):
                              T=self.sdbtype, value=value)
         return arr
 
-    def _aggregate_operation(self, agg, index=None, numpy_syntax=True):
+    def _aggregate_operation(self, agg, index=None, scidb_syntax=True):
         """Perform an aggregation query
 
         Parameters
@@ -885,9 +885,9 @@ class SciDBArray(object):
             The aggregation function to apply
         index : int, tuple, or enumeratable
             The set of indices to aggregate over (default=None)
-        numpy_syntax : boolean
-            If true, use numpy index syntax.  Otherwise, use native
-            SciDB index syntax.  Default is True (use numpy syntax).
+        scidb_syntax : boolean
+            If true, use scidb-style index syntax.  Otherwise, use numpy-style
+            index syntax.  Default is False (use numpy syntax).
 
         Notes
         -----
@@ -895,9 +895,9 @@ class SciDBArray(object):
         indices:
 
         >>> A = sdb.random((2, 3, 4))
-        >>> A.max(1, numpy_syntax=True).shape
+        >>> A.max(1, scidb_syntax=False).shape
         (2, 4)
-        >>> A.max(1, numpy_syntax=False).shape
+        >>> A.max(1, scidb_syntax=True).shape
         (3,)
 
         As we see, in SciDB we specify the index we want returned, and the
@@ -934,7 +934,7 @@ class SciDBArray(object):
                 raise ValueError("duplicate indices specified")
 
             # numpy syntax is opposite SciDB syntax
-            if numpy_syntax:
+            if not scidb_syntax:
                 ind = tuple(i for i in range(self.ndim) if i not in ind)
 
             # corner case where indices are an empty tuple
@@ -951,35 +951,35 @@ class SciDBArray(object):
         self.interface.query(qstring, A=self, arr=arr, agg=agg)
         return arr
 
-    def min(self, index=None, numpy_syntax=True):
-        return self._aggregate_operation('min', index, numpy_syntax)
+    def min(self, index=None, scidb_syntax=False):
+        return self._aggregate_operation('min', index, scidb_syntax)
 
-    def max(self, index=None, numpy_syntax=True):
-        return self._aggregate_operation('max', index, numpy_syntax)
+    def max(self, index=None, scidb_syntax=False):
+        return self._aggregate_operation('max', index, scidb_syntax)
 
-    def sum(self, index=None, numpy_syntax=True):
-        return self._aggregate_operation('sum', index, numpy_syntax)
+    def sum(self, index=None, scidb_syntax=False):
+        return self._aggregate_operation('sum', index, scidb_syntax)
 
-    def var(self, index=None, numpy_syntax=True):
-        return self._aggregate_operation('var', index, numpy_syntax)
+    def var(self, index=None, scidb_syntax=False):
+        return self._aggregate_operation('var', index, scidb_syntax)
 
-    def stdev(self, index=None, numpy_syntax=True):
-        return self._aggregate_operation('stdev', index, numpy_syntax)
+    def stdev(self, index=None, scidb_syntax=False):
+        return self._aggregate_operation('stdev', index, scidb_syntax)
 
-    def std(self, index=None, numpy_syntax=True):
-        return self._aggregate_operation('stdev', index, numpy_syntax)
+    def std(self, index=None, scidb_syntax=False):
+        return self._aggregate_operation('stdev', index, scidb_syntax)
 
-    def avg(self, index=None, numpy_syntax=True):
-        return self._aggregate_operation('avg', index, numpy_syntax)
+    def avg(self, index=None, scidb_syntax=False):
+        return self._aggregate_operation('avg', index, scidb_syntax)
 
-    def mean(self, index=None, numpy_syntax=True):
-        return self._aggregate_operation('avg', index, numpy_syntax)
+    def mean(self, index=None, scidb_syntax=False):
+        return self._aggregate_operation('avg', index, scidb_syntax)
 
-    def count(self, index=None, numpy_syntax=True):
-        return self._aggregate_operation('count', index, numpy_syntax)
+    def count(self, index=None, scidb_syntax=False):
+        return self._aggregate_operation('count', index, scidb_syntax)
 
-    def approxdc(self, index=None, numpy_syntax=True):
-        return self._aggregate_operation('approxdc', index, numpy_syntax)
+    def approxdc(self, index=None, scidb_syntax=False):
+        return self._aggregate_operation('approxdc', index, scidb_syntax)
 
     def regrid(self, size, aggregate="avg"):
         """Regrid the array using the specified aggregate
