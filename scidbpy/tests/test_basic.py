@@ -11,6 +11,7 @@ RTOL = 1E-6
 
 
 def test_numpy_conversion():
+    """Test export to a SciDB array"""
     X = np.random.random((10, 6))
 
     Xsdb = sdb.from_array(X)
@@ -22,6 +23,19 @@ def test_numpy_conversion():
 
     for transfer_bytes in (True, False):
         yield check_toarray, transfer_bytes
+
+
+def test_pandas_conversion():
+    """Test export to Pandas dataframe"""
+    d = sdb.random(10, dtype=float)
+    i = sdb.randint(10, lower=0, upper=10, dtype=int)
+    X = sdb.join(d, i)
+
+    Xnp = X.toarray()
+    Xpd = X.todataframe()
+
+    for col in Xpd.columns:
+        assert_allclose(Xnp[col], Xpd[col])
 
 
 def test_nonzero_nonnull():

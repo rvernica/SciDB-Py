@@ -480,7 +480,7 @@ class SciDBArray(object):
         return (self.nonempty() < self.size)
 
     def _download_data(self, transfer_bytes=True, output='auto'):
-        """Utility routine to download data from SciDB database.
+        """Utility routine to transfer data from SciDB database.
 
         Parameters
         ----------
@@ -583,7 +583,7 @@ class SciDBArray(object):
         return arr
 
     def toarray(self, transfer_bytes=True):
-        """Download data from the server and store in an array.
+        """Transfer data from database and store in a numpy array.
 
         Parameters
         ----------
@@ -599,8 +599,29 @@ class SciDBArray(object):
         return self._download_data(transfer_bytes=transfer_bytes,
                                    output='dense')
 
+    def todataframe(self, transfer_bytes=True):
+        """Transfer array from database and store in a local Pandas dataframe
+
+        This is valid only for a one-dimensional array.
+
+        Parameters
+        ----------
+        transfer_bytes : boolean
+            if True (default), then transfer data as bytes rather than as
+            ASCII.
+
+        Returns
+        -------
+        arr : pd.DataFrame
+            The dataframe object containing the data in the array.
+        """
+        if self.ndim != 1:
+            raise ValueError("Dataframe export is valid only for 1D arrays")
+        from pandas import DataFrame
+        return DataFrame(self.toarray())
+
     def tosparse(self, sparse_fmt='recarray', transfer_bytes=True):
-        """Download data from the server and store in a sparse array.
+        """Transfer array from database and store in a local sparse array.
 
         Parameters
         ----------
