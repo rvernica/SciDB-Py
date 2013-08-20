@@ -162,8 +162,8 @@ class SciDBInterface(object):
 
         Parameters
         ----------
-        scidbname : (optional string)
-            Use an existing scidb array referred to by `scidbname`. The
+        scidbname : string
+            Wrap an existing scidb array referred to by `scidbname`. The
             SciDB array object persistent value will be set to True, and
             the object shape, datashape and data type values will be
             determined by the SciDB array.
@@ -183,10 +183,13 @@ class SciDBInterface(object):
         shape : int or tuple (optional)
             The shape of the array to create.  If not specified, no array
             will be created and a name will simply be reserved for later use.
+            WARNING: if shape=None and persistent=False, an error will result
+            when the array goes out of scope, unless the name is used to
+            create an array on the server.
         dtype : string (optional)
             the datatype of the array.  This is only referenced if `shape`
             is specified.  Default is 'double'.
-        persistent : string (optional)
+        persistent : boolean (optional)
             whether the created array should be persistent, i.e. survive
             in SciDB past when the object wrapper goes out of scope.  Default
             is False.
@@ -357,8 +360,9 @@ class SciDBInterface(object):
         arr: SciDBArray
             A SciDBArray consisting of all zeros.
         """
-        arr = self.new_array(shape, dtype, **kwargs)
-        self.query('store(build({0},0),{0})', arr)
+        schema = SciDBDataShape(shape, dtype, **kwargs).schema
+        arr = self.new_array()
+        self.query('store(build({0}, 0), {1})', schema, arr)
         return arr
 
     def random(self, shape, dtype='double', lower=0, upper=1, **kwargs):
@@ -385,10 +389,11 @@ class SciDBInterface(object):
         """
         # TODO: can be done more efficiently
         #       if lower is 0 or upper - lower is 1
-        arr = self.new_array(shape, dtype, **kwargs)
+        schema = SciDBDataShape(shape, dtype, **kwargs).schema
         fill_value = ('random()*{0}/{2}+{1}'.format(upper - lower, lower,
                                                     float(SCIDB_RAND_MAX)))
-        self.query('store(build({0}, {1}), {0})', arr, fill_value)
+        arr = self.new_array()
+        self.query('store(build({0}, {1}), {2})', schema, fill_value, arr)
         return arr
 
     def randint(self, shape, dtype='uint32', lower=0, upper=SCIDB_RAND_MAX,
@@ -414,9 +419,10 @@ class SciDBInterface(object):
             A SciDBArray consisting of random integers, uniformly distributed
             between `lower` and `upper`.
         """
-        arr = self.new_array(shape, dtype, **kwargs)
+        schema = SciDBDataShape(shape, dtype, **kwargs).schema
         fill_value = 'random() % {0} + {1}'.format(upper - lower, lower)
-        self.query('store(build({0}, {1}), {0})', arr, fill_value)
+        arr = self.new_array()
+        self.query('store(build({0}, {1}), {2})', schema, fill_value, arr)
         return arr
 
     def arange(self, start, stop=None, step=1, dtype=None, **kwargs):
