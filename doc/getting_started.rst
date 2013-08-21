@@ -5,4 +5,4 @@
 Getting Started
 ===============
 
-See the :ref:`tutorial` for more information.
+See :ref:`installing_scidbpy` and the :ref:`tutorial` for more information.

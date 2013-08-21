@@ -17,29 +17,9 @@ utility operations are defined by the package. Additionally, a general query
 function provides a mechanism for performing arbitrary queries on scidbpy array
 objects.
 
-
-Software prerequisites
-----------------------
-
-The scidbpy package requires at least:
-
-1. An available SciDB_ installation
-2. The Shim_ network interface to SciDB
-
-We assume an existing installation of SciDB is available. Binary SciDB packages
-(for Ubuntu 12.04 and RHEL/CentOS 6) and source code are available from
-http://scidb.org.  The examples in this tutorial assume that SciDB is running
-on a computer with host name "localhost," at port 8080.
-If SciDB is not running on localhost, adjust the name accordingly.
-
-The scidbpy package requires installation of a simple HTTP network service
-called "shim" on the computer that SciDB coordinator is installed on. The
-network service only needs to be installed on the SciDB computer, not on client
-computers that connect to SciDB from Python. It's available in packaged binary
-form for supported SciDB operating systems, and as source code which can be
-compiled and deployed on any SciDB installation.
-See http://github.com/paradigm4/shim  for source code and installation
-instructions.
+Installation
+------------
+For details on installation, see :ref:`installing_scidbpy`.
 
 
 Loading the scidbpy package and connecting to SciDB
