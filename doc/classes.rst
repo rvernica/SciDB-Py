@@ -22,5 +22,14 @@ SciDB Interface
 
 .. currentmodule:: scidbpy
 
+Base Class
+----------
+
+.. autoclass:: SciDBInterface
+   :members:
+
+Shim Interface
+--------------
+
 .. autoclass:: SciDBShimInterface
    :members:
