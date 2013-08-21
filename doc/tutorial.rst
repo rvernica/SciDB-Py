@@ -274,7 +274,7 @@ data to Python:
 	4  8  5  1
 
 Tridiagonal Example
-~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^
 
 Let's consider a more complicated example.  Here
 we'll use the advanced query syntax (discussed below) to efficiently
@@ -350,7 +350,7 @@ interface between Python and SciDB data, including the full array schema::
 
 
 Element Access
-~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^
 
 Single elements of :class:`SciDBArray` objects can be referenced with the
 standard numpy indexing syntax.  These single elements are returned by
