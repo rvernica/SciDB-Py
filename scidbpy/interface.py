@@ -762,11 +762,17 @@ class SciDBInterface(object):
     def substitute(self, A, value):
         return A.substitute(value)
 
-    def join(self, A, B):
-        """Perform a simple array join"""
-        arr = self.new_array()
-        self.query('store(join({0},{1}), {2})', A, B, arr)
-        return arr
+    def join(self, *args):
+        """
+        Perform a series of array joins on the arguments
+        and return the result.
+        """
+        last = args[0]
+        for arg in args[1:]:
+            arr = self.new_array()
+            self.query('store(join({0},{1}), {2})', last, arg, arr)
+            last = arr
+        return last
 
     def cross_join(self, A, B, *dims):
         """Perform a cross-join on arrays A and B.
