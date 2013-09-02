@@ -124,7 +124,7 @@ class sdbtype(object):
         # assume that now we just have the dtypes themselves
         # TODO: support default values?
         sdbL = schema.split(',')
-        sdbL = [map(str.strip, s.split(':')) for s in sdbL]
+        sdbL = [list(map(str.strip, s.split(':'))) for s in sdbL]
 
         names = [s[0] for s in sdbL]
         dtypes = [s[1].split()[0] for s in sdbL]
