@@ -5,7 +5,9 @@
 
 import numpy as np
 import re
-import cStringIO
+
+from six.moves import cStringIO as StringIO
+
 import warnings
 from copy import copy
 from .errors import SciDBError
@@ -523,13 +525,13 @@ class SciDBArray(object):
         if array_is_sparse:
             # perform a CSV query to find all non-empty index tuples.
             str_rep = self.interface._scan_array(self.name, n=0, fmt='csv+')
-            fhandle = cStringIO.StringIO(str_rep)
+            fhandle = StringIO.StringIO(str_rep)
 
             # sanity check: make sure our labels are correct
             if list(full_dtype.names) != fhandle.readline().strip().split(','):
-                print full_dtype.names
+                #print full_dtype.names
                 fhandle.reset()
-                print fhandle.readline().strip().split(',')
+                #print fhandle.readline().strip().split(',')
                 raise ValueError("labels are off...")
             fhandle.reset()
 
@@ -563,7 +565,7 @@ class SciDBArray(object):
                 # transfer via ASCII.  Here we don't need the indices, so we
                 # use 'csv' output.
                 str_rep = self.interface._scan_array(self.name, n=0, fmt='csv')
-                fhandle = cStringIO.StringIO(str_rep)
+                fhandle = StringIO.StringIO(str_rep)
                 arr = np.genfromtxt(fhandle, delimiter=',', skip_header=1,
                                     dtype=dtype).reshape(shape)
 
