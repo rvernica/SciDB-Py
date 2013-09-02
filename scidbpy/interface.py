@@ -31,6 +31,8 @@ from .scidbarray import SciDBArray, SciDBDataShape, ArrayAlias
 from .errors import SHIM_ERROR_DICT
 from .utils import broadcastable
 
+import six
+
 __all__ = ['SciDBInterface', 'SciDBShimInterface']
 
 SCIDB_RAND_MAX = 2147483647  # 2 ** 31 - 1
@@ -226,7 +228,7 @@ class SciDBInterface(object):
         """
         parse = lambda x: ArrayAlias(x) if isinstance(x, SciDBArray) else x
         args = (parse(v) for v in args)
-        kwargs = dict((k, parse(v)) for k, v in kwargs.iteritems())
+        kwargs = dict((k, parse(v)) for k, v in six.iteritems(kwargs))
         query = query.format(*args, **kwargs)
         return query
 
@@ -1033,7 +1035,7 @@ class SciDBShimInterface(SciDBInterface):
         url = self.hostname + '/' + keyword
         if kwargs:
             url += '?' + '&'.join(['{0}={1}'.format(key, val)
-                                   for key, val in kwargs.iteritems()])
+                                   for key, val in six.iteritems(kwargs)])
         return url
 
     def _shim_urlopen(self, url):

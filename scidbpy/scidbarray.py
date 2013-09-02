@@ -6,6 +6,7 @@
 import numpy as np
 import re
 
+import six
 from six.moves import cStringIO as StringIO
 
 import warnings
@@ -33,7 +34,8 @@ SDB_NP_TYPE_MAP = {'bool': _np_typename('bool'),
                    'uint64': _np_typename('uint64'),
                    'char': _np_typename('c')}
 
-NP_SDB_TYPE_MAP = dict((val, key) for key, val in SDB_NP_TYPE_MAP.iteritems())
+NP_SDB_TYPE_MAP = dict((val, key)
+                       for key, val in six.iteritems(SDB_NP_TYPE_MAP))
 
 SDB_IND_TYPE = 'int64'
 
