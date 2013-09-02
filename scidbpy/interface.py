@@ -14,7 +14,16 @@ The following interfaces are currently available:
 # Author: Jake Vanderplas <jakevdp@cs.washington.edu>
 
 import abc
-import urllib2
+
+try:
+    # Python 2
+    from urllib2 import urlopen, quote, HTTPError
+except:
+    # Python 3
+    from urllib.request import urlopen
+    from urllib.error import HTTPError
+    from urllib.parse import quote
+
 import re
 import csv
 import numpy as np
@@ -983,8 +992,8 @@ class SciDBShimInterface(SciDBInterface):
     def __init__(self, hostname):
         self.hostname = hostname.rstrip('/')
         try:
-            urllib2.urlopen(self.hostname)
-        except urllib2.HTTPError:
+            urlopen(self.hostname)
+        except HTTPError:
             raise ValueError("Invalid hostname: {0}".format(self.hostname))
 
     def _get_uid(self):
@@ -1029,8 +1038,8 @@ class SciDBShimInterface(SciDBInterface):
 
     def _shim_urlopen(self, url):
         try:
-            return urllib2.urlopen(url)
-        except urllib2.HTTPError as e:
+            return urlopen(url)
+        except HTTPError as e:
             Error = SHIM_ERROR_DICT[e.code]
             raise Error("[HTTP {0}] {1}".format(e.code, e.read()))
 
@@ -1048,10 +1057,10 @@ class SciDBShimInterface(SciDBInterface):
     def _shim_execute_query(self, session_id, query, save=None, release=False):
         url = self._shim_url('execute_query',
                              id=session_id,
-                             query=urllib2.quote(query),
+                             query=quote(query),
                              release=int(bool(release)))
         if save is not None:
-            url += "&save={0}".format(urllib2.quote(save))
+            url += "&save={0}".format(quote(save))
 
         # Don't know the accepted way in Python to do something like this.
         # For now, just set the 'debug' attribute on this SciDB array object.
