@@ -1,0 +1,13 @@
+Version 0.2
+-----------
+*Unreleased*
+
+- 2013-09-03 Python 3 compatibility (Jake Vanderplas)
+
+  + upgraded to single-codebase compatibility with Python 2.7 and Python 3.3;
+    all tests pass for these Python versions.  No API change.
+
+
+Version 0.1
+-----------
+**Released 2013 August 21**
