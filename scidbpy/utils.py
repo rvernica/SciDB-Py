@@ -1,6 +1,21 @@
 import numpy as np
+import six
 
-__all__ = ['meshgrid']
+__all__ = ['meshgrid', 'genfromstr', 'broadcastable']
+
+
+def genfromstr(s, **kwargs):
+    """Utility routine to create an array from a string.
+
+    This uses either StringIO or BytesIO, depending on whether we're on
+    Python 2 or Python 3.
+    """
+    if six.PY3:
+        from io import BytesIO
+        return np.genfromtxt(BytesIO(s.encode()), **kwargs)
+    else:
+        from cStringIO import StringIO
+        return np.genfromtxt(StringIO(s), **kwargs)
 
 
 # This is back-ported from numpy version 1.7

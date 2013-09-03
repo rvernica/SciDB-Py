@@ -1091,8 +1091,8 @@ class SciDBShimInterface(SciDBInterface):
         url = self._shim_url('read_lines', id=session_id, n=n)
         result = self._shim_urlopen(url)
         bytes_result = result.read()
-        if not isinstance(bytes_result, six.string_types):
-            bytes_result = bytes_result.decode('UTF-8')
+        #if not isinstance(bytes_result, six.string_types):
+        #    bytes_result = bytes_result.decode('UTF-8')
         return bytes_result
 
     def _shim_upload_file(self, session_id, data):

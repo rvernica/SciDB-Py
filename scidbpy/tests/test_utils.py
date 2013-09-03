@@ -1,6 +1,13 @@
 import numpy as np
+from numpy.testing import assert_allclose
 import itertools
-from scidbpy.utils import broadcastable
+from scidbpy.utils import broadcastable, genfromstr
+
+
+def test_gen_from_string():
+    s = '\n'.join(map(str, range(10)))
+    a = genfromstr(s, dtype=float)
+    assert_allclose(a, np.arange(10))
 
 
 def test_broadcastable():
