@@ -777,7 +777,13 @@ class SciDBArray(object):
     def __div__(self, other):
         return self.interface._join_operation(self, other, '{left}/{right}')
 
+    def __truediv__(self, other):
+        return self.interface._join_operation(self, other, '{left}/{right}')
+
     def __rdiv__(self, other):
+        return self.interface._join_operation(other, self, '{left}/{right}')
+
+    def __rtruediv__(self, other):
         return self.interface._join_operation(other, self, '{left}/{right}')
 
     def __mod__(self, other):
