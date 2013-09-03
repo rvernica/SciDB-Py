@@ -12,19 +12,13 @@ The following interfaces are currently available:
 """
 # License: Simplified BSD, 2013
 # Author: Jake Vanderplas <jakevdp@cs.washington.edu>
+# See http://github.com/jakevdp/scidb-py for more information
 
 from __future__ import print_function
 
 import abc
 
-try:
-    # Python 2
-    from urllib2 import urlopen, quote, HTTPError
-except:
-    # Python 3
-    from urllib.request import urlopen
-    from urllib.error import HTTPError
-    from urllib.parse import quote
+from .py3k_compat import urlopen, quote, HTTPError, iteritems, string_type
 
 import re
 import csv
@@ -32,8 +26,6 @@ import numpy as np
 from .scidbarray import SciDBArray, SciDBDataShape, ArrayAlias
 from .errors import SHIM_ERROR_DICT
 from .utils import broadcastable
-
-import six
 
 __all__ = ['SciDBInterface', 'SciDBShimInterface']
 
@@ -231,7 +223,7 @@ class SciDBInterface(object):
         """
         parse = lambda x: ArrayAlias(x) if isinstance(x, SciDBArray) else x
         args = (parse(v) for v in args)
-        kwargs = dict((k, parse(v)) for k, v in six.iteritems(kwargs))
+        kwargs = dict((k, parse(v)) for k, v in iteritems(kwargs))
         query = query.format(*args, **kwargs)
         return query
 
@@ -1037,7 +1029,7 @@ class SciDBShimInterface(SciDBInterface):
         url = self.hostname + '/' + keyword
         if kwargs:
             url += '?' + '&'.join(['{0}={1}'.format(key, val)
-                                   for key, val in six.iteritems(kwargs)])
+                                   for key, val in iteritems(kwargs)])
         return url
 
     def _shim_urlopen(self, url):
@@ -1083,7 +1075,8 @@ class SciDBShimInterface(SciDBInterface):
         url = self._shim_url('read_lines', id=session_id, n=n)
         result = self._shim_urlopen(url)
         text_result = result.read()
-        if not isinstance(text_result, six.string_types):
+        # the following check is for Py3K compatibility
+        if not isinstance(text_result, string_type):
             text_result = text_result.decode('UTF-8')
         return text_result
 
@@ -1091,12 +1084,10 @@ class SciDBShimInterface(SciDBInterface):
         url = self._shim_url('read_lines', id=session_id, n=n)
         result = self._shim_urlopen(url)
         bytes_result = result.read()
-        #if not isinstance(bytes_result, six.string_types):
-        #    bytes_result = bytes_result.decode('UTF-8')
         return bytes_result
 
     def _shim_upload_file(self, session_id, data):
-        # TODO: can this be implemented in urllib2 to remove dependency?
+        # TODO: can this be implemented in urllib to remove dependency?
         import requests
         url = self._shim_url('upload_file', id=session_id)
         result = requests.post(url, files=dict(fileupload=data))

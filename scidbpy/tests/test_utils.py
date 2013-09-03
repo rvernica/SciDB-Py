@@ -1,7 +1,8 @@
 import numpy as np
 from numpy.testing import assert_allclose
 import itertools
-from scidbpy.utils import broadcastable, genfromstr
+from scidbpy.utils import broadcastable
+from scidbpy.py3k_compat import genfromstr
 
 
 def test_gen_from_string():

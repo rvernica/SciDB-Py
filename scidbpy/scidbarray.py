@@ -1,20 +1,21 @@
 """SciDB Array Wrapper"""
 
-# License: Simplified BSD
-# Author: Jake Vanderplas
+# License: Simplified BSD, 2013
+# Author: Jake Vanderplas <jakevdp@cs.washington.edu>
+# See http://github.com/jakevdp/scidb-py for more information
+
 from __future__ import print_function
 
 import numpy as np
 import re
-
-import six
 
 import warnings
 from copy import copy
 from .errors import SciDBError
 
 # Numpy 1.7 meshgrid backport
-from .utils import meshgrid, genfromstr
+from .utils import meshgrid
+from .py3k_compat import genfromstr, iteritems
 
 __all__ = ["sdbtype", "SciDBArray", "SciDBDataShape"]
 
@@ -35,7 +36,7 @@ SDB_NP_TYPE_MAP = {'bool': _np_typename('bool'),
                    'char': _np_typename('c')}
 
 NP_SDB_TYPE_MAP = dict((val, key)
-                       for key, val in six.iteritems(SDB_NP_TYPE_MAP))
+                       for key, val in iteritems(SDB_NP_TYPE_MAP))
 
 SDB_IND_TYPE = 'int64'
 
@@ -567,10 +568,10 @@ class SciDBArray(object):
                                  dtype=dtype).reshape(shape)
 
             if output == 'sparse':
-                index_arrays = map(np.ravel,
-                                   meshgrid(*[np.arange(s)
-                                              for s in self.shape],
-                                            indexing='ij'))
+                index_arrays = list(map(np.ravel,
+                                        meshgrid(*[np.arange(s)
+                                                   for s in self.shape],
+                                                 indexing='ij')))
                 arr = arr.ravel()
                 if len(sdbtype.names) == 1:
                     value_arrays = [arr]
@@ -943,13 +944,9 @@ class SciDBArray(object):
             except:
                 ind = (index,)
 
-            # indices must be integers
-            ind = map(int, ind)
-
             # use numpy-style negative indices
-            for i in range(len(ind)):
-                if ind[i] < 0:
-                    ind[i] += self.ndim
+            ind = [i + self.ndim if i < 0 else i
+                   for i in map(int, ind)]
 
             # check that indices are in range
             if any(i < 0 or i > self.ndim for i in ind):
