@@ -2,12 +2,13 @@
 
 # License: Simplified BSD
 # Author: Jake Vanderplas
+from __future__ import print_function
 
 import numpy as np
 import re
 
 import six
-from six.moves import cStringIO as StringIO
+from six.moves import StringIO
 
 import warnings
 from copy import copy
@@ -130,7 +131,7 @@ class sdbtype(object):
         dtypes = [s[1].split()[0] for s in sdbL]
         nullable = ['null' in str.lower(''.join(s[1].split()[1:]))
                     for s in sdbL]
-        return zip(names, dtypes, nullable)
+        return list(zip(names, dtypes, nullable))
 
     @classmethod
     def _schema_to_dtype(cls, schema):
@@ -278,7 +279,7 @@ class SciDBDataShape(object):
         dct = dict(f[:2] for f in self.sdbtype.full_rep)
         types = [SDB_NP_TYPE_MAP[dct.get(key, SDB_IND_TYPE)]
                  for key in keys]
-        return np.dtype(zip(keys, types))
+        return np.dtype(list(zip(keys, types)))
 
 
 class ArrayAlias(object):
@@ -527,15 +528,12 @@ class SciDBArray(object):
         if array_is_sparse:
             # perform a CSV query to find all non-empty index tuples.
             str_rep = self.interface._scan_array(self.name, n=0, fmt='csv+')
-            fhandle = StringIO.StringIO(str_rep)
+            fhandle = StringIO(str_rep)
 
             # sanity check: make sure our labels are correct
             if list(full_dtype.names) != fhandle.readline().strip().split(','):
-                #print full_dtype.names
-                fhandle.reset()
-                #print fhandle.readline().strip().split(',')
-                raise ValueError("labels are off...")
-            fhandle.reset()
+                raise ValueError("Fatal: unexpected array labels.")
+            fhandle.seek(0)
 
             # convert the ASCII representation into a numpy record array
             arr = np.genfromtxt(fhandle, delimiter=',', skip_header=1,
@@ -567,7 +565,7 @@ class SciDBArray(object):
                 # transfer via ASCII.  Here we don't need the indices, so we
                 # use 'csv' output.
                 str_rep = self.interface._scan_array(self.name, n=0, fmt='csv')
-                fhandle = StringIO.StringIO(str_rep)
+                fhandle = StringIO(str_rep)
                 arr = np.genfromtxt(fhandle, delimiter=',', skip_header=1,
                                     dtype=dtype).reshape(shape)
 

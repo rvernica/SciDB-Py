@@ -13,6 +13,8 @@ The following interfaces are currently available:
 # License: Simplified BSD, 2013
 # Author: Jake Vanderplas <jakevdp@cs.washington.edu>
 
+from __future__ import print_function
+
 import abc
 
 try:
@@ -146,6 +148,7 @@ class SciDBInterface(object):
         else:
             # on subsequent calls, increment the array count
             self.array_count += 1
+
         return "{0}{1}_{2:05}".format(arr_key, self.uid, self.array_count)
 
     def _scan_array(self, name, **kwargs):
@@ -1001,10 +1004,9 @@ class SciDBShimInterface(SciDBInterface):
     def _get_uid(self):
         # load a library to get a query id
         session = self._shim_new_session()
-        uid = self._shim_execute_query(session,
-                                       "load_library('dense_linear_algebra')",
-                                       release=True)
-        return uid
+        return self._shim_execute_query(session,
+                                        "load_library('dense_linear_algebra')",
+                                        release=True)
 
     def _execute_query(self, query, response=False, n=0, fmt='auto'):
         # log the query
@@ -1071,7 +1073,7 @@ class SciDBShimInterface(SciDBInterface):
 
         result = self._shim_urlopen(url)
         query_id = result.read()
-        return query_id
+        return query_id.decode('UTF-8')
 
     def _shim_cancel(self, session_id):
         url = self._shim_url('cancel', id=session_id)
@@ -1081,12 +1083,16 @@ class SciDBShimInterface(SciDBInterface):
         url = self._shim_url('read_lines', id=session_id, n=n)
         result = self._shim_urlopen(url)
         text_result = result.read()
+        if not isinstance(text_result, six.string_types):
+            text_result = text_result.decode('UTF-8')
         return text_result
 
     def _shim_read_bytes(self, session_id, n):
         url = self._shim_url('read_lines', id=session_id, n=n)
         result = self._shim_urlopen(url)
         bytes_result = result.read()
+        if not isinstance(bytes_result, six.string_types):
+            bytes_result = bytes_result.decode('UTF-8')
         return bytes_result
 
     def _shim_upload_file(self, session_id, data):
