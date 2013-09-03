@@ -18,7 +18,7 @@ from __future__ import print_function
 
 import abc
 
-from .py3k_compat import urlopen, quote, HTTPError, iteritems, string_type
+from ._py3k_compat import urlopen, quote, HTTPError, iteritems, string_type
 
 import re
 import csv

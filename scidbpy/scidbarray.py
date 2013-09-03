@@ -15,7 +15,7 @@ from .errors import SciDBError
 
 # Numpy 1.7 meshgrid backport
 from .utils import meshgrid
-from .py3k_compat import genfromstr, iteritems
+from ._py3k_compat import genfromstr, iteritems
 
 __all__ = ["sdbtype", "SciDBArray", "SciDBDataShape"]
 
