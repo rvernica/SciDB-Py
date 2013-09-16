@@ -12,9 +12,14 @@ The following interfaces are currently available:
 """
 # License: Simplified BSD, 2013
 # Author: Jake Vanderplas <jakevdp@cs.washington.edu>
+# See http://github.com/jakevdp/scidb-py for more information
+
+from __future__ import print_function
 
 import abc
-import urllib2
+
+from ._py3k_compat import urlopen, quote, HTTPError, iteritems, string_type
+
 import re
 import csv
 import numpy as np
@@ -135,6 +140,7 @@ class SciDBInterface(object):
         else:
             # on subsequent calls, increment the array count
             self.array_count += 1
+
         return "{0}{1}_{2:05}".format(arr_key, self.uid, self.array_count)
 
     def _scan_array(self, name, **kwargs):
@@ -217,7 +223,7 @@ class SciDBInterface(object):
         """
         parse = lambda x: ArrayAlias(x) if isinstance(x, SciDBArray) else x
         args = (parse(v) for v in args)
-        kwargs = dict((k, parse(v)) for k, v in kwargs.iteritems())
+        kwargs = dict((k, parse(v)) for k, v in iteritems(kwargs))
         query = query.format(*args, **kwargs)
         return query
 
@@ -983,17 +989,16 @@ class SciDBShimInterface(SciDBInterface):
     def __init__(self, hostname):
         self.hostname = hostname.rstrip('/')
         try:
-            urllib2.urlopen(self.hostname)
-        except urllib2.HTTPError:
+            urlopen(self.hostname)
+        except HTTPError:
             raise ValueError("Invalid hostname: {0}".format(self.hostname))
 
     def _get_uid(self):
         # load a library to get a query id
         session = self._shim_new_session()
-        uid = self._shim_execute_query(session,
-                                       "load_library('dense_linear_algebra')",
-                                       release=True)
-        return uid
+        return self._shim_execute_query(session,
+                                        "load_library('dense_linear_algebra')",
+                                        release=True)
 
     def _execute_query(self, query, response=False, n=0, fmt='auto'):
         # log the query
@@ -1024,13 +1029,13 @@ class SciDBShimInterface(SciDBInterface):
         url = self.hostname + '/' + keyword
         if kwargs:
             url += '?' + '&'.join(['{0}={1}'.format(key, val)
-                                   for key, val in kwargs.iteritems()])
+                                   for key, val in iteritems(kwargs)])
         return url
 
     def _shim_urlopen(self, url):
         try:
-            return urllib2.urlopen(url)
-        except urllib2.HTTPError as e:
+            return urlopen(url)
+        except HTTPError as e:
             Error = SHIM_ERROR_DICT[e.code]
             raise Error("[HTTP {0}] {1}".format(e.code, e.read()))
 
@@ -1048,10 +1053,10 @@ class SciDBShimInterface(SciDBInterface):
     def _shim_execute_query(self, session_id, query, save=None, release=False):
         url = self._shim_url('execute_query',
                              id=session_id,
-                             query=urllib2.quote(query),
+                             query=quote(query),
                              release=int(bool(release)))
         if save is not None:
-            url += "&save={0}".format(urllib2.quote(save))
+            url += "&save={0}".format(quote(save))
 
         # Don't know the accepted way in Python to do something like this.
         # For now, just set the 'debug' attribute on this SciDB array object.
@@ -1060,7 +1065,7 @@ class SciDBShimInterface(SciDBInterface):
 
         result = self._shim_urlopen(url)
         query_id = result.read()
-        return query_id
+        return query_id.decode('UTF-8')
 
     def _shim_cancel(self, session_id):
         url = self._shim_url('cancel', id=session_id)
@@ -1070,6 +1075,9 @@ class SciDBShimInterface(SciDBInterface):
         url = self._shim_url('read_lines', id=session_id, n=n)
         result = self._shim_urlopen(url)
         text_result = result.read()
+        # the following check is for Py3K compatibility
+        if not isinstance(text_result, string_type):
+            text_result = text_result.decode('UTF-8')
         return text_result
 
     def _shim_read_bytes(self, session_id, n):
@@ -1079,7 +1087,7 @@ class SciDBShimInterface(SciDBInterface):
         return bytes_result
 
     def _shim_upload_file(self, session_id, data):
-        # TODO: can this be implemented in urllib2 to remove dependency?
+        # TODO: can this be implemented in urllib to remove dependency?
         import requests
         url = self._shim_url('upload_file', id=session_id)
         result = requests.post(url, files=dict(fileupload=data))

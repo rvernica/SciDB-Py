@@ -1,17 +1,21 @@
 """SciDB Array Wrapper"""
 
-# License: Simplified BSD
-# Author: Jake Vanderplas
+# License: Simplified BSD, 2013
+# Author: Jake Vanderplas <jakevdp@cs.washington.edu>
+# See http://github.com/jakevdp/scidb-py for more information
+
+from __future__ import print_function
 
 import numpy as np
 import re
-import cStringIO
+
 import warnings
 from copy import copy
 from .errors import SciDBError
 
 # Numpy 1.7 meshgrid backport
 from .utils import meshgrid
+from ._py3k_compat import genfromstr, iteritems
 
 __all__ = ["sdbtype", "SciDBArray", "SciDBDataShape"]
 
@@ -31,7 +35,8 @@ SDB_NP_TYPE_MAP = {'bool': _np_typename('bool'),
                    'uint64': _np_typename('uint64'),
                    'char': _np_typename('c')}
 
-NP_SDB_TYPE_MAP = dict((val, key) for key, val in SDB_NP_TYPE_MAP.iteritems())
+NP_SDB_TYPE_MAP = dict((val, key)
+                       for key, val in iteritems(SDB_NP_TYPE_MAP))
 
 SDB_IND_TYPE = 'int64'
 
@@ -120,13 +125,13 @@ class sdbtype(object):
         # assume that now we just have the dtypes themselves
         # TODO: support default values?
         sdbL = schema.split(',')
-        sdbL = [map(str.strip, s.split(':')) for s in sdbL]
+        sdbL = [list(map(str.strip, s.split(':'))) for s in sdbL]
 
         names = [s[0] for s in sdbL]
         dtypes = [s[1].split()[0] for s in sdbL]
         nullable = ['null' in str.lower(''.join(s[1].split()[1:]))
                     for s in sdbL]
-        return zip(names, dtypes, nullable)
+        return list(zip(names, dtypes, nullable))
 
     @classmethod
     def _schema_to_dtype(cls, schema):
@@ -274,7 +279,7 @@ class SciDBDataShape(object):
         dct = dict(f[:2] for f in self.sdbtype.full_rep)
         types = [SDB_NP_TYPE_MAP[dct.get(key, SDB_IND_TYPE)]
                  for key in keys]
-        return np.dtype(zip(keys, types))
+        return np.dtype(list(zip(keys, types)))
 
 
 class ArrayAlias(object):
@@ -523,19 +528,15 @@ class SciDBArray(object):
         if array_is_sparse:
             # perform a CSV query to find all non-empty index tuples.
             str_rep = self.interface._scan_array(self.name, n=0, fmt='csv+')
-            fhandle = cStringIO.StringIO(str_rep)
 
             # sanity check: make sure our labels are correct
-            if list(full_dtype.names) != fhandle.readline().strip().split(','):
-                print full_dtype.names
-                fhandle.reset()
-                print fhandle.readline().strip().split(',')
-                raise ValueError("labels are off...")
-            fhandle.reset()
+            str_dtype_names = str_rep.split('\n')[0].strip().split(',')
+            if list(full_dtype.names) != str_dtype_names:
+                raise ValueError("Fatal: unexpected array labels.")
 
             # convert the ASCII representation into a numpy record array
-            arr = np.genfromtxt(fhandle, delimiter=',', skip_header=1,
-                                dtype=full_dtype)
+            arr = genfromstr(str_rep, delimiter=',', skip_header=1,
+                             dtype=full_dtype)
 
             if transfer_bytes:
                 # replace parsed ASCII columns with more accurate bytes
@@ -563,15 +564,14 @@ class SciDBArray(object):
                 # transfer via ASCII.  Here we don't need the indices, so we
                 # use 'csv' output.
                 str_rep = self.interface._scan_array(self.name, n=0, fmt='csv')
-                fhandle = cStringIO.StringIO(str_rep)
-                arr = np.genfromtxt(fhandle, delimiter=',', skip_header=1,
-                                    dtype=dtype).reshape(shape)
+                arr = genfromstr(str_rep, delimiter=',', skip_header=1,
+                                 dtype=dtype).reshape(shape)
 
             if output == 'sparse':
-                index_arrays = map(np.ravel,
-                                   meshgrid(*[np.arange(s)
-                                              for s in self.shape],
-                                            indexing='ij'))
+                index_arrays = list(map(np.ravel,
+                                        meshgrid(*[np.arange(s)
+                                                   for s in self.shape],
+                                                 indexing='ij')))
                 arr = arr.ravel()
                 if len(sdbtype.names) == 1:
                     value_arrays = [arr]
@@ -775,7 +775,13 @@ class SciDBArray(object):
     def __div__(self, other):
         return self.interface._join_operation(self, other, '{left}/{right}')
 
+    def __truediv__(self, other):
+        return self.interface._join_operation(self, other, '{left}/{right}')
+
     def __rdiv__(self, other):
+        return self.interface._join_operation(other, self, '{left}/{right}')
+
+    def __rtruediv__(self, other):
         return self.interface._join_operation(other, self, '{left}/{right}')
 
     def __mod__(self, other):
@@ -831,7 +837,7 @@ class SciDBArray(object):
             self.interface.query("store(transpose({0}), {1})", self, arr)
         else:
             # first validate the axes
-            axes = map(lambda a: a + self.ndim if a < 0 else a, axes)
+            axes = [(a + self.ndim if a < 0 else a) for a in axes]
             if any([(a < 0 or a >= self.ndim) for a in axes]):
                 raise ValueError("invalid axis for this array")
             if (len(axes) != self.ndim or len(set(axes)) != self.ndim):
@@ -938,13 +944,9 @@ class SciDBArray(object):
             except:
                 ind = (index,)
 
-            # indices must be integers
-            ind = map(int, ind)
-
             # use numpy-style negative indices
-            for i in range(len(ind)):
-                if ind[i] < 0:
-                    ind[i] += self.ndim
+            ind = [i + self.ndim if i < 0 else i
+                   for i in map(int, ind)]
 
             # check that indices are in range
             if any(i < 0 or i > self.ndim for i in ind):

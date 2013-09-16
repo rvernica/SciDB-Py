@@ -1,6 +1,7 @@
 import numpy as np
 
-__all__ = ['meshgrid']
+
+__all__ = ['meshgrid', 'broadcastable']
 
 
 # This is back-ported from numpy version 1.7

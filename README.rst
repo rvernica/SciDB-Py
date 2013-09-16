@@ -2,8 +2,9 @@ SciDB-py
 ========
 - Author: Jake Vanderplas <jakevdp@cs.washington.edu>
 - License: Simplified BSD
+- Documentation: http://jakevdp.github.io/SciDB-py/
 
-Python wrapper for SciDB queries
+**A Python wrapper for SciDB queries.**
 
 This package is still in active development.  Several pieces are still
 incomplete, most notably the documentation.  This will be remedied in the
@@ -13,7 +14,7 @@ Requirements
 ------------
 SciDB-Py requires a working [SciDB]() installation, as well as a
 [Shim]() network interface connected to the instance.  It requires
-Python 2.6-2.7, and depends on 
+Python 2.6-2.7 or 3.3.
 
 Installation
 ------------
@@ -32,7 +33,9 @@ may need root priviledges for this.
 
 Support
 -------
-This work has been supported by NSF Grant number 1226371_.
+This work has been supported by NSF Grant number 1226371_ and by
+Paradigm4_.
 
 
 .. _1226371: http://www.nsf.gov/awardsearch/showAward?AWD_ID=1226371
+.. _Paradigm4: http://www.paradigm4.com

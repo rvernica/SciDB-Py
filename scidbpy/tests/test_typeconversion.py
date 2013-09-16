@@ -4,7 +4,7 @@ from scidbpy.scidbarray import SDB_NP_TYPE_MAP, sdbtype
 
 def test_sdbtype_dtype_mapping():
     """Test the mapping of SciDB types to numpy types"""
-    type_list = SDB_NP_TYPE_MAP.keys()
+    type_list = list(SDB_NP_TYPE_MAP.keys())
     for i in range(len(type_list) - 3):
         dtype = [('val{0}'.format(j), SDB_NP_TYPE_MAP[type_list[j]])
                  for j in range(i, min(len(type_list), i + 3))]
