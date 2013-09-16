@@ -31,6 +31,8 @@ setup(name=NAME,
         'License :: OSI Approved :: BSD License',
         'Natural Language :: English',
         'Programming Language :: Python :: 2.6',
+        'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3.3',
         'Topic :: Database :: Front-Ends',
         'Topic :: Scientific/Engineering'],
      )
