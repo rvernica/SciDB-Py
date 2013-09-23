@@ -166,13 +166,7 @@ def test_dot_nullable():
 def test_svd():
     # chunk_size=32 currently required for svd
     A = sdb.random((6, 10), chunk_size=32)
-
-    try:
-        U, S, VT = sdb.svd(A)
-    except SciDBQueryError:
-        # SVD is not part of the default install... skip the test
-        raise SkipTest("SVD is not supported on your system")
-
+    U, S, VT = sdb.svd(A)
     U2, S2, VT2 = np.linalg.svd(A.toarray(), full_matrices=False)
 
     assert_allclose(U.toarray(), U2, rtol=RTOL)
