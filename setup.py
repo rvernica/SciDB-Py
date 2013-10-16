@@ -23,7 +23,7 @@ setup(name=NAME,
       maintainer_email=MAINTAINER_EMAIL,
       download_url=DOWNLOAD_URL,
       license=LICENSE,
-      packages=['scidbpy'],
+      packages=['scidbpy', 'scidbpy.tests'],
       classifiers=[
         'Development Status :: 4 - Beta',
         'Environment :: Console',
