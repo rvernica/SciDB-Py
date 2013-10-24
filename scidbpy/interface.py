@@ -838,6 +838,13 @@ class SciDBInterface(object):
     def substitute(self, A, value):
         return A.substitute(value)
 
+    def merge(self, A, B):
+        """Merge two arrays"""
+        # TODO: pre-check for non-matching arrays?
+        arr = self.new_array()
+        self.query("store(merge({0},{1}),{2})", A, B, arr)
+        return arr
+
     def join(self, *args):
         """
         Perform a series of array joins on the arguments
