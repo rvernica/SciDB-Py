@@ -6,8 +6,7 @@ from nose import SkipTest
 
 # In order to run tests, we need to connect to a valid SciDB engine
 from scidbpy import interface, SciDBQueryError, SciDBArray
-#sdb = interface.SciDBShimInterface('http://localhost:8080')
-sdb = interface.SciDBShimInterface('http://vega.cs.washington.edu:8080')
+sdb = interface.SciDBShimInterface('http://localhost:8080')
 
 RTOL = 1E-6
 
@@ -36,6 +35,15 @@ def test_from_array():
 
     for dtype in [int, float, [('i', int), ('f', float)]]:
         yield check_from_array, dtype
+
+
+def test_from_sparse():
+    from scipy import sparse
+    X = np.random.random((10, 10))
+    X[X < 0.9] = 0
+    Xcsr = sparse.csr_matrix(X)
+    Xarr = sdb.from_sparse(Xcsr)
+    assert_allclose(X, Xarr.toarray())
 
 
 def test_pandas_conversion():

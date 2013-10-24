@@ -23,7 +23,7 @@ from ._py3k_compat import urlopen, quote, HTTPError, iteritems, string_type
 import re
 import csv
 import numpy as np
-from .scidbarray import SciDBArray, SciDBDataShape, ArrayAlias
+from .scidbarray import SciDBArray, SciDBDataShape, ArrayAlias, SDB_IND_TYPE
 from .errors import SHIM_ERROR_DICT
 from .utils import broadcastable
 
@@ -670,7 +670,7 @@ class SciDBInterface(object):
 
         Parameters
         ----------
-        A : array_like
+        A : array_like (numpy array or sparse array)
             input array from which the scidb array will be created
         instance_id : integer
             the instance ID used in loading
@@ -683,7 +683,6 @@ class SciDBInterface(object):
         arr : SciDBArray
             SciDB Array object built from the input array
         """
-        # TODO: allow setting of instance ID?
         A = np.asarray(A)
         instance_id = int(instance_id)
         filename = self._upload_bytes(A.tostring(order='C'))
@@ -691,6 +690,60 @@ class SciDBInterface(object):
         self.query("load({0},'{1}',{2},'{3}')",
                    arr, filename, instance_id,
                    arr.sdbtype.bytes_fmt)
+        return arr
+
+    def from_sparse(self, A, instance_id=0, **kwargs):
+        """Initialize a scidb array from a sparse array
+
+        Parameters
+        ----------
+        A : sparse array
+            sparse input array from which the scidb array will be created.
+            Note that this array will internally be converted to COO format.
+        instance_id : integer
+            the instance ID used in loading
+            (default=0; see SciDB documentation)
+        **kwargs :
+            Additional keyword arguments are passed to new_array()
+        
+        Returns
+        -------
+        arr : SciDBArray
+            SciDB Array object built from the input array
+        """
+        try:
+            A = A.tocoo()
+        except:
+            raise ValueError("input must be a scipy.sparse matrix")
+        instance_id = int(instance_id)
+
+        if 'dim_names' not in kwargs:
+            kwargs['dim_names'] = ['i0', 'i1']
+
+        attr_name = 'f0'
+
+        if len(kwargs['dim_names']) != 2:
+            raise ValueError("dim_names must have two dimensions")
+        d1, d2 = kwargs['dim_names']    
+
+        # first flatten the array & indices
+        # We'll treat the general case where A.data can be a record array,
+        # though this will be very uncommon.
+        flat_dtype = [(d1, SDB_IND_TYPE),
+                      (d2, SDB_IND_TYPE)]
+        if A.dtype.names is None:
+            flat_dtype += [('f0', A.dtype)]
+        else:
+            flat_dtype += A.descr
+        M = np.empty(len(A.data), dtype=flat_dtype)
+        M[d1] = A.row
+        M[d2] = A.col
+        M['f0'] = A.data
+        arr_flat = self.from_array(M)
+
+        # redimension the flat array to a sparse array
+        arr = self.new_array(A.shape, A.dtype, **kwargs)
+        self.query("redimension_store({0},{1})", arr_flat, arr)
         return arr
 
     def toarray(self, A):

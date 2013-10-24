@@ -193,8 +193,20 @@ class SciDBDataShape(object):
         self.dtype = self.sdbtype.dtype
 
         # process array dimension names; define defaults if needed
+        # we need to make sure these defaults don't clash with attributes
         if dim_names is None:
-            dim_names = ['i{0}'.format(i) for i in range(len(self.shape))]
+            import re
+            R = re.compile('^i([0-9]+)$')
+            matches = (R.match(name) for name in self.sdbtype.names)
+            matches = filter(lambda m: m is not None, matches)
+            vals = (int(m.groups()[0]) for m in matches)
+            try:
+                start = max(vals) + 1
+            except ValueError: # empty sequence
+                start = 0
+            dim_names = ['i{0}'.format(i)
+                         for i in range(start, start + len(self.shape))]
+
         if len(dim_names) != len(self.shape):
             raise ValueError("length of dim_names should match "
                              "number of dimensions")
