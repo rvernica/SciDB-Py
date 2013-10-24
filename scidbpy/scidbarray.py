@@ -946,6 +946,8 @@ class SciDBArray(object):
         By default, we use the numpy-like behavior which is more familiar
         to Python users, but keep a flag which allows SciDB-like behavior.
         """
+        # TODO: add optional ``out`` argument, as in numpy
+
         if index is None:
             # for both SciDB-style and numpy-style, with no index specified
             # we aggregate over the entire array

@@ -236,9 +236,9 @@ class SciDBInterface(object):
 
         Parameters
         ----------
-        query: string
+        query : string
             The query string, with curly-braces to indicate insertions
-        *args, **kwargs:
+        *args, **kwargs :
             Values to be inserted (see below).
 
         Details
@@ -333,11 +333,11 @@ class SciDBInterface(object):
 
         Parameters
         ----------
-        shape: tuple or int
+        shape : tuple or int
             The shape of the array
-        dtype: string or list
+        dtype : string or list
             The data type of the array
-        **kwargs:
+        **kwargs :
             Additional keyword arguments are passed to SciDBDataShape.
 
         Returns
@@ -354,11 +354,11 @@ class SciDBInterface(object):
 
         Parameters
         ----------
-        shape: tuple or int
+        shape : tuple or int
             The shape of the array
-        dtype: string or list
+        dtype : string or list
             The data type of the array
-        **kwargs:
+        **kwargs :
             Additional keyword arguments are passed to SciDBDataShape.
 
         Returns
@@ -376,15 +376,15 @@ class SciDBInterface(object):
 
         Parameters
         ----------
-        shape: tuple or int
+        shape : tuple or int
             The shape of the array
-        dtype: string or list
+        dtype : string or list
             The data type of the array
-        lower: float
+        lower : float
             The lower bound of the random sample (default=0)
-        upper: float
+        upper : float
             The upper bound of the random sample (default=1)
-        **kwargs:
+        **kwargs :
             Additional keyword arguments are passed to SciDBDataShape.
 
         Returns
@@ -408,15 +408,15 @@ class SciDBInterface(object):
 
         Parameters
         ----------
-        shape: tuple or int
+        shape : tuple or int
             The shape of the array
-        dtype: string or list
+        dtype : string or list
             The data type of the array
-        lower: float
+        lower : float
             The lower bound of the random sample (default=0)
-        upper: float
+        upper : float
             The upper bound of the random sample (default=2147483647)
-        **kwargs:
+        **kwargs :
             Additional keyword arguments are passed to SciDBDataShape.
 
         Returns
@@ -552,16 +552,16 @@ class SciDBInterface(object):
         ----------
         n : integer
             the number of rows and columns in the matrix
-        dtype: string or list
+        dtype : string or list
             The data type of the array
-        sparse: boolean
+        sparse : boolean
             specify whether to create a sparse array (default=False)
-        **kwargs:
+        **kwargs :
             Additional keyword arguments are passed to SciDBDataShape.
 
         Returns
         -------
-        arr: SciDBArray
+        arr : SciDBArray
             A SciDBArray containint an [n x n] identity matrix
         """
         arr = self.new_array((n, n), dtype, **kwargs)
@@ -762,6 +762,7 @@ class SciDBInterface(object):
 
     def _apply_func(self, A, func):
         # TODO: new value name could conflict.  How to generate a unique one?
+        # TODO: add optional ``out`` argument as in numpy
         arr = self.new_array()
         self.query("store(project(apply({A},{func}_{A.a0},{func}({A.a0})),"
                    "{func}_{A.a0}), {arr})",
