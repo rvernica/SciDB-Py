@@ -274,7 +274,7 @@ class SciDBInterface(object):
         The dimension/attribute shortcuts are as follows:
 
         - A.d0, A.d1, A.d2... : insert array dimension names.
-          For the above case, '{A.d0}' will be translated to 'i',
+          For the above case, '{A.d0}' will be translated to 'i','
           and '{A.d1}' will be translated to 'j'.
         - A.d0f, A.d1f, A.d2f... : insert fully-qualified dimension names.
           For the above case, '{A.d0f}' will be translated to 'myarray.i',
@@ -665,16 +665,32 @@ class SciDBInterface(object):
                 self.query("store(gesvd({0}, '{1}'),{2})", A, output, ret[-1])
         return tuple(ret)
 
-    def from_array(self, A, **kwargs):
-        """Initialize a scidb array from a numpy array"""
-        # TODO: make this work for other data types
-        if A.dtype != 'double':
-            raise NotImplementedError("from_array only implemented for double")
-        dtype = 'double'
-        data = A.tostring(order='C')
+    def from_array(self, A, instance_id=0, **kwargs):
+        """Initialize a scidb array from a numpy array
+
+        Parameters
+        ----------
+        A : array_like
+            input array from which the scidb array will be created
+        instance_id : integer
+            the instance ID used in loading
+            (default=0; see SciDB documentation)
+        **kwargs :
+            Additional keyword arguments are passed to new_array()
+        
+        Returns
+        -------
+        arr : SciDBArray
+            SciDB Array object built from the input array
+        """
+        # TODO: allow setting of instance ID?
+        A = np.asarray(A)
+        instance_id = int(instance_id)
         filename = self._upload_bytes(A.tostring(order='C'))
-        arr = self.new_array(A.shape, 'double', **kwargs)
-        self.query("load({0},'{1}',{2},'{3}')", arr, filename, 0, '(double)')
+        arr = self.new_array(A.shape, A.dtype, **kwargs)
+        self.query("load({0},'{1}',{2},'{3}')",
+                   arr, filename, instance_id,
+                   arr.sdbtype.bytes_fmt)
         return arr
 
     def toarray(self, A):

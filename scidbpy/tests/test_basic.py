@@ -1,11 +1,13 @@
 import numpy as np
-from numpy.testing import assert_allclose, assert_equal, assert_
+from numpy.testing import assert_, assert_allclose,\
+    assert_equal, assert_array_equal
 
 from nose import SkipTest
 
 # In order to run tests, we need to connect to a valid SciDB engine
 from scidbpy import interface, SciDBQueryError, SciDBArray
-sdb = interface.SciDBShimInterface('http://localhost:8080')
+#sdb = interface.SciDBShimInterface('http://localhost:8080')
+sdb = interface.SciDBShimInterface('http://vega.cs.washington.edu:8080')
 
 RTOL = 1E-6
 
@@ -23,6 +25,17 @@ def test_numpy_conversion():
 
     for transfer_bytes in (True, False):
         yield check_toarray, transfer_bytes
+
+
+def test_from_array():
+    """Test import of numpy array for various types"""
+    def check_from_array(dtype):
+        Xnp = np.empty(10, dtype=dtype)
+        Xarr = sdb.from_array(Xnp)
+        assert_array_equal(Xnp, Xarr.toarray())
+
+    for dtype in [int, float, [('i', int), ('f', float)]]:
+        yield check_from_array, dtype
 
 
 def test_pandas_conversion():

@@ -2,11 +2,15 @@ Version 0.2
 -----------
 *Unreleased*
 
+- 2013-10-24 from_array() multi-dtype support (Jake Vanderplas)
+
+  + upgraded from_array() code to allow any numpy array type, including
+    compound types and record arrays (previously only float64 was supported)
+
 - 2013-09-03 Python 3 compatibility (Jake Vanderplas)
 
   + upgraded to single-codebase compatibility with Python 2.7 and Python 3.3;
     all tests pass for these Python versions.  No API change.
-
 
 Version 0.1
 -----------
