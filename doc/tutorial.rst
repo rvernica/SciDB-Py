@@ -99,6 +99,22 @@ from a small 5x4 numpy array named ``X``::
 The package takes care of naming the SciDB array in this example (use
 ``Xsdb.name`` to see the SciDB array name).
 
+From a scipy sparse matrix
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+In a similar way, a :class:`SciDBArray` can be created from a scipy sparse
+matrix.  For example:
+
+    >>> from scipy.sparse import coo_matrix
+    >>> X = np.random.random((10, 10))
+    >>> X[X < 0.9] = 0  # make array sparse
+    >>> Xcoo = coo_matrix(X)
+    >>> Xsdb = sdb.from_sparse(Xcoo)
+
+This operation is most efficient for matrices stored in coordinate form
+(``coo_matrix``).  Other sparse formats will be internally converted to
+COO form in the process of transferring the data.
+
 
 Convenience array creation functions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
