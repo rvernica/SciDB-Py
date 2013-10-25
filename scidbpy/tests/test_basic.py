@@ -11,8 +11,19 @@ sdb = interface.SciDBShimInterface('http://localhost:8080')
 RTOL = 1E-6
 
 
-def test_numpy_conversion():
-    """Test export to a SciDB array"""
+def test_from_array():
+    """Test import of numpy array for various types"""
+    def check_from_array(dtype):
+        Xnp = np.empty(10, dtype=dtype)
+        Xarr = sdb.from_array(Xnp)
+        assert_array_equal(Xnp, Xarr.toarray())
+
+    for dtype in [int, float, [('i', int), ('f', float)]]:
+        yield check_from_array, dtype
+
+
+def test_to_array():
+    """Test export to a numpy array"""
     X = np.random.random((10, 6))
 
     Xsdb = sdb.from_array(X)
@@ -26,19 +37,13 @@ def test_numpy_conversion():
         yield check_toarray, transfer_bytes
 
 
-def test_from_array():
-    """Test import of numpy array for various types"""
-    def check_from_array(dtype):
-        Xnp = np.empty(10, dtype=dtype)
-        Xarr = sdb.from_array(Xnp)
-        assert_array_equal(Xnp, Xarr.toarray())
-
-    for dtype in [int, float, [('i', int), ('f', float)]]:
-        yield check_from_array, dtype
-
-
 def test_from_sparse():
-    from scipy import sparse
+    """Test import from Scipy sparse matrix"""
+    try:
+        from scipy import sparse
+    except ImportError:
+        raise SkipTest("scipy.sparse required for this test")
+
     X = np.random.random((10, 10))
     X[X < 0.9] = 0
     Xcsr = sparse.csr_matrix(X)
@@ -46,8 +51,41 @@ def test_from_sparse():
     assert_allclose(X, Xarr.toarray())
 
 
-def test_pandas_conversion():
+def test_to_sparse():
+    """Test export to Scipy Sparse matrix"""
+    try:
+        from scipy import sparse
+    except ImportError:
+        raise SkipTest("scipy.sparse required for this test")
+
+    X = np.random.random((10, 6))
+    Xsdb = sdb.from_array(X)
+    Xcsr = Xsdb.tosparse('csr')
+    assert_allclose(X, Xcsr.toarray())
+
+
+def test_from_dataframe():
+    """Test import from Pandas dataframe"""
+    try:
+        import pandas as pd
+    except ImportError:
+        raise SkipTest("pandas required for this test")
+
+    X = np.zeros(10, dtype=[('i', int), ('f', float)])
+    X['i'] = np.arange(10)
+    X['f'] = 0.1 * np.arange(10, 20)
+    Xdf = pd.DataFrame(X)
+    Xsdb = sdb.from_dataframe(Xdf)
+    assert_array_equal(X, Xsdb.toarray())
+
+
+def test_to_dataframe():
     """Test export to Pandas dataframe"""
+    try:
+        import pandas as pd
+    except ImportError:
+        raise SkipTest("pandas required for this test")
+
     d = sdb.random(10, dtype=float)
     i = sdb.randint(10, lower=0, upper=10, dtype=int)
     X = sdb.join(d, i)
@@ -72,18 +110,6 @@ def test_nonzero_nonnull():
     assert_(tridiag.contains_nulls())
     assert_equal(tridiag.nonempty(),  N + 2 * (N - 1))
     assert_equal(tridiag.nonnull(), N)
-
-
-def test_toarray_sparse():
-    try:
-        from scipy import sparse
-    except:
-        raise SkipTest("scipy.sparse required for this test")
-
-    X = np.random.random((10, 6))
-    Xsdb = sdb.from_array(X)
-    Xcsr = Xsdb.tosparse('csr')
-    assert_allclose(X, Xcsr.toarray())
 
 
 def test_array_creation():

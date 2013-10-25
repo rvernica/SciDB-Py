@@ -2,6 +2,11 @@ Version 0.2
 -----------
 *Unreleased*
 
+- 2013-10-25 add from_dataframe() function (Jake Vanderplas)
+
+  + from_dataframe() builds a scidb array from a pandas DataFrame object,
+    preserving the correct index value and label.
+
 - 2013-10-24 add from_sparse() function (Jake Vanderplas)
 
   + from_sparse() builds a scidb array from a scipy.sparse matrix.

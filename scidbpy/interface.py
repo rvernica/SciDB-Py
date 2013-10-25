@@ -692,6 +692,40 @@ class SciDBInterface(object):
                    arr.sdbtype.bytes_fmt)
         return arr
 
+    def from_dataframe(self, A, instance_id=0, **kwargs):
+        """Initialize a scidb array from a pandas dataframe
+
+        Parameters
+        ----------
+        A : pandas dataframe
+            data from which the scidb array will be created.
+        instance_id : integer
+            the instance ID used in loading
+            (default=0; see SciDB documentation)
+        **kwargs :
+            Additional keyword arguments are passed to new_array()
+        
+        Returns
+        -------
+        arr : SciDBArray
+            SciDB Array object built from the input array
+        """
+        # load to SciDB via a record array (with index in 'index' field)
+        A_rec = A.to_records(index=True)
+        A_sdb = self.from_array(A_rec)
+
+        # TODO: rename index if value is passed?
+        if 'dim_names' in kwargs:
+            warnings.warn("from_dataframe: ignoring 'dim_names' argument")
+        kwargs['dim_names'] = [A_rec.dtype.names[0]]
+
+        # redimension the array on the index
+        arr = self.new_array(shape=A_rec.shape,
+                             dtype=A_rec.dtype.descr[1:],
+                             **kwargs)
+        self.query("redimension_store({0},{1})", A_sdb, arr)
+        return arr
+
     def from_sparse(self, A, instance_id=0, **kwargs):
         """Initialize a scidb array from a sparse array
 
@@ -746,13 +780,17 @@ class SciDBInterface(object):
         self.query("redimension_store({0},{1})", arr_flat, arr)
         return arr
 
-    def toarray(self, A):
+    def toarray(self, A, transfer_bytes=True):
         """Convert a SciDB array to a numpy array"""
-        return A.toarray()
+        return A.toarray(transfer_bytes=transfer_bytes)
 
     def tosparse(self, A, sparse_fmt='recarray', transfer_bytes=True):
         """Convert a SciDB array to a sparse representation"""
         return A.tosparse(sparse_fmt=sparse_fmt, transfer_bytes=transfer_bytes)
+
+    def todataframe(self, A, transfer_bytes=True):
+        """Convert a SciDB array to a pandas dataframe"""
+        return A.todataframe(transfer_bytes=transfer_bytes)
 
     def from_file(self, filename, **kwargs):
         # TODO: allow creation of arrays from uploaded files
