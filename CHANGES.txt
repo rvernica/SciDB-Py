@@ -1,6 +1,6 @@
 Version 0.2
 -----------
-*Unreleased*
+**Released 2013 October 25**
 
 - 2013-10-25 add from_dataframe() function (Jake Vanderplas)
 
