@@ -5,6 +5,10 @@
 
 SciDB-Py documentation
 ======================
+SciDB-Py is a Python interface to the SciDB_, the massively scalable
+array-oriented database.  It provides an intuitive NumPy-like interface
+to SciDB, so that users can leverage powerful distributed, data-parallel
+scientific computing from the comfort of their Python interpreter.
 
 
 .. toctree::
@@ -23,3 +27,6 @@ Indices and tables
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
+
+
+.. _SciDB: http://scidb.org/
