@@ -1,19 +1,18 @@
-SciDB-py
-========
+SciDB-py: Python Interface to SciDB
+===================================
+SciDB-py is a full-featuered Python interface to SciDB.  Its goal is to
+allow users to utilize the power of SciDB_ from Python, using a familiar
+and intuitive numpy-like syntax.  For more information, see the
+SciDB Documentation_.
+
 - Author: Jake Vanderplas <jakevdp@cs.washington.edu>
 - License: Simplified BSD
 - Documentation: http://jakevdp.github.io/SciDB-py/
 
-**A Python wrapper for SciDB queries.**
-
-This package is still in active development.  Several pieces are still
-incomplete, most notably the documentation.  This will be remedied in the
-near-term!
-
 Requirements
 ------------
-SciDB-Py requires a working [SciDB]() installation, as well as a
-[Shim]() network interface connected to the instance.  It requires
+SciDB-Py requires a working SciDB_ installation, as well as a
+Shim_ network interface connected to the instance.  It requires
 Python 2.6-2.7 or 3.3.
 
 Package Dependencies
@@ -39,18 +38,20 @@ SciPy_ (optional)
 
 Installation
 ------------
-To install the latest release, use
+For full installation information, please see the Documentation_.
+
+To install the latest stable release via the Python Package Index, use
 ```
 pip install scidb-py
 ```
 
-to install from source, download the source and type
+to install from source, download the Source_ and type
 ```
 python setup.py install
 ```
 
 Depending on how your Python installation is set up, you
-may need root priviledges for this.
+may need root privileges for this.
 
 Support
 -------
@@ -64,3 +65,7 @@ Paradigm4_.
 .. _Requests: http://www.python-requests.org/en/latest/
 .. _SciPy: http://www.scipy.org
 .. _Pandas: http://pandas.pydata.org/
+.. _Shim: http://github.com/paradigm4/shim
+.. _SciDB: http://scidb.org/
+.. _Documentation: http://jakevdp.github.io/SciDB-py/
+.. _Source: http://github.com/jakevdp/SciDB-py

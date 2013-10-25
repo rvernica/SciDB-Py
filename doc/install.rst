@@ -33,6 +33,24 @@ Python Prerequisites
 --------------------
 SciDB-Py requires Python 2.6-2.7 or 3.3, as well as NumPy_ and Requests_.
 Some (optional) functionality requires SciPy_ and Pandas_.
+Following are a description of these requirements:
+
+NumPy_
+    tested with version 1.6-1.7.
+
+Requests_
+    tested with version 1.2.
+    Required for using the Shim interface to SciDB.
+
+Pandas_ (optional)
+    tested with version 0.10.
+    Required only for importing/exporting SciDB arrays
+    as Pandas Dataframe objects.
+
+SciPy_ (optional)
+    tested with versions 0.10-0.12.
+    Required only for importing/exporting SciDB arrays
+    as SciPy sparse matrices.
 
 
 SciDB-Py Package Installation
