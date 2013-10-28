@@ -357,6 +357,67 @@ class SciDBArray(object):
         self.name = name
         self.persistent = persistent
 
+    def rename(self, new_name, persistent=False):
+        """Rename the array in the database, optionally making the new
+        array persistent.
+
+        Parameters
+        ----------
+        new_name : string
+            must be a valid array name which does not already
+            exist in the database.
+        persistent : boolean (optional)
+            specify whether the new array is persistent (default=False)
+
+        Returns
+        -------
+        self : SciDBArray
+            return a pointer to self
+        """
+        new_name = str(new_name)
+
+        if new_name in self.interface.list_arrays():
+            raise ValueError("Cannot use name {0}. "
+                             "An array with that name "
+                             "already exists.".format(new_name))
+
+        self.interface.query("rename({0}, {1})", self, new_name)
+        self.name = new_name
+        self.persistent = persistent
+        return self
+
+    def copy(self, new_name=None, persistent=False):
+        """Make a copy of the array in the database
+
+        Parameters
+        ----------
+        new_name : string (optional)
+            if specifiedmust be a valid array name which does not already
+            exist in the database.
+        persistent : boolean (optional)
+            specify whether the new array is persistent (default=False)
+
+        Returns
+        -------
+        copy : SciDBArray
+            return a copy of the original array
+        """
+        # TODO: allow new_name to be specified in interface.new_array()
+        if new_name is not None:
+            new_name = str(new_name)
+            if new_name in self.interface.list_arrays():
+                raise ValueError("Cannot use name {0}. "
+                                 "An array with that name "
+                                 "already exists.".format(new_name))
+
+        arr = self.interface.new_array(persistent=persistent)
+        if new_name is not None:
+            arr.name = new_name
+
+        self.interface.query("store({0}, {1})", self, arr)
+        #self.interface.query("SELECT * INTO {1} FROM {0}", self, arr)
+        return arr
+
     def alias(self, name=None):
         """Return an alias of the array, optionally with a new name"""
         return ArrayAlias(self, name)

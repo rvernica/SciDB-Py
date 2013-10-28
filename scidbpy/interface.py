@@ -178,6 +178,8 @@ class SciDBInterface(object):
         datashape = SciDBDataShape.from_schema(schema)
         return SciDBArray(datashape, self, scidbname, persistent=True)
 
+    # TODO: give the option to pass a user-defined array name
+    #       (use this in copy(), rename(), and others)
     def new_array(self, shape=None, dtype='double', persistent=False,
                   **kwargs):
         """
