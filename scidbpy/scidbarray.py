@@ -535,7 +535,7 @@ class SciDBArray(object):
             # This is needed for both sparse and dense outputs
             bytes_rep = self.interface._scan_array(self.name, n=0,
                                                    fmt=self.sdbtype.bytes_fmt)
-            bytes_arr = np.fromstring(bytes_rep, dtype=dtype)
+            bytes_arr = np.atleast_1d(np.fromstring(bytes_rep, dtype=dtype))
 
         if array_is_sparse:
             # perform a CSV query to find all non-empty index tuples.
@@ -547,8 +547,9 @@ class SciDBArray(object):
                 raise ValueError("Fatal: unexpected array labels.")
 
             # convert the ASCII representation into a numpy record array
-            arr = genfromstr(str_rep, delimiter=',', skip_header=1,
-                             dtype=full_dtype)
+            arr = np.atleast_1d(genfromstr(str_rep, delimiter=',',
+                                           skip_header=1,
+                                           dtype=full_dtype))
 
             if transfer_bytes:
                 # replace parsed ASCII columns with more accurate bytes
