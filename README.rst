@@ -24,6 +24,7 @@ NumPy_
 
 Requests_
     tested with version 1.2.
+    (Note: known failures exist when used with requests version < 1.0)
     Required for using the Shim interface to SciDB.
 
 Pandas_ (optional)
