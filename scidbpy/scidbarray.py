@@ -6,6 +6,8 @@
 
 from __future__ import print_function
 
+import sys
+
 import numpy as np
 import re
 
@@ -474,7 +476,13 @@ class SciDBArray(object):
 
     def __del__(self):
         if (self.datashape is not None) and (not self.persistent):
-            self.interface.query("remove({0})", self)
+            try:
+                self.interface.query("remove({0})", self.name)
+            except:
+                print("WARNING: failure of automatic array deletion "
+                      "in database!")
+                print("     array name:", self.name)
+                print("     interface:", self.interface)
 
     def __repr__(self):
         show = self.interface._show_array(self.name, fmt='csv').split('\n')
