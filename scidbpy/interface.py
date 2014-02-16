@@ -161,7 +161,7 @@ class SciDBInterface(object):
             kwargs['response'] = True
         return self._execute_query("dimensions({0})".format(name), **kwargs)
 
-    def wrap_array(self, scidbname):
+    def wrap_array(self, scidbname, persistent=True):
         """
         Create a new SciDBArray object that references an existing SciDB
         array
@@ -173,10 +173,15 @@ class SciDBInterface(object):
             SciDB array object persistent value will be set to True, and
             the object shape, datashape and data type values will be
             determined by the SciDB array.
+        persistent : boolean
+            If True (default) then array will not be deleted when this
+            variable goes out of scope. Warning: if persistent is set to
+            False, data could be lost!
         """
+        # TODO: use SciDBArray.wrap_array() here; test that it works
         schema = self._show_array(scidbname, fmt='csv')
         datashape = SciDBDataShape.from_schema(schema)
-        return SciDBArray(datashape, self, scidbname, persistent=True)
+        return SciDBArray(datashape, self, scidbname, persistent=persistent)
 
     # TODO: give the option to pass a user-defined array name
     #       (use this in copy(), rename(), and others)
@@ -229,6 +234,8 @@ class SciDBInterface(object):
         query = query.format(*args, **kwargs)
         return query
 
+    # TODO: add query_and_store() convenience routine.  Many of the
+    #       uses of query are wrapped in a call to store(...).
     def query(self, query, *args, **kwargs):
         """Perform a query on the database.
 
