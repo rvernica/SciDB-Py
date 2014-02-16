@@ -630,8 +630,11 @@ class SciDBInterface(object):
         if B.sdbtype.nullable[0]:
             B = B.substitute(0)
 
-        C = self.new_array()
-        self.query('store(multiply({0},{1}),{2})', A, B, C)
+        # TODO: is there a more efficient way to do this than instantiating
+        #       an array of zeros?
+        # TODO: use spgemm() when the matrices are sparse
+        C = self.zeros((A.shape[0], B.shape[1]), dtype=A.dtype)
+        self.query('store(gemm({0},{1},{2}),{2})', A, B, C)
 
         if C.shape == output_shape:
             return C
