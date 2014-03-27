@@ -31,6 +31,9 @@ def _format_operand(o):
     result : str
         The formatted string
     """
+
+    # awkward: commands like list need their strings to be single-quoted
+    #          for now, this has to be done manually
     if isinstance(o, basestring):
         return o
 
@@ -47,6 +50,7 @@ def _format_operand(o):
 
 class AFLExpression(object):
     _signature = []
+    _interface = None
 
     def __init__(self, *args):
         self._check_arguments(args)
@@ -74,11 +78,21 @@ class AFLExpression(object):
 
     @property
     def interface(self):
-        # XXX This doesn't work for queries that don't use SciDBArrays
+        if self._interface is not None:
+            return self._interface
+
+        # look for an interface in arguments
         for a in self.args:
-            if hasattr(a, 'interface'):
+            try:
                 return a.interface
-        raise ValueError("Could not find an interface")
+            except AttributeError:
+                pass
+
+        raise AttributeError("Could not find an interface")
+
+    @interface.setter
+    def interface(self, value):
+        self._interface = value
 
     @property
     def query(self):
@@ -97,7 +111,7 @@ class AFLExpression(object):
         """
         return self._result
 
-    def eval(self, out=None):
+    def eval(self, out=None, store=True):
         """
         Evaluate the expression if necessary, and return the
         result as a SciDBArray.
@@ -108,9 +122,16 @@ class AFLExpression(object):
             The array to store the result in.
             One will be created if necessary
 
+        store : bool
+            If True (the default), the query will be
+            wrapped in a store call, and wrapped in
+            a SciDBAarray (specified by `out`). If
+            false, this executes the query, but
+            doesn't save the result
+
         Returns
         --------
-        out : SciDBArray instance
+        out : SciDBArray instance, or None
 
         Note
         ----
@@ -120,10 +141,13 @@ class AFLExpression(object):
         if self._result is not None:
             return self._result
 
+        if not store:
+            return self.interface._execute_query(self.query)
+
         if out is None:
             out = self.interface.new_array()
-        self._result = out
 
+        self._result = out
         self.interface._execute_query('store(%s, %s)' %
                                       (self.query, out.name))
         return self._result
@@ -138,7 +162,7 @@ class AFLExpression(object):
         return "SciDB Expression: <%s>" % self
 
 
-def build_operator(entry):
+def build_operator(entry, interface=None):
     """
     Create a new AFL operator, based on a description dictionary
 
@@ -149,17 +173,28 @@ def build_operator(entry):
         - doc : docstring
         - signature : list giving the type of each argument
 
+    interface : SciDBinterface instance
+        Which SciDBinterface instance to bind the operator class to
+
     Returns
     --------
-    A new AFLExpression subclass, represenging the operator
+    A new AFLExpression subclass, representing the operator
     """
     name = str(entry['name'])
     doc = entry['doc']
     signature = entry['signature']
 
-    attrs = {'__doc__': doc, '_signature': signature}
+    attrs = {'__doc__': doc, '_signature': signature,
+             '_interface': interface}
     result = type(name, (AFLExpression,), attrs)
     return result
+
+
+class AFLNamespace(object):
+
+    def __init__(self, interface):
+        for op in operators:
+            setattr(self, op['name'], build_operator(op, interface))
 
 
 # build the functions and populate the namespace

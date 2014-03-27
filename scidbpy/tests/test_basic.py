@@ -5,8 +5,10 @@ from numpy.testing import assert_, assert_allclose,\
 from nose import SkipTest
 
 # In order to run tests, we need to connect to a valid SciDB engine
-from scidbpy import interface, SciDBQueryError, SciDBArray
-sdb = interface.SciDBShimInterface('http://localhost:8080')
+from scidbpy import SciDBQueryError, SciDBArray
+from . import get_interface
+
+sdb = get_interface()
 
 RTOL = 1E-6
 

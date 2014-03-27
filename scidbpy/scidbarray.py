@@ -483,7 +483,6 @@ class SciDBArray(object):
         return self.datashape.dtype
 
     def __del__(self):
-        print('reaping', self.name)
         if (self.datashape is not None) and (not self.persistent):
             try:
                 self.interface.query("remove({0})", self.name)
