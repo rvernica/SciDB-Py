@@ -1,4 +1,7 @@
-from setuptools import setup, find_packages
+try:
+    from setuptools import setup
+except ImportError:
+    from distutils.core import setup
 
 DESCRIPTION = "Python wrappers for SciDB"
 LONG_DESCRIPTION = open('README.rst').read()
@@ -23,16 +26,16 @@ setup(name=NAME,
       maintainer_email=MAINTAINER_EMAIL,
       download_url=DOWNLOAD_URL,
       license=LICENSE,
-      packages=find_packages(),
+      packages=['scidbpy', 'scidbpy.tests'],
       classifiers=[
-        'Development Status :: 4 - Beta',
-        'Environment :: Console',
-        'Intended Audience :: Science/Research',
-        'License :: OSI Approved :: BSD License',
-        'Natural Language :: English',
-        'Programming Language :: Python :: 2.6',
-        'Programming Language :: Python :: 2.7',
-        'Programming Language :: Python :: 3.3',
-        'Topic :: Database :: Front-Ends',
-        'Topic :: Scientific/Engineering'],
-     )
+      'Development Status :: 4 - Beta',
+      'Environment :: Console',
+      'Intended Audience :: Science/Research',
+      'License :: OSI Approved :: BSD License',
+      'Natural Language :: English',
+      'Programming Language :: Python :: 2.6',
+      'Programming Language :: Python :: 2.7',
+      'Programming Language :: Python :: 3.3',
+      'Topic :: Database :: Front-Ends',
+      'Topic :: Scientific/Engineering'],
+      )
