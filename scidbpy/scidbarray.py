@@ -367,6 +367,10 @@ class SciDBArray(object):
         self.name = name
         self.persistent = persistent
 
+    @property
+    def afl(self):
+        return self.interface.afl
+
     def rename(self, new_name, persistent=False):
         """Rename the array in the database, optionally making the new
         array persistent.
@@ -390,8 +394,7 @@ class SciDBArray(object):
             raise ValueError("Cannot use name {0}. "
                              "An array with that name "
                              "already exists.".format(new_name))
-
-        self.interface.query("rename({0}, {1})", self, new_name)
+        self.afl.rename(self, new_name).eval(store=False)
         self.name = new_name
         self.persistent = persistent
         return self
@@ -424,8 +427,7 @@ class SciDBArray(object):
         if new_name is not None:
             arr.name = new_name
 
-        self.interface.query("store({0}, {1})", self, arr)
-        #self.interface.query("SELECT * INTO {1} FROM {0}", self, arr)
+        self.afl.store(self, arr).eval(store=False)
         return arr
 
     def alias(self, name=None):
@@ -439,6 +441,8 @@ class SciDBArray(object):
     def attribute(self, a):
         """Return the attribute name of the array"""
         return self.datashape.sdbtype.full_rep[a][0]
+
+    att = attribute
 
     @property
     def datashape(self):
@@ -511,9 +515,8 @@ class SciDBArray(object):
         --------
         nonnull()
         """
-        query = "count({0})".format(self.name)
-        response = self.interface._execute_query(query, response=True,
-                                                 fmt='(int64)')
+        query = self.afl.count(self)
+        response = query.eval(response=True, fmt='(int64)', store=False)
         return np.fromstring(response, dtype='int64')[0]
 
     def nonnull(self, attr=0):
@@ -546,9 +549,8 @@ class SciDBArray(object):
 
         for i in range(attr.size):
             attr_name = self.attribute(attr.flat[i])
-            query = "aggregate({0}, count({1}))".format(self.name, attr_name)
-            response = self.interface._execute_query(query, response=True,
-                                                     fmt='(int64)')
+            query = self.afl.aggregate(self, self.afl.count(attr_name))
+            response = query.eval(response=True, store=False, fmt='(int64)')
             nonnull.flat[i] = np.fromstring(response, dtype='int64')[0]
         return nonnull
 
@@ -797,23 +799,17 @@ class SciDBArray(object):
 
         # special case: accessing a single element (no slices)
         if all(not isinstance(i, slice) for i in indices):
-            limits = map(int, indices + indices)
-            arr = self.interface.new_array()
-            self.interface.query("store(subarray({0},{2}),{1})",
-                                 self, arr, ','.join(str(L) for L in limits))
-            return arr.toarray().flat[0]
+            limits = list(map(int, indices + indices))
+            q = self.afl.subarray(self, *limits)
+            return q.toarray().flat[0]
 
         # if any of the slices are integers, we'll first use SciDB's
         # slice() operation on these
-        slices = [(dim, s) for (dim, s) in enumerate(indices)
-                  if not isinstance(s, slice)]
+        slices = [item for (d, s) in zip(self.dim_names, indices)
+                  if not isinstance(s, slice)
+                  for item in (d, s)]
         if slices:
-            query = ("store(slice({X}," +
-                     ','.join('{{X.d{0}}}, {1}'.format(*slc)
-                              for slc in slices) +
-                     "), {arr})")
-            arr1 = self.interface.new_array()
-            self.interface.query(query, X=self, arr=arr1)
+            arr1 = self.afl.slice(self, *slices).eval()
         else:
             arr1 = self
 
@@ -825,18 +821,14 @@ class SciDBArray(object):
         # if a subarray is required, then call the subarray() command
         if any(i[0] != 0 or i[1] != s for (i, s) in zip(indices, shape)):
             limits = [i[0] for i in indices] + [i[1] - 1 for i in indices]
-            arr2 = self.interface.new_array()
-            self.interface.query("store(subarray({0},{2}),{1})",
-                                 arr1, arr2, ','.join(str(L) for L in limits))
+            arr2 = self.afl.subarray(arr1, *limits).eval()
         else:
             arr2 = arr1
 
         # if thinning is required, then call the thin() command
         if any(i[2] != 1 for i in indices):
             steps = sum([[0, i[2]] for i in indices], [])
-            arr3 = self.interface.new_array()
-            self.interface.query("store(thin({0},{2}),{1})",
-                                 arr2, arr3, ','.join(str(st) for st in steps))
+            arr3 = self.afl.thin(arr2, *steps).eval()
         else:
             arr3 = arr2
 
@@ -923,8 +915,7 @@ class SciDBArray(object):
                     pass
 
         if not axes:
-            arr = self.interface.new_array()
-            self.interface.query("store(transpose({0}), {1})", self, arr)
+            arr = self.afl.transpose(self).eval()
         else:
             # first validate the axes
             axes = [(a + self.ndim if a < 0 else a) for a in axes]
@@ -943,8 +934,7 @@ class SciDBArray(object):
                                            chunk_size=chunk_size,
                                            chunk_overlap=chunk_overlap,
                                            dim_names=dim_names)
-            self.interface.query("redimension_store({input}, {output})",
-                                 input=self, output=arr)
+            self.afl.redimension_store(self, arr).eval(store=False)
         return arr
 
     # This allows the transpose of A to be computed via A.T
@@ -971,9 +961,7 @@ class SciDBArray(object):
         arr = self.interface.new_array(shape=shape,
                                        dtype=self.sdbtype,
                                        **kwargs)
-        self.interface.query("store(reshape({input}, {output}), {output})",
-                             input=self, output=arr)
-        return arr
+        return self.afl.reshape(self, arr).eval(out=arr)
 
     def substitute(self, value):
         """Reshape data into a new array, substituting a default for any nulls.
@@ -987,11 +975,9 @@ class SciDBArray(object):
         arr : SciDBArray
             new non-nullable array
         """
-        qstring = "store(substitute({A}, build({T}[i=0:0,1,0],{value})),{arr})"
-        arr = self.interface.new_array()
-        self.interface.query(qstring, A=self, arr=arr,
-                             T=self.sdbtype, value=value)
-        return arr
+        b = self.afl.build('%s[i=0:0,1,0]' % self.sdbtype, value)
+        q = self.afl.substitute(self, b)
+        return q.eval()
 
     def _aggregate_operation(self, agg, index=None, scidb_syntax=True):
         """Perform an aggregation query
@@ -1025,12 +1011,8 @@ class SciDBArray(object):
         to Python users, but keep a flag which allows SciDB-like behavior.
         """
         # TODO: add optional ``out`` argument, as in numpy
-
-        if index is None:
-            # for both SciDB-style and numpy-style, with no index specified
-            # we aggregate over the entire array
-            idx_string = ''
-        else:
+        idx_args = []
+        if index is not None:
             try:
                 ind = tuple(index)
             except:
@@ -1053,18 +1035,12 @@ class SciDBArray(object):
                 ind = tuple(i for i in range(self.ndim) if i not in ind)
 
             # corner case where indices are an empty tuple
-            if len(ind) == 0:
-                idx_string = ''
-            else:
-                idx_string = ',' + ', '.join(['{{A.d{0}}}'.format(i)
-                                              for i in ind])
+            if len(ind) > 0:
+                idx_args = [self.dim_names[i] for i in ind]
 
-        qstring = ("store(aggregate({A}, {agg}({A.a0})" + idx_string
-                   + "), {arr})")
-
-        arr = self.interface.new_array()
-        self.interface.query(qstring, A=self, arr=arr, agg=agg)
-        return arr
+        agg = "{agg}({att})".format(agg=agg, att=self.att(0))
+        q = self.afl.aggregate(self, agg, *idx_args)
+        return q.eval()
 
     def min(self, index=None, scidb_syntax=False):
         return self._aggregate_operation('min', index, scidb_syntax)
@@ -1127,9 +1103,7 @@ class SciDBArray(object):
             raise ValueError("aggregate='{0}' "
                              "not recognized".format(aggregate))
 
-        arr = self.interface.new_array()
-        query = "store(regrid({A}, {dims}, {agg}({A.a0})), {arr})"
-        self.interface.query(query,
-                             A=self, agg=aggregate, arr=arr,
-                             dims=','.join(map(str, sizes)))
-        return arr
+        agg = "{agg}({att})".format(agg=aggregate, att=self.att(0))
+        args = list(map(str, sizes)) + [agg]
+        q = self.afl.regrid(self, *args)
+        return q.eval()

@@ -7,14 +7,6 @@ mod = sys.modules[__name__]
 
 __all__ = ['build_operator']
 
-"""
-Things to check:
-
-* Do all AFL operators return arrays?
-* Is it a good strategy to store all evaluations into new arrays,
-  and cache them?
-"""
-
 
 def _format_operand(o):
     """
@@ -111,7 +103,7 @@ class AFLExpression(object):
         """
         return self._result
 
-    def eval(self, out=None, store=True):
+    def eval(self, out=None, store=True, **kwargs):
         """
         Evaluate the expression if necessary, and return the
         result as a SciDBArray.
@@ -142,7 +134,7 @@ class AFLExpression(object):
             return self._result
 
         if not store:
-            return self.interface._execute_query(self.query)
+            return self.interface._execute_query(self.query, **kwargs)
 
         if out is None:
             out = self.interface.new_array()
