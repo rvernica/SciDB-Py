@@ -18,6 +18,7 @@ from __future__ import print_function
 import warnings
 import abc
 import os
+import atexit
 
 from ._py3k_compat import urlopen, quote, HTTPError, iteritems, string_type
 
@@ -66,6 +67,10 @@ def _new_attribute_label(suggestion='val', *arrays):
 
 class SciDBInterface(object):
 
+    def __init__(self):
+        self._created = []
+        atexit.register(self.reap)
+
     """SciDBInterface Abstract Base Class.
 
     This class provides a wrapper to the low-level interface to sciDB.  The
@@ -79,6 +84,12 @@ class SciDBInterface(object):
     - ``_upload_bytes``
     """
     __metaclass__ = abc.ABCMeta
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, type, value, traceback):
+        self.reap()
 
     @abc.abstractmethod
     def _execute_query(self, query, response=False, n=0, fmt='auto'):
@@ -141,6 +152,19 @@ class SciDBInterface(object):
     def _get_uid(self):
         """Get a unique query ID from the database"""
         pass
+
+    def reap(self):
+        """
+        Reap all arrays created via new_array
+        """
+        for array in list(self._created):
+            if (array.datashape is not None) and (not array.persistent):
+                try:
+                    array.reap()
+                except:
+                    pass
+                finally:
+                    self._created.remove(array)
 
     def _db_array_name(self):
         """Return a unique array name for a new array on the database"""
@@ -242,7 +266,9 @@ class SciDBInterface(object):
             self._execute_query(query)
         else:
             datashape = None
-        return SciDBArray(datashape, self, name, persistent=persistent)
+        result = SciDBArray(datashape, self, name, persistent=persistent)
+        self._created.append(result)
+        return result
 
     def _format_query_string(self, query, *args, **kwargs):
         """Format query string.
@@ -1100,6 +1126,10 @@ class SciDBInterface(object):
             return f.papply(right, attr, op).eval()
 
 
+        # reorder the dimensions if needed (for cross_join)
+        if permutation is not None:
+            arr = arr.transpose(permutation)
+        return arr
 class SciDBShimInterface(SciDBInterface):
 
     """HTTP interface to SciDB via shim [1]_
@@ -1113,6 +1143,7 @@ class SciDBShimInterface(SciDBInterface):
     """
 
     def __init__(self, hostname):
+        super(SciDBShimInterface, self).__init__()
         self.hostname = hostname.rstrip('/')
         try:
             self._get_uid()

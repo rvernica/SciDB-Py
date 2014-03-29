@@ -134,8 +134,9 @@ def test_array_creation():
         name = A.name
         assert name in sdb.list_arrays()
 
-        # when A goes out of scope, its data should be deleted from the engine
-        del A
+        # when A is reaped, its data should be deleted from the engine
+        A.reap()
+
         assert name not in sdb.list_arrays()
 
     for create_array in [sdb.zeros, sdb.ones, sdb.random, sdb.randint]:
@@ -453,3 +454,62 @@ def test_bad_url():
         SciDBShimInterface('http://www.google.com')
     assert cm.exception.args[0] == ('Could not connect to a SciDB instance at '
                                     'http://www.google.com')
+
+
+def test_reap():
+
+    A = sdb.random((8, 4))
+    name = A.name
+    A.reap()
+    assert name not in sdb.list_arrays()
+    assert A.interface is None
+    assert A.name == '__DELETED__'
+
+
+def test_reap_ignored_if_persistent():
+
+    A = sdb.random((1, 1))
+    A.persistent = True
+    name = A.name
+
+    A.reap()
+    assert name in sdb.list_arrays()
+    assert A.name is name
+    assert A.interface is sdb
+
+    A.persistent = False
+    A.reap()
+    assert name not in sdb.list_arrays()
+
+
+def test_interface_reap():
+
+    A = sdb.random((1, 1))
+    B = sdb.random((1, 1))
+
+    aname = A.name
+    bname = B.name
+
+    sdb.reap()
+
+    assert aname not in sdb.list_arrays()
+    assert bname not in sdb.list_arrays()
+    assert A.interface is None
+    assert A.name == "__DELETED__"
+
+
+def test_interface_reap_after_manual_reap_is_silent():
+
+    A = sdb.random((1, 1))
+    A.reap()
+    sdb.reap()
+
+
+def test_reap_called_on_context_manager():
+    with SciDBShimInterface(connection_url()) as sdb2:
+        X = sdb2.random((1, 1))
+        name = X.name
+        assert X.name in sdb.list_arrays()
+
+    assert X.name == "__DELETED__"
+    assert name not in sdb.list_arrays()
