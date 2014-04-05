@@ -1116,9 +1116,10 @@ class SciDBShimInterface(SciDBInterface):
     def __init__(self, hostname):
         self.hostname = hostname.rstrip('/')
         try:
-            urlopen(self.hostname)
-        except HTTPError:
-            raise ValueError("Invalid hostname: {0}".format(self.hostname))
+            self._get_uid()
+        except:
+            raise ValueError("Could not connect to a SciDB instance at {0}"
+                             .format(self.hostname))
 
     def _get_uid(self):
         # load a library to get a query id
