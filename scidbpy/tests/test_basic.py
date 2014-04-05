@@ -6,7 +6,7 @@ from numpy.testing import (assert_, assert_allclose,
 from nose import SkipTest
 
 # In order to run tests, we need to connect to a valid SciDB engine
-from scidbpy import SciDBQueryError, SciDBArray, SciDBShimInterface
+from scidbpy import SciDBArray, SciDBShimInterface
 from . import get_interface
 
 sdb = get_interface()

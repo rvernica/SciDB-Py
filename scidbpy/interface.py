@@ -15,7 +15,7 @@ The following interfaces are currently available:
 # See http://github.com/jakevdp/scidb-py for more information
 
 from __future__ import print_function
-
+import warnings
 import abc
 
 from ._py3k_compat import urlopen, quote, HTTPError, iteritems, string_type
@@ -783,8 +783,6 @@ class SciDBInterface(object):
         if 'dim_names' not in kwargs:
             kwargs['dim_names'] = ['i0', 'i1']
 
-        attr_name = 'f0'
-
         if len(kwargs['dim_names']) != 2:
             raise ValueError("dim_names must have two dimensions")
         d1, d2 = kwargs['dim_names']
@@ -1085,7 +1083,7 @@ class SciDBInterface(object):
         # only left entry is a SciDBArray
         elif left_is_sdb:
             try:
-                _ = float(right)
+                float(right)
             except:
                 raise ValueError("rhs must be a scalar or SciDBArray")
             attr = _new_attribute_label('x', left)
@@ -1094,7 +1092,7 @@ class SciDBInterface(object):
         # only right entry is a SciDBArray
         elif right_is_sdb:
             try:
-                _ = float(left)
+                float(left)
             except:
                 raise ValueError("lhs must be a scalar or SciDBArray")
             attr = _new_attribute_label('x', right)
@@ -1176,7 +1174,7 @@ class SciDBShimInterface(SciDBInterface):
 
     def _shim_release_session(self, session_id):
         url = self._shim_url('release_session', id=session_id)
-        result = self._shim_urlopen(url)
+        self._shim_urlopen(url)
 
     def _shim_execute_query(self, session_id, query, save=None, release=False):
         url = self._shim_url('execute_query',
@@ -1197,7 +1195,7 @@ class SciDBShimInterface(SciDBInterface):
 
     def _shim_cancel(self, session_id):
         url = self._shim_url('cancel', id=session_id)
-        result = self._shim_urlopen(url)
+        self._shim_urlopen(url)
 
     def _shim_read_lines(self, session_id, n):
         url = self._shim_url('read_lines', id=session_id, n=n)
