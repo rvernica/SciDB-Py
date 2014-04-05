@@ -44,6 +44,7 @@ SDB_IND_TYPE = 'int64'
 
 
 class sdbtype(object):
+
     """SciDB data type class.
 
     This class encapsulates the information about the datatype of SciDB
@@ -54,6 +55,7 @@ class sdbtype(object):
     typecode : string, list, sdbtype, or dtype
         An object representing a datatype.
     """
+
     def __init__(self, typecode):
         if isinstance(typecode, sdbtype):
             self.schema = typecode.schema
@@ -181,7 +183,9 @@ class sdbtype(object):
 
 
 class SciDBDataShape(object):
+
     """Object to store SciDBArray data type and shape"""
+
     def __init__(self, shape, typecode, dim_names=None,
                  chunk_size=1000, chunk_overlap=0):
         # Process array shape
@@ -204,7 +208,7 @@ class SciDBDataShape(object):
             vals = (int(m.groups()[0]) for m in matches)
             try:
                 start = max(vals) + 1
-            except ValueError: # empty sequence
+            except ValueError:  # empty sequence
                 start = 0
             dim_names = ['i{0}'.format(i)
                          for i in range(start, start + len(self.shape))]
@@ -297,9 +301,11 @@ class SciDBDataShape(object):
 
 
 class ArrayAlias(object):
+
     """
     An alias object used for constructing queries
     """
+
     def __init__(self, arr, name=None):
         self.arr = arr
         if name is None:
@@ -348,11 +354,13 @@ class ArrayAlias(object):
 
 
 class SciDBArray(object):
+
     """SciDBArray class
 
     It is not recommended to instantiate this class directly; use a
     convenience routine from SciDBInterface.
     """
+
     def __init__(self, datashape, interface, name, persistent=False):
         self._datashape = datashape
         self.interface = interface

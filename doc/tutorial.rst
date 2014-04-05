@@ -2,9 +2,9 @@
 
 .. currentmodule:: scidbpy
 
-========
-Tutorial
-========
+===============
+Getting Started
+===============
 
 SciDB is an open-source database that organizes data in n-dimensional arrays.
 SciDB features include ACID transactions, parallel processing, distributed
@@ -731,9 +731,46 @@ somewhat slowly for small problems. But the same code shown here can be
 applied to arbitrarily large matrices, and those computations can run in
 parallel across a cluster.
 
+Working with the Array Functional Language
+------------------------------------------
+The syntax for using :class:`SciDBArray` instances resembles working with
+NumPy arrays. SciDB provides another interface for working with arrays,
+called the Array Functional Language, or AFL_. The AFL consists of approximately
+100 functions to perform array analysis. You can access these operators
+through the ``afl`` attribute of a SciDB instance::
+
+    >>> X = sdb.ones(100)
+    >>> sdb.afl.sum(X)
+    SciDB Expression: <sum(py1100988436438_00001)>
+    >>> sdb.afl.sum(X).eval()  # returns a SciDB array
+    SciDBArray('not empty py1100988436438_00002<f0_sum:double NULL DEFAULT null> [i=0:0,1,0]')
+    >>> sdb.afl.sum(X).toarray()  # converts to a NumPy array
+    array([ 100.])
+
+Note that AFL queries can be nested inside each other. The following code
+computes a (50, 50, 50) array, sums over the second 2 dimensions, and
+finds the maximum value of those 50 numbers:
+
+    >>> X = sdb.random((50, 50, 50))
+    >>> afl = sdb.afl
+    >>> afl.max(afl.sum(X, 'f0', 'i0')).toarray()
+    array([ 29.65605829])
+
+Working with AFL has a few advantages:
+
+ * AFL functions map directly onto database queries, giving you
+    more control over query building
+ * AFL expressions are evaluated lazily -- no database communication
+    occurs until you call the ``eval`` or ``toarray`` methods on an expression.
+    This means you can compose complex queries, without unnecessary
+    communication with the server. Likewise, passing complex AFL expressions
+    makes it easier for SciDB to perform query optimization.
+
 .. _Shim: http://github.com/paradigm4/shim
 
 .. _SciDB: http://scidb.org/
+
+.. _AFL: http://scidb.org/HTMLmanual/13.3/scidb_ug/ch13.html
 
 .. _`SciDB Manual`: http://www.scidb.org/HTMLmanual/
 

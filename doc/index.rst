@@ -16,7 +16,6 @@ scientific computing from the comfort of their Python interpreter.
    :maxdepth: 1
 
    install
-   getting_started
    tutorial
    Reference <classes.rst>
 

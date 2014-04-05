@@ -161,6 +161,13 @@ class SciDBInterface(object):
             kwargs['response'] = True
         return self._execute_query("dimensions({0})".format(name), **kwargs)
 
+    @property
+    def afl(self):
+        if not hasattr(self, '_afl'):
+            from .afl import AFLNamespace
+            self._afl = AFLNamespace(self)
+        return self._afl
+
     def wrap_array(self, scidbname, persistent=True):
         """
         Create a new SciDBArray object that references an existing SciDB
@@ -689,7 +696,7 @@ class SciDBInterface(object):
             (default=0; see SciDB documentation)
         **kwargs :
             Additional keyword arguments are passed to new_array()
-        
+
         Returns
         -------
         arr : SciDBArray
@@ -716,7 +723,7 @@ class SciDBInterface(object):
             (default=0; see SciDB documentation)
         **kwargs :
             Additional keyword arguments are passed to new_array()
-        
+
         Returns
         -------
         arr : SciDBArray

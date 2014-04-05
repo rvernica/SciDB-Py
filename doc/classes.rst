@@ -33,3 +33,9 @@ Shim Interface
 
 .. autoclass:: SciDBShimInterface
    :members:
+
+AFL Functions
+==============
+
+.. automodule:: scidbpy.afl
+   :members:
