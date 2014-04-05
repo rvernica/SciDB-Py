@@ -837,48 +837,48 @@ class SciDBArray(object):
     # join operations: note that these ignore all but the first attribute
     # of each array.
     def __add__(self, other):
-        return self.interface._join_operation(self, other, '{left}+{right}')
+        return self.interface._join_operation(self, other, self.afl.add)
 
     def __radd__(self, other):
-        return self.interface._join_operation(other, self, '{left}+{right}')
+        return self.interface._join_operation(other, self, self.afl.add)
 
     def __sub__(self, other):
-        return self.interface._join_operation(self, other, '{left}-{right}')
+        return self.interface._join_operation(self, other, self.afl.sub)
 
     def __rsub__(self, other):
-        return self.interface._join_operation(other, self, '{left}-{right}')
+        return self.interface._join_operation(other, self, self.afl.sub)
 
     def __mul__(self, other):
-        return self.interface._join_operation(self, other, '{left}*{right}')
+        return self.interface._join_operation(self, other, self.afl.mul)
 
     def __rmul__(self, other):
-        return self.interface._join_operation(other, self, '{left}*{right}')
+        return self.interface._join_operation(other, self, self.afl.mul)
 
     def __div__(self, other):
-        return self.interface._join_operation(self, other, '{left}/{right}')
+        return self.interface._join_operation(self, other, self.afl.div)
 
     def __truediv__(self, other):
-        return self.interface._join_operation(self, other, '{left}/{right}')
+        return self.interface._join_operation(self, other, self.afl.div)
 
     def __rdiv__(self, other):
-        return self.interface._join_operation(other, self, '{left}/{right}')
+        return self.interface._join_operation(other, self, self.afl.div)
 
     def __rtruediv__(self, other):
-        return self.interface._join_operation(other, self, '{left}/{right}')
+        return self.interface._join_operation(other, self, self.afl.div)
 
     def __mod__(self, other):
-        return self.interface._join_operation(self, other, '{left}%{right}')
+        return self.interface._join_operation(self, other, self.afl.mod)
 
     def __rmod__(self, other):
-        return self.interface._join_operation(other, self, '{left}%{right}')
+        return self.interface._join_operation(other, self, self.afl.mod)
 
     def __pow__(self, other):
         return self.interface._join_operation(self, other,
-                                              'pow({left},{right})')
+                                              self.afl.pow)
 
     def __rpow__(self, other):
         return self.interface._join_operation(other, self,
-                                              'pow({left},{right})')
+                                              self.afl.pow)
 
     def __abs__(self):
         return self.interface._apply_func(self, 'abs')
@@ -1040,6 +1040,7 @@ class SciDBArray(object):
 
         agg = "{agg}({att})".format(agg=agg, att=self.att(0))
         q = self.afl.aggregate(self, agg, *idx_args)
+        print(q.query)
         return q.eval()
 
     def min(self, index=None, scidb_syntax=False):

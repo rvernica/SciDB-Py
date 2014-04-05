@@ -5,7 +5,7 @@ from .afldb import operators
 
 mod = sys.modules[__name__]
 
-__all__ = ['build_operator']
+__all__ = ['register_operator', 'AFLNamespace']
 
 
 def _format_operand(o):
@@ -50,6 +50,9 @@ class AFLExpression(object):
         self._result = None
 
     def _check_arguments(self, args):
+        if len(self._signature) == 0:
+            return
+
         ngiven = len(args)
         exact = self._signature[-1] != 'args'
         nrequired = len(self._signature) - 1 + int(exact)
@@ -154,7 +157,30 @@ class AFLExpression(object):
         return "SciDB Expression: <%s>" % self
 
 
-def build_operator(entry, interface=None):
+class BinaryInfixAFLOperator(AFLExpression):
+
+    """
+    Bindings to AFL scalar functions like +, -, etc.
+
+    These Operators are called using the normal functional notation
+    (e.g., ``add(X, 5)``), but their query strings expand to ``X + 5``
+
+    Attributes
+    ----------
+    op : str
+       The SciDB operator token (e.g., ``+``)
+    """
+
+    op = None
+
+    @property
+    def query(self):
+        l, r = map(_format_operand, self.args)
+        q = "({l} {op} {r})".format(l=l, op=self.op, r=r)
+        return q
+
+
+def register_operator(entry, interface=None):
     """
     Create a new AFL operator, based on a description dictionary
 
@@ -182,14 +208,69 @@ def build_operator(entry, interface=None):
     return result
 
 
+def register_infix(name, op, interface=None):
+    """
+    Create a new BinaryInfixAFLOperator type
+
+    Parameters
+    ----------
+    name : str
+        Name of the class
+    op : str
+        SciDB operator name
+    interface : SciDBInterface instance (optional)
+        Which interface to bind to
+
+    Returns
+    -------
+    A new subtype of BinaryInfixAFLOperator
+    """
+    doc = "The operator %s" % op
+    signature = ['item', 'item']
+    attrs = {'__doc__': doc, '_signature': signature,
+             'op': op,
+             '_interface': interface}
+    return type(name, (BinaryInfixAFLOperator,), attrs)
+
+
 class AFLNamespace(object):
+
+    """
+    A module-like namespace for all registered operators.
+    """
 
     def __init__(self, interface):
         for op in operators:
-            setattr(self, op['name'], build_operator(op, interface))
+            setattr(self, op['name'], register_operator(op, interface))
+
+        for name, op in [('as_', 'as'), ('add', '+'),
+                         ('sub', '-'), ('mul', '*'), ('div', '/'),
+                         ('mod', '%')]:
+            setattr(self, name, register_infix(name, op, interface))
+
+    def papply(self, array, attr, expression):
+        """
+        papply(array, attr, expression)
+
+        Shorthand for project(apply(array, attr, expression), attr)
+        """
+        return self.project(self.apply(array, attr, expression), attr)
+
+    def quote(self, val):
+        """Wrap the argument in single quotes.
+
+        Useful for AFL operators which expected quoted strings
+        """
+        return "'%s'" % val
+
+
+# add in some missing operators
+# TODO add these to afldb.py
+for op in ['gemm', 'gesvd', 'pow', 'abs']:
+    operators.append(dict(name=op, signature=[], doc=''))
 
 
 # build the functions and populate the namespace
 for op in operators:
-    setattr(mod, op['name'], build_operator(op))
+    setattr(mod, op['name'], register_operator(op))
     __all__.append(op['name'])
