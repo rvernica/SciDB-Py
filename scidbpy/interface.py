@@ -17,6 +17,7 @@ The following interfaces are currently available:
 from __future__ import print_function
 import warnings
 import abc
+import os
 
 from ._py3k_compat import urlopen, quote, HTTPError, iteritems, string_type
 
@@ -27,7 +28,7 @@ from .scidbarray import SciDBArray, SciDBDataShape, ArrayAlias, SDB_IND_TYPE
 from .errors import SHIM_ERROR_DICT
 from .utils import broadcastable
 
-__all__ = ['SciDBInterface', 'SciDBShimInterface']
+__all__ = ['SciDBInterface', 'SciDBShimInterface', 'connect']
 
 SCIDB_RAND_MAX = 2147483647  # 2 ** 31 - 1
 
@@ -1219,3 +1220,18 @@ class SciDBShimInterface(SciDBInterface):
         result = requests.post(url, files=dict(fileupload=data))
         scidb_filename = result.text.strip()
         return scidb_filename
+
+
+def connect(url=None):
+    """
+    Connect to a SciDB instance
+
+    Parameters
+    ----------
+    url : str (optional)
+        Connection URL. If not provided, will fall back to
+        the SCIDB_URL environment variable (if present),
+        or http://127.0.0.1:8080
+    """
+    url = url or os.environ.get('SCIDB_URL', 'http://127.0.0.1:8080')
+    return SciDBShimInterface(url)

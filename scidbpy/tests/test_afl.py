@@ -2,10 +2,10 @@ from nose.tools import assert_raises
 from mock import MagicMock
 import numpy as np
 
+from scidbpy import connect
 from scidbpy.afl import _format_operand
-from . import get_interface
 
-sdb = get_interface()
+sdb = connect()
 afl = sdb.afl
 ARR = sdb.ones((2, 2))
 

@@ -6,10 +6,10 @@ from numpy.testing import (assert_, assert_allclose,
 from nose import SkipTest
 
 # In order to run tests, we need to connect to a valid SciDB engine
-from scidbpy import SciDBArray, SciDBShimInterface
-from . import get_interface
+from scidbpy import SciDBArray, SciDBShimInterface, connect
 
-sdb = get_interface()
+
+sdb = connect()
 
 RTOL = 1E-6
 
