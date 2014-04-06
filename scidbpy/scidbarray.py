@@ -11,7 +11,7 @@ import re
 
 import warnings
 from copy import copy
-from .errors import SciDBError
+from .errors import SciDBError, SciDBForbidden
 
 # Numpy 1.7 meshgrid backport
 from .utils import meshgrid
@@ -484,13 +484,26 @@ class SciDBArray(object):
     def dtype(self):
         return self.datashape.dtype
 
-    def reap(self):
+    def reap(self, ignore=False):
         """
         Delete this object from the database if it isn't persistent.
 
-        reap does nothing if the array is persistent.
+        Parameters
+        ----------
+        ignore : bool (default False)
+            If False and the array is persistent, then reap raises an error
+            If True and the array is persistent, reap does nothing
+
+        Raises
+        ------
+        SciDBForbidden if ``persistent=True`` and ``ignore=False`
         """
-        if (self.datashape is not None) and (not self.persistent):
+        if self.persistent:
+            if not ignore:
+                raise SciDBForbidden("Cannot reap: persistent=True")
+            return
+
+        if (self.datashape is not None):
             self.interface.query("remove({0})", self.name)
             self.name = '__DELETED__'
             self.interface = None

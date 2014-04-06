@@ -472,7 +472,7 @@ def test_reap_ignored_if_persistent():
     A.persistent = True
     name = A.name
 
-    A.reap()
+    A.reap(ignore=True)
     assert name in sdb.list_arrays()
     assert A.name is name
     assert A.interface is sdb
