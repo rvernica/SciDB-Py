@@ -3,7 +3,7 @@ import sys
 from . import SciDBArray
 from .afldb import operators
 
-mod = sys.modules[__name__]
+_mod = sys.modules[__name__]
 
 __all__ = ['register_operator', 'AFLNamespace']
 
@@ -148,6 +148,9 @@ class AFLExpression(object):
         return self._result
 
     def toarray(self):
+        """
+        Return the result of the expression as a numpy array
+        """
         return self.eval().toarray()
 
     def __str__(self):
@@ -243,9 +246,7 @@ class AFLNamespace(object):
         for op in operators:
             setattr(self, op['name'], register_operator(op, interface))
 
-        for name, op in [('as_', 'as'), ('add', '+'),
-                         ('sub', '-'), ('mul', '*'), ('div', '/'),
-                         ('mod', '%')]:
+        for name, op in infix_functions:
             setattr(self, name, register_infix(name, op, interface))
 
     def papply(self, array, attr, expression):
@@ -264,13 +265,39 @@ class AFLNamespace(object):
         return "'%s'" % val
 
 
-# add in some missing operators
+#tuple of (python AFL name, scidb token) for binary infix functions
+infix_functions = [('as_', 'as'), ('add', '+'),
+                   ('sub', '-'), ('mul', '*'), ('div', '/'),
+                   ('mod', '%'), ('lt', '<'), ('le', '<='),
+                   ('ne', '<>'), ('eq', '='), ('ge', '>='), ('gt', '>')]
+
+# scalar functions
+# TODO grab docstrings from these somewhere?
+functions =['abs', 'acos', 'and', 'append_offset', 'apply_offset', 'asin',
+            'atan', 'ceil', 'cos', 'day_of_week', 'exp', 'first_index',
+            'floor', 'format', 'get_offset', 'high', 'hour_of_day',
+            'iif', 'instanceid', 'is_nan', 'is_null', 'last_index', 'length',
+            'log', 'log10', 'low', 'max', 'min', 'missing', 'missing_reason',
+            'not', 'now', 'or', 'pow', 'random', 'regex', 'sin', 'sqrt',
+            'strchar', 'strftime', 'strip_offset', 'strlen', 'substr',
+            'tan', 'togmt', 'tznow']
+for f in functions:
+    operators.append(dict(name=f, signature=[],
+                          doc='The scalar function %s' % f))
+
+# add in some missing operators from other libraries
 # TODO add these to afldb.py
-for op in ['gemm', 'gesvd', 'pow', 'abs']:
+for op in ['gemm', 'gesvd']:
     operators.append(dict(name=op, signature=[], doc=''))
 
 
-# build the functions and populate the namespace
+#for documentation purposes, create operator classes
+#unattached to references. These aren't generally useful, but
+#this lets sphinx find and document each class
 for op in operators:
-    setattr(mod, op['name'], register_operator(op))
+    setattr(_mod, op['name'], register_operator(op))
     __all__.append(op['name'])
+
+for name, op in infix_functions:
+    setattr(_mod, name, register_infix(name, op))
+    __all__.append(name)
