@@ -244,6 +244,8 @@ class AFLNamespace(object):
 
     def __init__(self, interface):
         for op in operators:
+            if op['name'] in DEPRECATED:
+                continue
             setattr(self, op['name'], register_operator(op, interface))
 
         for name, op in infix_functions:
@@ -264,12 +266,19 @@ class AFLNamespace(object):
         """
         return "'%s'" % val
 
+    def count(self, array):
+        # replace count, which was removedin SciDB 14
+        return self.aggregate(array, 'count(*)')
+
 
 #tuple of (python AFL name, scidb token) for binary infix functions
 infix_functions = [('as_', 'as'), ('add', '+'),
                    ('sub', '-'), ('mul', '*'), ('div', '/'),
                    ('mod', '%'), ('lt', '<'), ('le', '<='),
                    ('ne', '<>'), ('eq', '='), ('ge', '>='), ('gt', '>')]
+
+#Functions that are no longer supported
+DEPRECATED = set(['count'])
 
 # scalar functions
 # TODO grab docstrings from these somewhere?
