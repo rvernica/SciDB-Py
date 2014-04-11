@@ -32,6 +32,18 @@ __all__ = ['SciDBInterface', 'SciDBShimInterface']
 SCIDB_RAND_MAX = 2147483647  # 2 ** 31 - 1
 
 
+def _df(arr, ind):
+    if not isinstance(arr, ArrayAlias):
+        arr = ArrayAlias(arr)
+    return "{{a.d{i}f}}".format(i=ind).format(a=arr)
+
+
+def _af(arr, ind):
+    if not isinstance(arr, ArrayAlias):
+        arr = ArrayAlias(arr)
+    return "{{a.a{i}f}}".format(i=ind).format(a=arr)
+
+
 def _new_attribute_label(suggestion='val', *arrays):
     """Return a new attribute label
 
@@ -52,6 +64,7 @@ def _new_attribute_label(suggestion='val', *arrays):
 
 
 class SciDBInterface(object):
+
     """SciDBInterface Abstract Base Class.
 
     This class provides a wrapper to the low-level interface to sciDB.  The
@@ -362,7 +375,7 @@ class SciDBInterface(object):
             A SciDBArray consisting of all ones.
         """
         arr = self.new_array(shape, dtype, **kwargs)
-        self.query('store(build({0},1),{0})', arr)
+        self.afl.build(arr, 1).eval(out=arr)
         return arr
 
     def zeros(self, shape, dtype='double', **kwargs):
@@ -383,9 +396,7 @@ class SciDBInterface(object):
             A SciDBArray consisting of all zeros.
         """
         schema = SciDBDataShape(shape, dtype, **kwargs).schema
-        arr = self.new_array()
-        self.query('store(build({0}, 0), {1})', schema, arr)
-        return arr
+        return self.afl.build(schema, 0).eval()
 
     def random(self, shape, dtype='double', lower=0, upper=1, **kwargs):
         """Return an array of random floats between lower and upper
@@ -412,11 +423,9 @@ class SciDBInterface(object):
         # TODO: can be done more efficiently
         #       if lower is 0 or upper - lower is 1
         schema = SciDBDataShape(shape, dtype, **kwargs).schema
-        fill_value = ('random()*{0}/{2}+{1}'.format(upper - lower, lower,
-                                                    float(SCIDB_RAND_MAX)))
-        arr = self.new_array()
-        self.query('store(build({0}, {1}), {2})', schema, fill_value, arr)
-        return arr
+        rng = (upper - lower) / float(SCIDB_RAND_MAX)
+        fill_value = 'random()*{0}+{1}'.format(rng, lower)
+        return self.afl.build(schema, fill_value).eval()
 
     def randint(self, shape, dtype='uint32', lower=0, upper=SCIDB_RAND_MAX,
                 **kwargs):
@@ -443,9 +452,7 @@ class SciDBInterface(object):
         """
         schema = SciDBDataShape(shape, dtype, **kwargs).schema
         fill_value = 'random() % {0} + {1}'.format(upper - lower, lower)
-        arr = self.new_array()
-        self.query('store(build({0}, {1}), {2})', schema, fill_value, arr)
-        return arr
+        return self.afl.build(schema, fill_value).eval()
 
     def arange(self, start, stop=None, step=1, dtype=None, **kwargs):
         """arange([start,] stop[, step,], dtype=None, **kwargs)
@@ -502,8 +509,10 @@ class SciDBInterface(object):
         size = int(np.ceil((stop - start) * 1. / step))
 
         arr = self.new_array(size, dtype, **kwargs)
-        self.query("store(build({A}, {start} + {step} * {A.d0}), {A})",
-                   A=arr, start=start, step=step)
+
+        fill_value = '{0} + {1} * {2}'.format(start, step,
+                                              arr.dim_names[0])
+        self.afl.build(arr, fill_value).eval(out=arr)
         return arr
 
     def linspace(self, start, stop, num=50,
@@ -553,8 +562,8 @@ class SciDBInterface(object):
             step = (stop - start) * 1. / num
 
         arr = self.new_array(num, **kwargs)
-        self.query("store(build({A}, {start} + {step} * {A.d0}), {A})",
-                   A=arr, start=start, step=step)
+        fill_value = '{0} + {1} * {2}'.format(start, step, arr.dim_names[0])
+        self.afl.build(arr, fill_value).eval(out=arr)
 
         if retstep:
             return arr, step
@@ -581,11 +590,13 @@ class SciDBInterface(object):
             A SciDBArray containint an [n x n] identity matrix
         """
         arr = self.new_array((n, n), dtype, **kwargs)
+        d0, d1 = arr.dim_names
+        diag = "{0}={1}".format(d0, d1)
         if sparse:
-            query = 'store(build_sparse({A},1,{A.d0}={A.d1}),{A})'
+            query = self.afl.build_sparse(arr, 1, diag)
         else:
-            query = 'store(build({A},iif({A.d0}={A.d1},1,0)),{A})'
-        self.query(query, A=arr)
+            query = self.afl.build(arr, 'iif(%s,1,0)' % diag)
+        query.eval(out=arr)
         return arr
 
     def dot(self, A, B):
@@ -641,7 +652,7 @@ class SciDBInterface(object):
         #       an array of zeros?
         # TODO: use spgemm() when the matrices are sparse
         C = self.zeros((A.shape[0], B.shape[1]), dtype=A.dtype)
-        self.query('store(gemm({0},{1},{2}),{2})', A, B, C)
+        self.afl.gemm(A, B, C).eval(out=C)
 
         if C.shape == output_shape:
             return C
@@ -672,7 +683,7 @@ class SciDBInterface(object):
         """
         if (A.ndim != 2):
             raise ValueError("svd requires 2-dimensional arrays")
-        self.query("load_library('dense_linear_algebra')")
+        self.afl.load_library("'dense_linear_algebra'")
 
         out_dict = dict(U=return_U, S=return_S, VT=return_VT)
 
@@ -680,8 +691,7 @@ class SciDBInterface(object):
         ret = []
         for output in ['U', 'S', 'VT']:
             if out_dict[output]:
-                ret.append(self.new_array())
-                self.query("store(gesvd({0}, '{1}'),{2})", A, output, ret[-1])
+                ret.append(self.afl.gesvd(A, "'%s'" % output).eval())
         return tuple(ret)
 
     def from_array(self, A, instance_id=0, **kwargs):
@@ -702,13 +712,13 @@ class SciDBInterface(object):
         arr : SciDBArray
             SciDB Array object built from the input array
         """
+        q = self.afl.quote
         A = np.asarray(A)
         instance_id = int(instance_id)
-        filename = self._upload_bytes(A.tostring(order='C'))
+        filename = q(self._upload_bytes(A.tostring(order='C')))
         arr = self.new_array(A.shape, A.dtype, **kwargs)
-        self.query("load({0},'{1}',{2},'{3}')",
-                   arr, filename, instance_id,
-                   arr.sdbtype.bytes_fmt)
+        self.afl.load(arr, filename, instance_id,
+                      q(arr.sdbtype.bytes_fmt)).eval(store=False)
         return arr
 
     def from_dataframe(self, A, instance_id=0, **kwargs):
@@ -742,7 +752,7 @@ class SciDBInterface(object):
         arr = self.new_array(shape=A_rec.shape,
                              dtype=A_rec.dtype.descr[1:],
                              **kwargs)
-        self.query("redimension_store({0},{1})", A_sdb, arr)
+        self.afl.redimension_store(A_sdb, arr).eval(store=False)
         return arr
 
     def from_sparse(self, A, instance_id=0, **kwargs):
@@ -758,7 +768,7 @@ class SciDBInterface(object):
             (default=0; see SciDB documentation)
         **kwargs :
             Additional keyword arguments are passed to new_array()
-        
+
         Returns
         -------
         arr : SciDBArray
@@ -777,7 +787,7 @@ class SciDBInterface(object):
 
         if len(kwargs['dim_names']) != 2:
             raise ValueError("dim_names must have two dimensions")
-        d1, d2 = kwargs['dim_names']    
+        d1, d2 = kwargs['dim_names']
 
         # first flatten the array & indices
         # We'll treat the general case where A.data can be a record array,
@@ -796,7 +806,7 @@ class SciDBInterface(object):
 
         # redimension the flat array to a sparse array
         arr = self.new_array(A.shape, A.dtype, **kwargs)
-        self.query("redimension_store({0},{1})", arr_flat, arr)
+        self.afl.redimension_store(arr_flat, arr).eval(store=False)
         return arr
 
     def toarray(self, A, transfer_bytes=True):
@@ -820,11 +830,12 @@ class SciDBInterface(object):
     def _apply_func(self, A, func):
         # TODO: new value name could conflict.  How to generate a unique one?
         # TODO: add optional ``out`` argument as in numpy
-        arr = self.new_array()
-        self.query("store(project(apply({A},{func}_{A.a0},{func}({A.a0})),"
-                   "{func}_{A.a0}), {arr})",
-                   A=A, func=func, arr=arr)
-        return arr
+        f = self.afl
+        att = A.att(0)
+        newatt = "{0}_{1}".format(func, att)
+        expr = "{0}({1})".format(func, att)
+        q = f.papply(A, newatt, expr)
+        return q.eval()
 
     def sin(self, A):
         """Element-wise trigonometric sine"""
@@ -898,21 +909,14 @@ class SciDBInterface(object):
     def merge(self, A, B):
         """Merge two arrays"""
         # TODO: pre-check for non-matching arrays?
-        arr = self.new_array()
-        self.query("store(merge({0},{1}),{2})", A, B, arr)
-        return arr
+        return self.afl.merge(A, B).eval()
 
     def join(self, *args):
         """
         Perform a series of array joins on the arguments
         and return the result.
         """
-        last = args[0]
-        for arg in args[1:]:
-            arr = self.new_array()
-            self.query('store(join({0},{1}), {2})', last, arg, arr)
-            last = arr
-        return last
+        return reduce(self.afl.join, args).eval()
 
     def cross_join(self, A, B, *dims):
         """Perform a cross-join on arrays A and B.
@@ -924,42 +928,39 @@ class SciDBInterface(object):
             The remaining arguments are tuples of dimension indices which
             should be joined.
         """
-        dims = ','.join(" {{A.d{0}f}}, {{B.d{1}f}}".format(*tup)
-                        for tup in dims)
-        if dims:
-            dims = ',' + dims
-        query = ('store(cross_join({A}, {B}'
-                 + dims
-                 + '), {arr})')
-        arr = self.new_array()
-        self.query(query, A=A, B=B, arr=arr)
-        return arr
+        dims = [_df(arr, index)
+                for dim in dims
+                for arr, index in zip([A, B], dim)]
+        return self.afl.cross_join(A, B, *dims).eval()
 
     def _join_operation(self, left, right, op):
         """Perform a join operation across arrays or values.
 
         See e.g. SciDBArray.__add__ for an example usage.
         """
+        f = self.afl
+
         if isinstance(left, SciDBArray):
             left_name = left.name
-            left_fmt = '{left.a0f}'
+            left_fmt = _af(left, 0)
             left_is_sdb = True
         else:
             left_name = None
-            left_fmt = '{left}'
+            left_fmt = left
             left_is_sdb = False
 
         if isinstance(right, SciDBArray):
             right_name = right.name
-            right_fmt = '{right.a0f}'
+            right_fmt = _af(right, 0)
             right_is_sdb = True
         else:
             right_name = None
-            right_fmt = '{right}'
+            right_fmt = right
             right_is_sdb = False
 
         # some common names needed below
-        op = op.format(left=left_fmt, right=right_fmt)
+        op = op(left_fmt, right_fmt)
+
         aL = aR = None
         permutation = None
 
@@ -978,11 +979,10 @@ class SciDBInterface(object):
                 attr = _new_attribute_label('x', left, right)
                 if left_name == right_name:
                     # same array: we can do this without a join
-                    query = ("store(project(apply({left}, {attr}, "
-                             + op + "), {attr}), {arr})")
+                    return f.papply(left, attr, op).eval()
                 else:
-                    query = ("store(project(apply(join({left},{right}),{attr},"
-                             + op + "), {attr}), {arr})")
+                    q = f.papply(f.join(left, right), attr, op)
+                    return q.eval()
 
             # array shapes are broadcastable: use a cross_join
             elif broadcastable(left.shape, right.shape):
@@ -1009,34 +1009,33 @@ class SciDBInterface(object):
 
                 # build the left slice query if needed
                 if left_slices:
-                    dims = ','.join("{{left.d{0}f}},0".format(sl)
-                                    for sl in left_slices)
-                    left_query = "slice({left}," + dims + ") as {aL}"
                     aL = ArrayAlias(left, "alias_left")
+                    dims = [item for sl in left_slices
+                            for item in [_df(left, sl), 0]]
+                    left_query = f.as_(f.slice(left, *dims), aL).query
                 else:
-                    left_query = "{aL}"
+                    left_query = left
                     aL = left
 
                 # build the right slice query if needed
                 if right_slices:
-                    dims = ','.join("{{right.d{0}f}},0".format(sl)
-                                    for sl in right_slices)
-                    right_query = "slice({right}," + dims + ") as {aR}"
                     aR = ArrayAlias(right, "alias_right")
+                    dims = [item for sl in right_slices
+                            for item in [_df(right, sl), 0]]
+                    right_query = f.as_(f.slice(right, *dims), aR).query
                 else:
-                    right_query = "{aR}"
+                    right_query = right
                     aR = right
 
                 # build the cross_join query
-                dims = ','.join("{{aL.d{0}f}}, {{aR.d{1}f}}".format(i, j)
-                                for i, j in join_indices)
-                if dims:
-                    dims = ',' + dims
-
-                query = ("store(project(apply(cross_join(" +
-                         left_query + "," + right_query + dims + "),{attr}," +
-                         op + "), {attr}), {arr})")
+                dims = [_df(arr, att)
+                        for atts in join_indices
+                        for arr, att in zip([aL, aR], atts)]
                 attr = _new_attribute_label('x', left, right)
+                query = f.papply(f.cross_join(
+                                 left_query, right_query, *dims),
+                                 attr, op)
+                result = query.eval()
 
                 # determine the dimension permutation
                 # Here's the problem: cross_join puts all the left array dims
@@ -1074,6 +1073,10 @@ class SciDBInterface(object):
                 if permutation == range(len(permutation)):
                     permutation = None
 
+                if permutation is not None:
+                    result = result.transpose(permutation)
+                return result
+
             else:
                 raise ValueError("Array of shape {0} can not be "
                                  "broadcasted with array of shape "
@@ -1086,8 +1089,7 @@ class SciDBInterface(object):
             except:
                 raise ValueError("rhs must be a scalar or SciDBArray")
             attr = _new_attribute_label('x', left)
-            query = ("store(project(apply({left}, {attr}, "
-                     + op + "), {attr}), {arr})")
+            return f.papply(left, attr, op).eval()
 
         # only right entry is a SciDBArray
         elif right_is_sdb:
@@ -1096,21 +1098,11 @@ class SciDBInterface(object):
             except:
                 raise ValueError("lhs must be a scalar or SciDBArray")
             attr = _new_attribute_label('x', right)
-            query = ("store(project(apply({right}, {attr}, "
-                     + op + "), {attr}), {arr})")
-
-        arr = self.new_array()
-        self.query(query, left=left, right=right,
-                   aL=aL, aR=aR,
-                   attr=attr, arr=arr)
-
-        # reorder the dimensions if needed (for cross_join)
-        if permutation is not None:
-            arr = arr.transpose(permutation)
-        return arr
+            return f.papply(right, attr, op).eval()
 
 
 class SciDBShimInterface(SciDBInterface):
+
     """HTTP interface to SciDB via shim [1]_
 
     Parameters
@@ -1120,6 +1112,7 @@ class SciDBShimInterface(SciDBInterface):
 
     [1] https://github.com/Paradigm4/shim
     """
+
     def __init__(self, hostname):
         self.hostname = hostname.rstrip('/')
         try:

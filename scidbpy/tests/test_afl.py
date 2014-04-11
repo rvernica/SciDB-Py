@@ -2,10 +2,11 @@ from nose.tools import assert_raises
 from mock import MagicMock
 import numpy as np
 
-from scidbpy import afl
+from scidbpy.afl import _format_operand
 from . import get_interface
 
 sdb = get_interface()
+afl = sdb.afl
 ARR = sdb.ones((2, 2))
 
 
@@ -92,17 +93,17 @@ class TestBasicUse(object):
 class TestFormatOperands(object):
 
     def test_scalar(self):
-        assert afl._format_operand('x') == 'x'
-        assert afl._format_operand(3) == '3'
+        assert _format_operand('x') == 'x'
+        assert _format_operand(3) == '3'
 
     def test_scidbarray_givnen_by_name(self):
-        assert afl._format_operand(ARR) == ARR.name
+        assert _format_operand(ARR) == ARR.name
 
     def test_expression_given_by_query(self):
-        assert afl._format_operand(afl.sum(ARR)) == "sum(%s)" % ARR.name
+        assert _format_operand(afl.sum(ARR)) == "sum(%s)" % ARR.name
 
     def test_expression_given_by_result_name_if_evaluated(self):
 
         exp = afl.sum(ARR)
         exp.eval()
-        assert afl._format_operand(exp) == exp.eval().name
+        assert _format_operand(exp) == exp.eval().name

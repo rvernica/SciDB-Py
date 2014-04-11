@@ -122,7 +122,7 @@ def test_nonzero_nonnull():
               A=tridiag)
 
     assert_(tridiag.contains_nulls())
-    assert_equal(tridiag.nonempty(),  N + 2 * (N - 1))
+    assert_equal(tridiag.nonempty(), N + 2 * (N - 1))
     assert_equal(tridiag.nonnull(), N)
 
 
@@ -139,6 +139,17 @@ def test_array_creation():
 
     for create_array in [sdb.zeros, sdb.ones, sdb.random, sdb.randint]:
         yield check_array_creation, create_array
+
+
+def test_constant_creation():
+    def check(creator, shp):
+        A = getattr(sdb, creator)(shp)
+        Anp = getattr(np, creator)(shp)
+        assert_allclose(A.toarray(), Anp)
+        assert A.toarray().shape == Anp.shape
+    for shp in [(5,), (5, 4), (1,), (3, 1, 4)]:
+        yield check, 'zeros', shp
+        yield check, 'ones', shp
 
 
 def test_arange():
@@ -264,7 +275,7 @@ def test_ops():
         C = op(A, B)
         assert_allclose(C.toarray(), op(A.toarray(), B), rtol=RTOL)
 
-    for op in (add, sub, mul, truediv, mod):
+    for op in (add, sub, mul, truediv, mod, pow):
         yield check_join_op, op
 
 
@@ -277,7 +288,7 @@ def test_reverse_ops():
         C = op(A, B)
         assert_allclose(C.toarray(), op(A, B.toarray()), rtol=RTOL)
 
-    for op in (add, sub, mul, truediv, mod):
+    for op in (add, sub, mul, truediv, mod, pow):
         yield check_join_op, op
 
 
@@ -353,7 +364,6 @@ def test_substitute():
 
 def test_scidb_aggregates():
     A = sdb.random((5, 5))
-
     ind_dict = {1: 0, 0: 1, (0, 1): (), (): (0, 1), None: None}
 
     def check_op(op, ind):
