@@ -549,7 +549,7 @@ class SciDBArray(object):
 
         for i in range(attr.size):
             attr_name = self.attribute(attr.flat[i])
-            query = self.afl.aggregate(self, self.afl.count(attr_name))
+            query = self.afl.aggregate(self, 'count(%s)' % attr_name)
             response = query.eval(response=True, store=False, fmt='(int64)')
             nonnull.flat[i] = np.fromstring(response, dtype='int64')[0]
         return nonnull
@@ -1040,7 +1040,6 @@ class SciDBArray(object):
 
         agg = "{agg}({att})".format(agg=agg, att=self.att(0))
         q = self.afl.aggregate(self, agg, *idx_args)
-        print(q.query)
         return q.eval()
 
     def min(self, index=None, scidb_syntax=False):
