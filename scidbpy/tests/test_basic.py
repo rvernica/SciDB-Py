@@ -1,14 +1,15 @@
 import numpy as np
-from numpy.testing import assert_, assert_allclose,\
-    assert_equal, assert_array_equal
+from numpy.testing import (assert_, assert_allclose,
+                           assert_equal, assert_array_equal,
+                           assert_raises)
 
 from nose import SkipTest
 
 # In order to run tests, we need to connect to a valid SciDB engine
-from scidbpy import SciDBQueryError, SciDBArray
-from . import get_interface
+from scidbpy import SciDBArray, SciDBShimInterface, connect
 
-sdb = get_interface()
+
+sdb = connect()
 
 RTOL = 1E-6
 
@@ -444,3 +445,11 @@ def test_regrid():
     np_Ag = sum(np_A[i::2, j::2] for i in range(2) for j in range(2))
 
     assert_allclose(Ag.toarray(), np_Ag)
+
+
+def test_bad_url():
+
+    with assert_raises(ValueError) as cm:
+        SciDBShimInterface('http://www.google.com')
+    assert cm.exception.args[0] == ('Could not connect to a SciDB instance at '
+                                    'http://www.google.com')

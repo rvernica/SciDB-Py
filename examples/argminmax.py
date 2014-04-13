@@ -23,7 +23,7 @@ def argmin(X, i):
         raise NotImplementedError()
     if i != 1:
         raise NotImplementedError()
-    
+
     # For efficiency, these queries should be combined
     X_min = X.min(0)
     J = sdb.cross_join(X, X_min, (0, 0))
@@ -54,7 +54,7 @@ def argmax(X, i=-1):
         raise NotImplementedError()
     if i != 1:
         raise NotImplementedError()
-    
+
     # For efficiency, these queries should be combined
     X_max = X.max(0)
     J = sdb.cross_join(X, X_max, (0, 0))
@@ -70,10 +70,9 @@ def argmax(X, i=-1):
     return arr
 
 if __name__ == '__main__':
-    import numpy as np
     from scidbpy import interface
     sdb = interface.SciDBShimInterface('http://vega.cs.washington.edu:8080')
-    
+
     X = sdb.random((10, 5))
     print "numpy argmin:", X.toarray().argmin(1)
     print "scidb argmin:", argmin(X, 1).toarray()

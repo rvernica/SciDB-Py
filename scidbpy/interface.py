@@ -15,8 +15,9 @@ The following interfaces are currently available:
 # See http://github.com/jakevdp/scidb-py for more information
 
 from __future__ import print_function
-
+import warnings
 import abc
+import os
 
 from ._py3k_compat import urlopen, quote, HTTPError, iteritems, string_type
 
@@ -27,7 +28,7 @@ from .scidbarray import SciDBArray, SciDBDataShape, ArrayAlias, SDB_IND_TYPE
 from .errors import SHIM_ERROR_DICT
 from .utils import broadcastable
 
-__all__ = ['SciDBInterface', 'SciDBShimInterface']
+__all__ = ['SciDBInterface', 'SciDBShimInterface', 'connect']
 
 SCIDB_RAND_MAX = 2147483647  # 2 ** 31 - 1
 
@@ -783,8 +784,6 @@ class SciDBInterface(object):
         if 'dim_names' not in kwargs:
             kwargs['dim_names'] = ['i0', 'i1']
 
-        attr_name = 'f0'
-
         if len(kwargs['dim_names']) != 2:
             raise ValueError("dim_names must have two dimensions")
         d1, d2 = kwargs['dim_names']
@@ -1085,7 +1084,7 @@ class SciDBInterface(object):
         # only left entry is a SciDBArray
         elif left_is_sdb:
             try:
-                _ = float(right)
+                float(right)
             except:
                 raise ValueError("rhs must be a scalar or SciDBArray")
             attr = _new_attribute_label('x', left)
@@ -1094,7 +1093,7 @@ class SciDBInterface(object):
         # only right entry is a SciDBArray
         elif right_is_sdb:
             try:
-                _ = float(left)
+                float(left)
             except:
                 raise ValueError("lhs must be a scalar or SciDBArray")
             attr = _new_attribute_label('x', right)
@@ -1116,9 +1115,10 @@ class SciDBShimInterface(SciDBInterface):
     def __init__(self, hostname):
         self.hostname = hostname.rstrip('/')
         try:
-            urlopen(self.hostname)
-        except HTTPError:
-            raise ValueError("Invalid hostname: {0}".format(self.hostname))
+            self._get_uid()
+        except:
+            raise ValueError("Could not connect to a SciDB instance at {0}"
+                             .format(self.hostname))
 
     def _get_uid(self):
         # load a library to get a query id
@@ -1175,7 +1175,7 @@ class SciDBShimInterface(SciDBInterface):
 
     def _shim_release_session(self, session_id):
         url = self._shim_url('release_session', id=session_id)
-        result = self._shim_urlopen(url)
+        self._shim_urlopen(url)
 
     def _shim_execute_query(self, session_id, query, save=None, release=False):
         url = self._shim_url('execute_query',
@@ -1196,7 +1196,7 @@ class SciDBShimInterface(SciDBInterface):
 
     def _shim_cancel(self, session_id):
         url = self._shim_url('cancel', id=session_id)
-        result = self._shim_urlopen(url)
+        self._shim_urlopen(url)
 
     def _shim_read_lines(self, session_id, n):
         url = self._shim_url('read_lines', id=session_id, n=n)
@@ -1220,3 +1220,18 @@ class SciDBShimInterface(SciDBInterface):
         result = requests.post(url, files=dict(fileupload=data))
         scidb_filename = result.text.strip()
         return scidb_filename
+
+
+def connect(url=None):
+    """
+    Connect to a SciDB instance
+
+    Parameters
+    ----------
+    url : str (optional)
+        Connection URL. If not provided, will fall back to
+        the SCIDB_URL environment variable (if present),
+        or http://127.0.0.1:8080
+    """
+    url = url or os.environ.get('SCIDB_URL', 'http://127.0.0.1:8080')
+    return SciDBShimInterface(url)
