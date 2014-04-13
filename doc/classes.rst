@@ -34,6 +34,10 @@ Shim Interface
 .. autoclass:: SciDBShimInterface
    :members:
 
+Visualization and Analysis
+==========================
+.. autofunction:: histogram
+
 AFL Functions
 ==============
 

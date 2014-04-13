@@ -9,10 +9,10 @@ __all__ = ['histogram']
 
 def histogram(X, bins=10, att=None, range=None, plot=False, **kwargs):
     """
-    Build a 1D histogram from a SciDBArray
+    Build a 1D histogram from a SciDBArray.
 
-    Paramters
-    ---------
+    Parameters
+    ----------
     X : SciDBArray
        The array to compute a histogram for
     att : str (optional)
@@ -26,17 +26,16 @@ def histogram(X, bins=10, att=None, range=None, plot=False, **kwargs):
     histtype : 'bar' | 'step' (default='bar')
        If plotting, the kind of hisogram to draw. See matplotlib.hist
        for more details.
-
-    Additional keywords are passed to matplotlib
+    kwargs : optional
+       Additional keywords passed to matplotlib
 
     Returns
     -------
-    If *plot=True*, returns a tuple of (counts, edges, artists)
-    If *plot=False*, return a tuple of (counts, edges)
+    (counts, edges [, artists])
 
-    edges is a NumPy array of edge locations (length=bins+1)
-    counts is the number of data betwen [edges[i], edges[i+1]] (length=bins)
-    artists is a list of the matplotlib artists created.
+        * edges is a NumPy array of edge locations (length=bins+1)
+        * counts is the number of data betwen [edges[i], edges[i+1]] (length=bins)
+        * artists is a list of the matplotlib artists created if *plot=True*
     """
     if not isinstance(X, SciDBArray):
         raise TypeError("Input must be a SciDBArray: %s" % type(X))

@@ -38,8 +38,8 @@ coordinator is on the computer with host name 'localhost' -- adjust the
 host name as required if SciDB is on a different computer::
 
    >>> import numpy as np
-   >>> from scidbpy import interface, SciDBQueryError, SciDBArray
-   >>> sdb = interface.SciDBShimInterface('http://localhost:8080')
+   >>> from scidbpy import SciDBQueryError, SciDBArray, connect
+   >>> sdb = connect('http://localhost:8080')
 
 The following examples refer to an interface object named ``sdb`` similar to
 the illustration.
@@ -136,14 +136,14 @@ include:
 
 :meth:`~SciDBInterface.random`
     to create an array of uniformly distributed random floating-point values::
-  
+
         >>> # Create a 10x10 array of numbers between -1 and 2 (inclusive)
 	>>> #    sampled from a uniform random distribution.
 	>>> A = sdb.random((10,10), lower=-1, upper=2)
 
 :meth:`~SciDBInterface.randint`
     to create an array of uniformly distributed random integers::
-  
+
         >>> # Create a 10x10 array of uniform random integers between 0 and 10
 	>>> #  (inclusive of 0, non-inclusive of 10)
 	>>> A = sdb.randint((10,10), lower=0, upper=10)
@@ -163,7 +163,7 @@ include:
 
 :meth:`~SciDBInterface.identity`
     to create a sparse or dense identity matrix::
-        
+
         >>> # Create a 10x10 sparse, double-precision-valued identity matrix:
         >>> A = sdb.identity(10, dtype='double', sparse=True)
 
@@ -256,7 +256,7 @@ data to Python:
 
 	>>> B = sdb.join(sdb.linspace(0, 8, 5), sdb.arange(5, dtype=int))
 	>>> B.toarray()
-	array([(0.0, 0), (2.0, 1), (4.0, 2), (6.0, 3), (8.0, 4)], 
+	array([(0.0, 0), (2.0, 1), (4.0, 2), (6.0, 3), (8.0, 4)],
               dtype=[('f0', '<f8'), ('f0_2', '<i8')])
 
 :meth:`~SciDBArray.tosparse`
@@ -270,7 +270,7 @@ data to Python:
 
     :meth:`~SciDBArray.tosparse` will also work with 1-dimensional arrays
     or multi-dimensional arrays; in this case the result cannot be exported
-    to a SciPy sparse format, but will be returned as a 
+    to a SciPy sparse format, but will be returned as a
     `Numpy record array`_ listing the indices and values.
 
 
@@ -580,11 +580,11 @@ Now create a vector of column means::
 Subtract these means from the columns -- this is a broadcasting operation::
 
     >>> XC = X - xcolmean
-    
+
 To check that the columns are now centered,
 we compute the column mean of ``XC``::
 
-    >>> XC.mean(1).toarray()    
+    >>> XC.mean(1).toarray()
     array([ -2.22044605e-17,   4.44089210e-17,  -1.11022302e-17,
              1.11022302e-16,  -3.33066907e-17])
 
@@ -618,7 +618,7 @@ above, the query can be constructed in the following way::
            [ 0.,  0.,  0.,  0.,  0.],
            [ 0.,  0.,  0.,  0.,  0.],
            [ 0.,  0.,  0.,  0.,  0.]])
-    
+
 The result is that ``zeros`` is a 10x10 array filled with zeros.  Here the
 format statement ``{A}`` is replaced by the name of the desired array on
 the SciDB server.
@@ -705,10 +705,10 @@ Part 4, compute the correlation matrix::
 
     >>> # Column vector with column standard deviations of X matrix:
     >>> xsd = X.std(1).reshape((5, 1))
-  
+
     >>> # Row vector with column standard deviations of Y matrix:
     >>> ysd = Y.std(1).reshape((1, 10))
-  
+
     >>> # Their outer product:
     >>> outersd = sdb.dot(xsd, ysd)
 
