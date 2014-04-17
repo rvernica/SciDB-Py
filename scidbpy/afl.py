@@ -270,26 +270,35 @@ class AFLNamespace(object):
         # replace count, which was removedin SciDB 14
         return self.aggregate(array, 'count(*)')
 
+    def redimension_store(self, arr_in, arr_out):
+        # replace redimension_store, removed in SciDB 14
+        if (not isinstance(arr_in, SciDBArray) or
+                not isinstance(arr_out, SciDBArray)):
+            raise TypeError("Inputs to redimension_store must be SciDB arrays")
 
-#tuple of (python AFL name, scidb token) for binary infix functions
+        return self.store(self.redimension(arr_in, arr_out),
+                          arr_out)
+
+
+# tuple of (python AFL name, scidb token) for binary infix functions
 infix_functions = [('as_', 'as'), ('add', '+'),
                    ('sub', '-'), ('mul', '*'), ('div', '/'),
                    ('mod', '%'), ('lt', '<'), ('le', '<='),
                    ('ne', '<>'), ('eq', '='), ('ge', '>='), ('gt', '>')]
 
-#Functions that are no longer supported
-DEPRECATED = set(['count'])
+# Functions that are no longer supported
+DEPRECATED = set()
 
 # scalar functions
 # TODO grab docstrings from these somewhere?
-functions =['abs', 'acos', 'and', 'append_offset', 'apply_offset', 'asin',
-            'atan', 'ceil', 'cos', 'day_of_week', 'exp', 'first_index',
-            'floor', 'format', 'get_offset', 'high', 'hour_of_day',
-            'iif', 'instanceid', 'is_nan', 'is_null', 'last_index', 'length',
-            'log', 'log10', 'low', 'max', 'min', 'missing', 'missing_reason',
-            'not', 'now', 'or', 'pow', 'random', 'regex', 'sin', 'sqrt',
-            'strchar', 'strftime', 'strip_offset', 'strlen', 'substr',
-            'tan', 'togmt', 'tznow']
+functions = ['abs', 'acos', 'and', 'append_offset', 'apply_offset', 'asin',
+             'atan', 'ceil', 'cos', 'day_of_week', 'exp', 'first_index',
+             'floor', 'format', 'get_offset', 'high', 'hour_of_day',
+             'iif', 'instanceid', 'is_nan', 'is_null', 'last_index', 'length',
+             'log', 'log10', 'low', 'max', 'min', 'missing', 'missing_reason',
+             'not', 'now', 'or', 'pow', 'random', 'regex', 'sin', 'sqrt',
+             'strchar', 'strftime', 'strip_offset', 'strlen', 'substr',
+             'tan', 'togmt', 'tznow']
 for f in functions:
     operators.append(dict(name=f, signature=[],
                           doc='The scalar function %s' % f))
@@ -300,9 +309,9 @@ for op in ['gemm', 'gesvd']:
     operators.append(dict(name=op, signature=[], doc=''))
 
 
-#for documentation purposes, create operator classes
-#unattached to references. These aren't generally useful, but
-#this lets sphinx find and document each class
+# for documentation purposes, create operator classes
+# unattached to references. These aren't generally useful, but
+# this lets sphinx find and document each class
 for op in operators:
     setattr(_mod, op['name'], register_operator(op))
     __all__.append(op['name'])

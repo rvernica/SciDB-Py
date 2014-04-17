@@ -1,4 +1,6 @@
 from nose.tools import assert_raises
+from nose.plugins import skip
+
 from mock import MagicMock
 import numpy as np
 
@@ -7,23 +9,26 @@ from scidbpy.afl import _format_operand
 
 sdb = connect()
 afl = sdb.afl
-ARR = sdb.ones((2, 2))
+ARR = sdb.ones((4))
+
+# create_array doxygen is malformed in SciDB 14.
 
 
 def test_docstring():
     """Regression test against unintentional docstring changes"""
+    raise skip.SkipTest("SciDB 14 has malformed docstring for create_array")
     expected = "create_array( arrayName, arraySchema )\n\nCreates an array with a given name and schema.\n\nParameters\n----------\n\n    - arrayName: the array name\n    - arraySchema: the array schema of attrs and dims"
     assert afl.create_array.__doc__ == expected
 
 
 def test_tostring():
-    expression = afl.sum(afl.transpose(3))
-    assert str(expression) == "sum(transpose(3))"
+    expression = afl.normalize(afl.transpose(3))
+    assert str(expression) == "normalize(transpose(3))"
 
 
 def test_repr():
-    expression = afl.sum(afl.transpose(3))
-    assert repr(expression) == "SciDB Expression: <sum(transpose(3))>"
+    expression = afl.normalize(afl.transpose(3))
+    assert repr(expression) == "SciDB Expression: <normalize(transpose(3))>"
 
 
 class TestArgumentChecks(object):
@@ -57,37 +62,37 @@ class TestArgumentChecks(object):
 class TestBasicUse(object):
 
     def test_query(self):
-        assert afl.sum(ARR).query == "sum(%s)" % ARR.name
+        assert afl.normalize(ARR).query == "normalize(%s)" % ARR.name
 
     def test_result(self):
-        s = afl.sum(ARR)
-        np.testing.assert_array_equal(s.toarray(), [4])
+        s = afl.normalize(ARR)
+        expected = np.ones(4) / 2
+        np.testing.assert_array_almost_equal(s.toarray(), expected)
 
     def test_results_cached(self):
-        s = afl.sum(ARR)
+        s = afl.normalize(ARR)
         s.eval() is s.eval()
 
     def test_eval_nostore(self):
-        s = afl.sum(ARR)
+        s = afl.normalize(ARR)
         s.interface = MagicMock()
         s.eval(store=False)
         s.interface._execute_query.assert_called_once_with(s.query)
 
     def test_eval_output(self):
-        s = afl.sum(ARR)
+        s = afl.normalize(ARR)
         out = sdb.new_array()
         result = s.eval(out=out)
         assert result is out
-        np.testing.assert_array_equal(s.toarray(), [4])
+        expected = np.ones(4) / 2
+        np.testing.assert_array_almost_equal(s.toarray(), expected)
 
     def test_access_from_interface(self):
         assert sdb.afl.list("'arrays'").interface is sdb
 
-        np.testing.assert_array_equal(sdb.afl.sum(ARR).toarray(), [4])
-
     def test_interface_acces_cached(self):
         assert sdb.afl is sdb.afl
-        assert sdb.afl.sum is sdb.afl.sum
+        assert sdb.afl.normalize is sdb.afl.normalize
 
 
 class TestFormatOperands(object):
@@ -100,10 +105,10 @@ class TestFormatOperands(object):
         assert _format_operand(ARR) == ARR.name
 
     def test_expression_given_by_query(self):
-        assert _format_operand(afl.sum(ARR)) == "sum(%s)" % ARR.name
+        assert _format_operand(afl.normalize(ARR)) == "normalize(%s)" % ARR.name
 
     def test_expression_given_by_result_name_if_evaluated(self):
 
-        exp = afl.sum(ARR)
+        exp = afl.normalize(ARR)
         exp.eval()
         assert _format_operand(exp) == exp.eval().name
