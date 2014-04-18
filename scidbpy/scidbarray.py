@@ -6,14 +6,12 @@
 
 from __future__ import print_function
 
-import sys
-
 import numpy as np
 import re
 
 import warnings
 from copy import copy
-from .errors import SciDBError
+from .errors import SciDBError, SciDBForbidden
 
 # Numpy 1.7 meshgrid backport
 from .utils import meshgrid
@@ -486,15 +484,29 @@ class SciDBArray(object):
     def dtype(self):
         return self.datashape.dtype
 
-    def __del__(self):
-        if (self.datashape is not None) and (not self.persistent):
-            try:
-                self.interface.query("remove({0})", self.name)
-            except:
-                print("WARNING: failure of automatic array deletion "
-                      "in database!")
-                print("     array name:", self.name)
-                print("     interface:", self.interface)
+    def reap(self, ignore=False):
+        """
+        Delete this object from the database if it isn't persistent.
+
+        Parameters
+        ----------
+        ignore : bool (default False)
+            If False and the array is persistent, then reap raises an error
+            If True and the array is persistent, reap does nothing
+
+        Raises
+        ------
+        SciDBForbidden if ``persistent=True`` and ``ignore=False`
+        """
+        if self.persistent:
+            if not ignore:
+                raise SciDBForbidden("Cannot reap: persistent=True")
+            return
+
+        if (self.datashape is not None):
+            self.interface.query("remove({0})", self.name)
+            self.name = '__DELETED__'
+            self.interface = None
 
     def __repr__(self):
         show = self.interface._show_array(self.name, fmt='csv').split('\n')

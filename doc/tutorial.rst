@@ -215,14 +215,17 @@ arrays. When a :class:`SciDBArray` object refers to a SciDB array with more
 than one attribute, only the first listed attribute is used.
 
 
-Scope of scidbpy arrays
-^^^^^^^^^^^^^^^^^^^^^^^
+Persistence of SciDBpy arrays
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The :meth:`~SciDBInterface.new_array` function takes an argument named
 ``persistent``. When ``persistent`` is set to True, arrays last in SciDB
 until explicitly removed by a ``remove`` (AFL) or ``DROP`` (AQL) query.
-If ``persistent`` is set to False, the arrays are removed from SciDB when
-they fall out of scope in the Python session.
+If ``persistent`` is set to False, the arrays are removed when the
+:meth:`SciDBInterface.reap` or :meth:`SciDBArray.reap` methods are invoked.
+(Note that :meth:`SciDBInterface.reap` is automatically invoked when
+Python exits)
+
 Arrays defined from an existing SciDB array using the
 :meth:`~SciDBInterface.wrap_array` argument are always persistent, while
 all other array creation routines set ``persistent=False`` by default::
@@ -230,9 +233,17 @@ all other array creation routines set ``persistent=False`` by default::
     >>> X = sdb.random(10, persistent=False)  # default
     >>> X.name in sdb.list_arrays()
     True
-    >>> del X  # remove all references to X
+    >>> X.reap()
     >>> X.name in sdb.list_arrays()
     False
+
+When :class:`SciDBInterface` is used as a context manager, non-persistent
+arrays are reaped at the end of the context block::
+
+    >>> with SciDBShimInterface(url) as sdb:
+    >>>     X = sdb.random(10)
+    >>> print X.name
+    "__DELETED__"
 
 
 Retrieving data from SciDB array objects

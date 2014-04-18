@@ -45,6 +45,9 @@ class SciDBUnknownError(SciDBError):
     pass
 
 
+class SciDBForbidden(SciDBError):
+    pass
+
 SHIM_ERROR_DICT = defaultdict(lambda: SciDBUnknownError)
 SHIM_ERROR_DICT[400] = SciDBInvalidQuery
 SHIM_ERROR_DICT[404] = SciDBInvalidSession
