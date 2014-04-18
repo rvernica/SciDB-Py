@@ -451,8 +451,8 @@ def test_bad_url():
 
     with pytest.raises(ValueError) as cm:
         SciDBShimInterface('http://www.google.com')
-    assert cm.exception.args[0] == ('Could not connect to a SciDB instance at '
-                                    'http://www.google.com')
+    assert cm.value.args[0] == ('Could not connect to a SciDB instance at '
+                                'http://www.google.com')
 
 
 def test_reap():
