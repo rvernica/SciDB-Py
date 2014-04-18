@@ -20,7 +20,7 @@ Package Dependencies
 SciDB-Py has several Python package dependencies:
 
 NumPy_
-    tested with version 1.6-1.7.
+    tested with version 1.7.
 
 Requests_
     tested with version 1.2.
@@ -36,6 +36,11 @@ SciPy_ (optional)
     tested with versions 0.10-0.12.
     Required only for importing/exporting SciDB arrays
     as SciPy sparse matrices.
+
+Test Dependencies
+-----------------
+Mock_
+    Required for some tests
 
 Installation
 ------------
@@ -70,3 +75,4 @@ Paradigm4_.
 .. _SciDB: http://scidb.org/
 .. _Documentation: http://jakevdp.github.io/SciDB-py/
 .. _Source: http://github.com/jakevdp/SciDB-py
+.. _Mock: http://www.voidspace.org.uk/python/mock/

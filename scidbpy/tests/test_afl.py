@@ -1,5 +1,4 @@
-from nose.tools import assert_raises
-from nose.plugins import skip
+import pytest
 
 from mock import MagicMock
 import numpy as np
@@ -14,9 +13,9 @@ ARR = sdb.ones((4))
 # create_array doxygen is malformed in SciDB 14.
 
 
+@pytest.mark.xfail(reason="SciDB14 has a malformed docstring")
 def test_docstring():
     """Regression test against unintentional docstring changes"""
-    raise skip.SkipTest("SciDB 14 has malformed docstring for create_array")
     expected = "create_array( arrayName, arraySchema )\n\nCreates an array with a given name and schema.\n\nParameters\n----------\n\n    - arrayName: the array name\n    - arraySchema: the array schema of attrs and dims"
     assert afl.create_array.__doc__ == expected
 
@@ -34,22 +33,22 @@ def test_repr():
 class TestArgumentChecks(object):
 
     def test_0_args_given_2_expected(self):
-        with assert_raises(TypeError) as cm:
+        with pytest.raises(TypeError) as cm:
             afl.concat()
-        assert cm.exception.args[0] == ("concat() takes exactly 2 "
-                                        "arguments (0 given)")
+        assert cm.value.args[0] == ("concat() takes exactly 2 "
+                                    "arguments (0 given)")
 
     def test_0_args_given_1_expected(self):
-        with assert_raises(TypeError) as cm:
+        with pytest.raises(TypeError) as cm:
             afl.dimensions()
-        assert cm.exception.args[0] == ("dimensions() takes exactly 1 "
-                                        "argument (0 given)")
+        assert cm.value.args[0] == ("dimensions() takes exactly 1 "
+                                    "argument (0 given)")
 
     def test_0_args_given_at_least_1_expected(self):
-        with assert_raises(TypeError) as cm:
+        with pytest.raises(TypeError) as cm:
             afl.analyze()
-        assert cm.exception.args[0] == ("analyze() takes at least 1 "
-                                        "argument (0 given)")
+        assert cm.value.args[0] == ("analyze() takes at least 1 "
+                                    "argument (0 given)")
 
     def test_valid_exact(self):
         afl.cancel(0)

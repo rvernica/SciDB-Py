@@ -1,4 +1,4 @@
-from nose.tools import assert_raises
+import pytest
 
 from .. import connect, histogram
 import numpy as np
@@ -12,7 +12,7 @@ class TestHistogram(object):
         np.random.seed(42)
 
     def test_bad_input(self):
-        with assert_raises(TypeError):
+        with pytest.raises(TypeError):
             histogram(1)
 
     def check(self, x, **kwargs):
@@ -27,7 +27,6 @@ class TestHistogram(object):
         s = sdb.from_array(x)
         counts, bins = histogram(s, att=att, **kwargs)
         excounts, exbins = np.histogram(x[att], **kwargs)
-
         np.testing.assert_array_almost_equal(bins, exbins)
         np.testing.assert_array_equal(counts, excounts)
 
