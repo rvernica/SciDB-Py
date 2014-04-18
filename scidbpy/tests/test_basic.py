@@ -506,7 +506,7 @@ def test_interface_reap_after_manual_reap_is_silent():
 
 
 def test_reap_called_on_context_manager():
-    with SciDBShimInterface(connection_url()) as sdb2:
+    with connect() as sdb2:
         X = sdb2.random((1, 1))
         name = X.name
         assert X.name in sdb.list_arrays()
