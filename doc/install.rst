@@ -64,7 +64,7 @@ The development version can be found on github at
 http://github.com/jakevdp/scidb-py.  
 Install the development package directly from Github with::
 
-    pip install git+http://github.com/jakevdp/scidb-py.git
+    pip install git+http://github.com/paradigm4/scidb-py.git
 
 or download the code and type::
 
