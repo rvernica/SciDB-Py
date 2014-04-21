@@ -1,7 +1,7 @@
 # License: Simplified BSD, 2014
 # See LICENSE.txt for more information
 
-__version__ = "0.3-git"
+__version__ = "14.3.0"
 
 from .interface import *
 from .scidbarray import *
