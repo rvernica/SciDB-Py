@@ -5,9 +5,9 @@ allow users to utilize the power of SciDB_ from Python, using a familiar
 and intuitive numpy-like syntax.  For more information, see the
 SciDB Documentation_.
 
-- Author: Jake Vanderplas <jakevdp@cs.washington.edu>
+- Authors: Jake VanderPlas <jakevdp@cs.washington.edu>, Chris Beaumont <cbeaumont@cfa.harvard.edu>
 - License: Simplified BSD
-- Documentation: http://jakevdp.github.io/SciDB-py/
+- Documentation: http://scidb-py.readthedocs.org/en/latest/
 
 Requirements
 ------------

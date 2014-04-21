@@ -11,8 +11,7 @@ The following interfaces are currently available:
 [1] https://github.com/Paradigm4/shim
 """
 # License: Simplified BSD, 2013
-# Author: Jake Vanderplas <jakevdp@cs.washington.edu>
-# See http://github.com/jakevdp/scidb-py for more information
+# See LICENSE.txt for more information
 
 from __future__ import print_function
 import warnings

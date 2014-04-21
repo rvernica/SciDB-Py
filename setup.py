@@ -22,11 +22,11 @@ class PyTest(Command):
 DESCRIPTION = "Python wrappers for SciDB"
 LONG_DESCRIPTION = open('README.rst').read()
 NAME = "scidb-py"
-AUTHOR = "Jake Vanderplas"
-AUTHOR_EMAIL = "jakevdp@cs.washington.edu"
-MAINTAINER = "Jake Vanderplas"
-MAINTAINER_EMAIL = "jakevdp@cs.washington.edu"
-DOWNLOAD_URL = 'http://github.com/jakevdp/scidb-py'
+AUTHOR = "Jake Vanderplas, Chris Beaumont"
+AUTHOR_EMAIL = "jakevdp@cs.washington.edu, cbeaumont@cfa.harvard.edu"
+MAINTAINER = "Chris Beaumont"
+MAINTAINER_EMAIL = "cbeaumont@cfa.harvard.edu"
+DOWNLOAD_URL = 'http://github.com/paradigm4/scidb-py'
 LICENSE = 'Simplified BSD'
 
 import scidbpy

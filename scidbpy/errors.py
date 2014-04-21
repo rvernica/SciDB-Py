@@ -4,7 +4,7 @@ Errors and Exceptions
 These are custom errors and exceptions for SciDB queries.
 """
 # License: Simplified BSD, 2013
-# Author: Jake Vanderplas <jakevdp@cs.washington.edu>
+# See LICENSE.txt for more information
 
 from collections import defaultdict
 

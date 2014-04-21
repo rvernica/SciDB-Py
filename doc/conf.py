@@ -11,7 +11,8 @@
 # All configuration values have a default; values that are commented out
 # serve to show the default.
 
-import sys, os
+import sys
+import os
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
@@ -49,7 +50,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'SciDB-Py'
-copyright = u'2013, Jake Vanderplas'
+copyright = u'2013-2014, SciDB-Py Developers'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -178,21 +179,21 @@ htmlhelp_basename = 'SciDB-Pydoc'
 # -- Options for LaTeX output --------------------------------------------------
 
 latex_elements = {
-# The paper size ('letterpaper' or 'a4paper').
-#'papersize': 'letterpaper',
+    # The paper size ('letterpaper' or 'a4paper').
+    #'papersize': 'letterpaper',
 
-# The font size ('10pt', '11pt' or '12pt').
-#'pointsize': '10pt',
+    # The font size ('10pt', '11pt' or '12pt').
+    #'pointsize': '10pt',
 
-# Additional stuff for the LaTeX preamble.
-#'preamble': '',
+    # Additional stuff for the LaTeX preamble.
+    #'preamble': '',
 }
 
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title, author, documentclass [howto/manual]).
 latex_documents = [
-  ('index', 'SciDB-Py.tex', u'SciDB-Py Documentation',
-   u'Jake Vanderplas', 'manual'),
+    ('index', 'SciDB-Py.tex', u'SciDB-Py Documentation',
+     u'SciDB-Py Developers', 'manual'),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of
@@ -222,7 +223,7 @@ latex_documents = [
 # (source start file, name, description, authors, manual section).
 man_pages = [
     ('index', 'scidb-py', u'SciDB-Py Documentation',
-     [u'Jake Vanderplas'], 1)
+     [u'SciDB-Py Developers'], 1)
 ]
 
 # If true, show URL addresses after external links.
@@ -235,9 +236,9 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-  ('index', 'SciDB-Py', u'SciDB-Py Documentation',
-   u'Jake Vanderplas', 'SciDB-Py', 'One line description of project.',
-   'Miscellaneous'),
+    ('index', 'SciDB-Py', u'SciDB-Py Documentation',
+     u'SciDB-Py Developers', 'SciDB-Py', 'One line description of project.',
+     'Miscellaneous'),
 ]
 
 # Documents to append as an appendix to all manuals.
