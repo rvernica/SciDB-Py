@@ -584,7 +584,7 @@ First we create a test array with 5 columns::
 
 Now create a vector of column means::
 
-    >>> xcolmean = X.mean(1)
+    >>> xcolmean = X.mean(0)
     >>> xcolmean.shape
     (5,)
 
@@ -694,11 +694,12 @@ a few parts for clarity.
 
 Part 1, set up some example matrices::
 
-    >>> # Create a small test array with 5 columns:
-    >>> X = sdb.from_array(np.random.random((10, 5)))
+    # Two small arrays, each with 1000 rows, and with 5 and 3 columns
+    >>> x = np.random.random((1000, 5))
+    >>> y = np.column_stack((x[:, 0] * 2, x[:, 1] + x[:, 0] / 2., x[:, 4]))
 
-    >>> # Create a second small test array with 10 columns:
-    >>> Y = sdb.from_array(np.random.random((10, 10)))
+    >>> X = sdb.from_array(x)
+    >>> Y = sdb.from_array(y)
 
 Part 2, center the example matrices::
 
@@ -715,27 +716,21 @@ Part 3, compute the covariance matrix::
 Part 4, compute the correlation matrix::
 
     >>> # Column vector with column standard deviations of X matrix:
-    >>> xsd = X.std(1).reshape((5, 1))
+    >>> xsd = X.std(0).reshape((5, 1))
 
     >>> # Row vector with column standard deviations of Y matrix:
-    >>> ysd = Y.std(1).reshape((1, 10))
+    >>> ysd = Y.std(0).reshape((1, 3))
 
     >>> # Their outer product:
     >>> outersd = sdb.dot(xsd, ysd)
 
     >>> COR = COV / outersd
     >>> COR.toarray()
-    array([[ 0.66403867, -0.3750696 ,  0.07049322,  0.3543565 ,  0.19460585,
-             0.12932699, -0.32011222,  0.54153159,  0.08729989,  0.73609071],
-           [-0.1918192 , -0.09265041, -0.44833276, -0.41902633,  0.47258236,
-            -0.36989832,  0.39182811,  0.29622453,  0.13236683,  0.18712435],
-           [ 0.63690931, -0.15126441,  0.48608902,  0.47874834, -0.32307991,
-             0.10882704, -0.1950527 ,  0.23340459, -0.06955862,  0.76675295],
-           [-0.12190756, -0.21477533, -0.54087076, -0.2134786 ,  0.71007003,
-            -0.08317723, -0.15595565,  0.08533781,  0.12180002, -0.16792813],
-           [ 0.39885069, -0.4231043 , -0.00321296, -0.23295093,  0.48057586,
-            -0.22329337, -0.39134802,  0.67833575,  0.49968504, -0.05949198]])
-
+    array([[ 1.        ,  0.46877777,  0.0063839 ],
+           [ 0.02479068,  0.89466598,  0.00688237],
+           [-0.01463645, -0.04804887,  0.03429709],
+           [-0.01133627,  0.01364739,  0.05206071],
+           [ 0.0063839 ,  0.00893397,  1.        ]])
 
 The overhead of working interactively with SciDB can make these examples run
 somewhat slowly for small problems. But the same code shown here can be
