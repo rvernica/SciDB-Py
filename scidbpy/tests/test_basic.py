@@ -455,6 +455,21 @@ def test_bad_url():
                                 'http://www.google.com')
 
 
+def test_random_persistent():
+    """Regression test for #38"""
+    x = sdb.random((8, 4), persistent=True)
+    assert x.persistent
+    assert x.shape == (8, 4)
+    x.persistent = False
+    x.reap()
+
+    x = sdb.randint((8, 4), persistent=True)
+    assert x.persistent
+    assert x.shape == (8, 4)
+    x.persistent = False
+    x.reap()
+
+
 def test_reap():
 
     A = sdb.random((8, 4))
