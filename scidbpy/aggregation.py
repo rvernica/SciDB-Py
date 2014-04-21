@@ -1,3 +1,6 @@
+# License: Simplified BSD, 2014
+# See LICENSE.txt for more information
+
 import numpy as np
 
 from . import SciDBArray
