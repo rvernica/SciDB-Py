@@ -30,7 +30,7 @@ sys.path.insert(0, os.path.abspath('sphinxext'))
 extensions = ['sphinx.ext.autodoc', 'sphinx.ext.autosummary',
               'sphinx.ext.doctest', 'sphinx.ext.coverage',
               'sphinx.ext.pngmath', 'sphinx.ext.mathjax',
-              'numpy_ext.numpydoc']
+              'numpydoc']
 
 autosummary_generate = True
 
