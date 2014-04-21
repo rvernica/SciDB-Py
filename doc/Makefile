@@ -152,15 +152,3 @@ doctest:
 	$(SPHINXBUILD) -b doctest $(ALLSPHINXOPTS) $(BUILDDIR)/doctest
 	@echo "Testing of doctests in the sources finished, look at the " \
 	      "results in $(BUILDDIR)/doctest/output.txt."
-
-gh-deploy: html
-	if test -d _build/SciDB-py; \
-	then echo "using existing SciDB-py directory"; \
-	else cd _build && \
-	git clone git@github.com:jakevdp/SciDB-py; \
-	fi && \
-	cd _build/SciDB-py && git checkout gh-pages && \
-	rsync -r ../html/* ./ && \
-	git add * && \
-	git commit -a -m 'Make install' && \
-	git push origin gh-pages
