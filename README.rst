@@ -73,6 +73,6 @@ Paradigm4_.
 .. _Pandas: http://pandas.pydata.org/
 .. _Shim: http://github.com/paradigm4/shim
 .. _SciDB: http://scidb.org/
-.. _Documentation: http://jakevdp.github.io/SciDB-py/
-.. _Source: http://github.com/jakevdp/SciDB-py
+.. _Documentation: http://scidb-py.readthedocs.org/
+.. _Source: http://github.com/paradigm4/SciDB-py
 .. _Mock: http://www.voidspace.org.uk/python/mock/
