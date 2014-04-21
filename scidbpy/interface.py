@@ -425,7 +425,8 @@ class SciDBInterface(object):
         schema = SciDBDataShape(shape, dtype, **kwargs).schema
         return self.afl.build(schema, 0).eval()
 
-    def random(self, shape, dtype='double', lower=0, upper=1, **kwargs):
+    def random(self, shape, dtype='double', lower=0, upper=1, persistent=False,
+               **kwargs):
         """Return an array of random floats between lower and upper
 
         Parameters
@@ -438,6 +439,8 @@ class SciDBInterface(object):
             The lower bound of the random sample (default=0)
         upper : float
             The upper bound of the random sample (default=1)
+        persistent : bool
+            Whether the new array is persistent (default=False)
         **kwargs :
             Additional keyword arguments are passed to SciDBDataShape.
 
@@ -449,13 +452,14 @@ class SciDBInterface(object):
         """
         # TODO: can be done more efficiently
         #       if lower is 0 or upper - lower is 1
+        array = self.new_array(persistent=persistent)
         schema = SciDBDataShape(shape, dtype, **kwargs).schema
         rng = (upper - lower) / float(SCIDB_RAND_MAX)
         fill_value = 'random()*{0}+{1}'.format(rng, lower)
-        return self.afl.build(schema, fill_value).eval()
+        return self.afl.build(schema, fill_value).eval(out=array)
 
     def randint(self, shape, dtype='uint32', lower=0, upper=SCIDB_RAND_MAX,
-                **kwargs):
+                persistent=False, **kwargs):
         """Return an array of random integers between lower and upper
 
         Parameters
@@ -468,6 +472,8 @@ class SciDBInterface(object):
             The lower bound of the random sample (default=0)
         upper : float
             The upper bound of the random sample (default=2147483647)
+        persistent : bool
+            Whether the array is persistent (default=False)
         **kwargs :
             Additional keyword arguments are passed to SciDBDataShape.
 
@@ -477,9 +483,10 @@ class SciDBInterface(object):
             A SciDBArray consisting of random integers, uniformly distributed
             between `lower` and `upper`.
         """
+        array = self.new_array(persistent=persistent)
         schema = SciDBDataShape(shape, dtype, **kwargs).schema
         fill_value = 'random() % {0} + {1}'.format(upper - lower, lower)
-        return self.afl.build(schema, fill_value).eval()
+        return self.afl.build(schema, fill_value).eval(out=array)
 
     def arange(self, start, stop=None, step=1, dtype=None, **kwargs):
         """arange([start,] stop[, step,], dtype=None, **kwargs)
@@ -1125,11 +1132,12 @@ class SciDBInterface(object):
             attr = _new_attribute_label('x', right)
             return f.papply(right, attr, op).eval()
 
-
         # reorder the dimensions if needed (for cross_join)
         if permutation is not None:
             arr = arr.transpose(permutation)
         return arr
+
+
 class SciDBShimInterface(SciDBInterface):
 
     """HTTP interface to SciDB via shim [1]_
