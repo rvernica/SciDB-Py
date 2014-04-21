@@ -61,7 +61,7 @@ package index::
     pip install scidb-py
 
 The development version can be found on github at
-http://github.com/jakevdp/scidb-py.  
+http://github.com/paradigm4/scidb-py.  
 Install the development package directly from Github with::
 
     pip install git+http://github.com/paradigm4/scidb-py.git
