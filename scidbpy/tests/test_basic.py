@@ -1,9 +1,21 @@
+import pytest
 import numpy as np
-from numpy.testing import (assert_, assert_allclose,
-                           assert_equal, assert_array_equal,
-                           assert_raises)
+from numpy.testing import assert_allclose, assert_array_equal
 
-from nose import SkipTest
+MISSING_PD = False
+MISSING_SP = False
+try:
+    import pandas as pd
+except ImportError:
+    MISSING_PD = True
+try:
+    from scipy import sparse
+except ImportError:
+    MISSING_SP = True
+
+needs_pandas = pytest.mark.skipif(MISSING_PD, reason='Test requires Pandas')
+needs_scipy = pytest.mark.skipif(MISSING_SP, reason='Test requires SciPy')
+
 
 # In order to run tests, we need to connect to a valid SciDB engine
 from scidbpy import SciDBArray, SciDBShimInterface, connect
@@ -18,12 +30,12 @@ def test_copy_rename():
     """Test the copying and renaming of an array"""
     X = sdb.random(10)
     Xcopy = X.copy()
-    assert_(X.name != Xcopy.name)
+    assert X.name != Xcopy.name
 
     new_name = 'silly_array1234'
     X.rename(new_name)
-    assert_(X.name == new_name)
-    assert_equal(X.toarray(), Xcopy.toarray())
+    assert X.name == new_name
+    assert_array_equal(X.toarray(), Xcopy.toarray())
 
 
 def test_from_array():
@@ -52,12 +64,9 @@ def test_to_array():
         yield check_toarray, transfer_bytes
 
 
+@needs_scipy
 def test_from_sparse():
     """Test import from Scipy sparse matrix"""
-    try:
-        from scipy import sparse
-    except ImportError:
-        raise SkipTest("scipy.sparse required for this test")
 
     X = np.random.random((10, 10))
     X[X < 0.9] = 0
@@ -66,12 +75,9 @@ def test_from_sparse():
     assert_allclose(X, Xarr.toarray())
 
 
+@needs_scipy
 def test_to_sparse():
     """Test export to Scipy Sparse matrix"""
-    try:
-        from scipy import sparse
-    except ImportError:
-        raise SkipTest("scipy.sparse required for this test")
 
     X = np.random.random((10, 6))
     Xsdb = sdb.from_array(X)
@@ -79,12 +85,9 @@ def test_to_sparse():
     assert_allclose(X, Xcsr.toarray())
 
 
+@needs_pandas
 def test_from_dataframe():
     """Test import from Pandas dataframe"""
-    try:
-        import pandas as pd
-    except ImportError:
-        raise SkipTest("pandas required for this test")
 
     X = np.zeros(10, dtype=[('i', int), ('f', float)])
     X['i'] = np.arange(10)
@@ -94,12 +97,9 @@ def test_from_dataframe():
     assert_array_equal(X, Xsdb.toarray())
 
 
+@needs_pandas
 def test_to_dataframe():
     """Test export to Pandas dataframe"""
-    try:
-        import pandas as pd
-    except ImportError:
-        raise SkipTest("pandas required for this test")
 
     d = sdb.random(10, dtype=float)
     i = sdb.randint(10, lower=0, upper=10, dtype=int)
@@ -122,9 +122,9 @@ def test_nonzero_nonnull():
               '  {A})',
               A=tridiag)
 
-    assert_(tridiag.contains_nulls())
-    assert_equal(tridiag.nonempty(), N + 2 * (N - 1))
-    assert_equal(tridiag.nonnull(), N)
+    assert tridiag.contains_nulls()
+    assert_array_equal(tridiag.nonempty(), N + 2 * (N - 1))
+    assert_array_equal(tridiag.nonnull(), N)
 
 
 def test_array_creation():
@@ -200,13 +200,12 @@ def test_raw_query():
     assert_allclose(arr.toarray(), np_arr, rtol=RTOL)
 
 
-def test_identity():
-    def check_identity(n, sparse):
-        I = sdb.identity(n, sparse=sparse)
-        assert_allclose(I.toarray(), np.identity(n))
-
-    for sparse in (True, False):
-        yield check_identity, 6, sparse
+@needs_scipy
+@pytest.mark.parametrize('sparse', (True, False))
+def test_identity(sparse):
+    n = 6
+    I = sdb.identity(n, sparse=sparse)
+    assert_allclose(I.toarray(), np.identity(n))
 
 
 def test_dot():
@@ -230,8 +229,8 @@ def test_dot_nullable():
     X = sdb.random((5, 5), dtype='<f0:double null>')
     Y = sdb.random((5, 5), dtype='<f0:double null>')
 
-    assert_(X.sdbtype.nullable[0])
-    assert_(Y.sdbtype.nullable[0])
+    assert X.sdbtype.nullable[0]
+    assert Y.sdbtype.nullable[0]
 
     Z = sdb.dot(X, Y)
     assert_allclose(Z.toarray(), np.dot(X.toarray(), Y.toarray()))
@@ -450,10 +449,10 @@ def test_regrid():
 
 def test_bad_url():
 
-    with assert_raises(ValueError) as cm:
+    with pytest.raises(ValueError) as cm:
         SciDBShimInterface('http://www.google.com')
-    assert cm.exception.args[0] == ('Could not connect to a SciDB instance at '
-                                    'http://www.google.com')
+    assert cm.value.args[0] == ('Could not connect to a SciDB instance at '
+                                'http://www.google.com')
 
 
 def test_reap():

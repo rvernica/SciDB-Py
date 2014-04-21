@@ -1,7 +1,23 @@
 try:
-    from setuptools import setup
+    from setuptools import setup, Command
 except ImportError:
-    from distutils.core import setup
+    from distutils.core import setup, Command
+
+
+class PyTest(Command):
+    user_options = []
+
+    def initialize_options(self):
+        pass
+
+    def finalize_options(self):
+        pass
+
+    def run(self):
+        import sys
+        import subprocess
+        errno = subprocess.call([sys.executable, 'runtests.py'])
+        raise SystemExit(errno)
 
 DESCRIPTION = "Python wrappers for SciDB"
 LONG_DESCRIPTION = open('README.rst').read()
@@ -38,4 +54,5 @@ setup(name=NAME,
       'Programming Language :: Python :: 3.3',
       'Topic :: Database :: Front-Ends',
       'Topic :: Scientific/Engineering'],
+      cmdclass={'test': PyTest}
       )

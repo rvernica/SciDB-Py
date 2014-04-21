@@ -10,8 +10,3 @@ def test_sdbtype_dtype_mapping():
                  for j in range(i, min(len(type_list), i + 3))]
         dtype_start = np.dtype(dtype)
         assert(dtype_start == sdbtype(dtype_start).dtype)
-
-
-if __name__ == '__main__':
-    import nose
-    nose.runmodule()
