@@ -123,8 +123,8 @@ def meshgrid(*xi, **kwargs):
 
     if indexing == 'xy':
         # switch first and second axis
-        output[0].shape = (1, -1) + (1,)*(ndim - 2)
-        output[1].shape = (-1, 1) + (1,)*(ndim - 2)
+        output[0].shape = (1, -1) + (1,) * (ndim - 2)
+        output[1].shape = (-1, 1) + (1,) * (ndim - 2)
         shape[0], shape[1] = shape[1], shape[0]
 
     if sparse:
