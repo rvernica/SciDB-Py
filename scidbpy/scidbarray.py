@@ -1,6 +1,6 @@
 """SciDB Array Wrapper"""
 
-# License: Simplified BSD, 2013
+# License: Simplified BSD, 2014
 # See LICENSE.txt for more information
 
 from __future__ import print_function

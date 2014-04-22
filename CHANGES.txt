@@ -1,3 +1,21 @@
+Version 14.3.0
+--------------
+**Released 2014 April 25**
+
+- Changing version number scheme to match SciDB. Major and minor release numbers indicate year and month of SciDB release, respectively.
+
+- 2014-04-17 Update SciDB-py to reflect changes to SciDB 14.3 (Chris Beaumont)
+
+- 2014-04-14 Early detection of invalid SciDB connections (Chris Beaumont)
+
+- 2014-04-12 Add histogram function (Chris Beaumont)
+
+- 2014-04-06 Add connect() function for establishing a connection with a SciDBShimInterface (Chris Beaumont)
+
+- 2014-03-28 Overhaul how temporary arrays are deleted. Add reap() method (Chris Beaumont)
+
+- 2014-03 New afl module with direct bindings to AFL operators in SciDB (Chris Beaumont)
+
 Version 0.2
 -----------
 **Released 2013 October 25**
