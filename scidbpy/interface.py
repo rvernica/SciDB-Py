@@ -852,7 +852,7 @@ class SciDBInterface(object):
         """Convert a SciDB array to a pandas dataframe"""
         return A.todataframe(transfer_bytes=transfer_bytes)
 
-    def from_file(self, filename, **kwargs):
+    def _from_file(self, filename, **kwargs):
         # TODO: allow creation of arrays from uploaded files
         # TODO: allow creation of arrays from pre-existing files within the
         #       database
@@ -905,36 +905,81 @@ class SciDBInterface(object):
         return self._apply_func(A, 'log10')
 
     def min(self, A, index=None, scidb_syntax=False):
+        """
+        Array or axis minimum.
+
+        see :meth:`SciDBArray.min` """
         return A.min(index, scidb_syntax)
 
     def max(self, A, index=None, scidb_syntax=False):
+        """
+        Array or axis maximum.
+
+        see :meth:`SciDBArray.max` """
         return A.max(index, scidb_syntax)
 
     def sum(self, A, index=None, scidb_syntax=False):
+        """
+        Array or axis sum.
+
+        see :meth:`SciDBArray.sum` """
         return A.sum(index, scidb_syntax)
 
     def var(self, A, index=None, scidb_syntax=False):
+        """
+        Array or axis variance.
+
+        see :meth:`SciDBArray.var` """
         return A.var(index, scidb_syntax)
 
     def stdev(self, A, index=None, scidb_syntax=False):
+        """
+        Array or axis standard deviation.
+
+        see :meth:`SciDBArray.stdev` """
         return A.stdev(index, scidb_syntax)
 
     def std(self, A, index=None, scidb_syntax=False):
+        """
+        Array or axis standard deviation.
+
+        see :meth:`SciDBArray.std` """
         return A.std(index, scidb_syntax)
 
     def avg(self, A, index=None, scidb_syntax=False):
+        """
+        Array or axis average.
+
+        see :meth:`SciDBArray.avg` """
         return A.avg(index, scidb_syntax)
 
     def mean(self, A, index=None, scidb_syntax=False):
+        """
+        Array or axis mean.
+
+        see :meth:`SciDBArray.mean` """
         return A.mean(index, scidb_syntax)
 
     def count(self, A, index=None, scidb_syntax=False):
+        """
+        Array or axis count.
+
+        see :meth:`SciDBArray.count` """
         return A.count(index, scidb_syntax)
 
     def approxdc(self, A, index=None, scidb_syntax=False):
+        """
+        Array or axis unique element estimate.
+
+        see :meth:`SciDBArray.approxdc` """
         return A.approxdc(index, scidb_syntax)
 
     def substitute(self, A, value):
+        """
+        Replace null values in an array
+
+        See :meth:`SciDBArray.substitute`
+        """
         return A.substitute(value)
 
     def merge(self, A, B):

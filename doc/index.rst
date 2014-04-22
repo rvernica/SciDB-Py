@@ -17,7 +17,8 @@ scientific computing from the comfort of their Python interpreter.
 
    install
    tutorial
-   Reference <classes.rst>
+   Class Reference <classes.rst>
+   AFL Operator Reference <afl.rst>
 
 
 Indices and tables

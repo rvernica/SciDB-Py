@@ -776,7 +776,7 @@ Working with AFL has a few advantages:
 
 .. _SciDB: http://scidb.org/
 
-.. _AFL: http://scidb.org/HTMLmanual/13.3/scidb_ug/ch13.html
+.. _AFL: http://scidb.org/HTMLmanual/14.3/scidb_ug/ch17.html
 
 .. _`SciDB Manual`: http://www.scidb.org/HTMLmanual/
 

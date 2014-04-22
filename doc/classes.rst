@@ -38,8 +38,3 @@ Visualization and Analysis
 ==========================
 .. autofunction:: histogram
 
-AFL Functions
-==============
-
-.. automodule:: scidbpy.afl
-   :members:

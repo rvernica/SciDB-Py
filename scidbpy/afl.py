@@ -131,8 +131,8 @@ class AFLExpression(object):
         --------
         out : SciDBArray instance, or None
 
-        Note
-        ----
+        Notes
+        -----
         The result of eval() is cached, so subsequent calls
         will not trigger additional database computation
         """

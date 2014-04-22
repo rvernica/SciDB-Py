@@ -366,6 +366,9 @@ class SciDBArray(object):
 
     @property
     def afl(self):
+        """
+        An alias to the AFL namespace
+        """
         return self.interface.afl
 
     def rename(self, new_name, persistent=False):
@@ -432,11 +435,23 @@ class SciDBArray(object):
         return ArrayAlias(self, name)
 
     def dimension(self, d):
-        """Return the dimension name of the array"""
+        """Return the dimension name of the array
+
+        Parameters
+        ----------
+        d : int
+           The index of the dimension to lookup
+        """
         return self.datashape.dim_names[d]
 
     def attribute(self, a):
-        """Return the attribute name of the array"""
+        """Return the attribute name of the array.
+
+        Parameters
+        ----------
+        a : int
+           Index of the attribute to lookup
+        """
         return self.datashape.sdbtype.full_rep[a][0]
 
     att = attribute
@@ -512,6 +527,9 @@ class SciDBArray(object):
         return "SciDBArray({0})".format(show[1])
 
     def contents(self, **kwargs):
+        """
+        Return a string representation of the array contents
+        """
         return repr(self) + '\n' + self.interface._scan_array(self.name,
                                                               **kwargs)
 
@@ -1054,33 +1072,216 @@ class SciDBArray(object):
         return q.eval()
 
     def min(self, index=None, scidb_syntax=False):
+        """
+        Return the minimum of the array or the minimum along an axis.
+
+        Parameters
+        ----------
+        index : int, optional
+            Axis along which to operate. By default, flattened input is used.
+        scidb_syntax : bool, optional (default=False)
+            If False, index follows the numpy convention
+            (i.e., the array is collapsed over the index'th axis).
+            If True, index follows the SciDB convention
+            (i.e., the array is collapsed over all axes *except* index)
+
+        Returns
+        -------
+        A SciDB array
+        """
         return self._aggregate_operation('min', index, scidb_syntax)
 
     def max(self, index=None, scidb_syntax=False):
+        """
+        Return the maximum of the array or the maximum along an axis.
+
+        Parameters
+        ----------
+        index : int, optional
+            Axis along which to operate. By default, flattened input is used.
+        scidb_syntax : bool, optional (default=False)
+            If False, index follows the numpy convention
+            (i.e., the array is collapsed over the index'th axis).
+            If True, index follows the SciDB convention
+            (i.e., the array is collapsed over all axes *except* index)
+
+        Returns
+        -------
+        A SciDB array
+        """
         return self._aggregate_operation('max', index, scidb_syntax)
 
     def sum(self, index=None, scidb_syntax=False):
+        """
+        Return the sum of the array or the sum along an axis.
+
+        Parameters
+        ----------
+        index : int, optional
+            Axis along which to operate. By default, flattened input is used.
+        scidb_syntax : bool, optional (default=False)
+            If False, index follows the numpy convention
+            (i.e., the array is collapsed over the index'th axis).
+            If True, index follows the SciDB convention
+            (i.e., the array is collapsed over all axes *except* index)
+
+        Returns
+        -------
+        A SciDB array
+        """
         return self._aggregate_operation('sum', index, scidb_syntax)
 
     def var(self, index=None, scidb_syntax=False):
+        """
+        Return the variance of the array or the variance along an axis.
+
+        Parameters
+        ----------
+        index : int, optional
+            Axis along which to operate. By default, flattened input is used.
+        scidb_syntax : bool, optional (default=False)
+            If False, index follows the numpy convention
+            (i.e., the array is collapsed over the index'th axis).
+            If True, index follows the SciDB convention
+            (i.e., the array is collapsed over all axes *except* index)
+
+        Returns
+        -------
+        A SciDB array
+        """
         return self._aggregate_operation('var', index, scidb_syntax)
 
     def stdev(self, index=None, scidb_syntax=False):
+        """
+        Return the standard deviation of the array or along an axis.
+
+        Parameters
+        ----------
+        index : int, optional
+            Axis along which to operate. By default, flattened input is used.
+        scidb_syntax : bool, optional (default=False)
+            If False, index follows the numpy convention
+            (i.e., the array is collapsed over the index'th axis).
+            If True, index follows the SciDB convention
+            (i.e., the array is collapsed over all axes *except* index)
+
+        Returns
+        -------
+        A SciDB array
+        """
         return self._aggregate_operation('stdev', index, scidb_syntax)
 
     def std(self, index=None, scidb_syntax=False):
+        """
+        Return the standard deviation of the array or along an axis.
+
+        Parameters
+        ----------
+        index : int, optional
+            Axis along which to operate. By default, flattened input is used.
+        scidb_syntax : bool, optional (default=False)
+            If False, index follows the numpy convention
+            (i.e., the array is collapsed over the index'th axis).
+            If True, index follows the SciDB convention
+            (i.e., the array is collapsed over all axes *except* index)
+
+        Returns
+        -------
+        A SciDB array
+
+        Notes
+        -----
+        Identical to :meth:`SciDBArray.stdev`
+
+        """
         return self._aggregate_operation('stdev', index, scidb_syntax)
 
     def avg(self, index=None, scidb_syntax=False):
+        """
+        Return the average of the array or the average along an axis.
+
+        Parameters
+        ----------
+        index : int, optional
+            Axis along which to operate. By default, flattened input is used.
+        scidb_syntax : bool, optional (default=False)
+            If False, index follows the numpy convention
+            (i.e., the array is collapsed over the index'th axis).
+            If True, index follows the SciDB convention
+            (i.e., the array is collapsed over all axes *except* index)
+
+        Returns
+        -------
+        A SciDB array
+        """
         return self._aggregate_operation('avg', index, scidb_syntax)
 
     def mean(self, index=None, scidb_syntax=False):
+        """
+        Return the average of the array or the average along an axis.
+
+        Parameters
+        ----------
+        index : int, optional
+            Axis along which to operate. By default, flattened input is used.
+        scidb_syntax : bool, optional (default=False)
+            If False, index follows the numpy convention
+            (i.e., the array is collapsed over the index'th axis).
+            If True, index follows the SciDB convention
+            (i.e., the array is collapsed over all axes *except* index)
+
+        Returns
+        -------
+        A SciDB array
+
+        Notes
+        -----
+        Identical to :meth:`SciDBArray.avg`
+        """
         return self._aggregate_operation('avg', index, scidb_syntax)
 
     def count(self, index=None, scidb_syntax=False):
+        """
+        Return the count of the array or the count along an axis.
+
+        The count is equal to the number of nonnull elements.
+
+        Parameters
+        ----------
+        index : int, optional
+            Axis along which to operate. By default, flattened input is used.
+        scidb_syntax : bool, optional (default=False)
+            If False, index follows the numpy convention
+            (i.e., the array is collapsed over the index'th axis).
+            If True, index follows the SciDB convention
+            (i.e., the array is collapsed over all axes *except* index)
+
+        Returns
+        -------
+        A SciDB array
+        """
         return self._aggregate_operation('count', index, scidb_syntax)
 
     def approxdc(self, index=None, scidb_syntax=False):
+        """
+        Return the number of distinct values of the array or along an axis.
+
+        The distinct count is an estimate only.
+
+        Parameters
+        ----------
+        index : int, optional
+            Axis along which to operate. By default, flattened input is used.
+        scidb_syntax : bool, optional (default=False)
+            If False, index follows the numpy convention
+            (i.e., the array is collapsed over the index'th axis).
+            If True, index follows the SciDB convention
+            (i.e., the array is collapsed over all axes *except* index)
+
+        Returns
+        -------
+        A SciDB array
+        """
         return self._aggregate_operation('approxdc', index, scidb_syntax)
 
     def regrid(self, size, aggregate="avg"):
