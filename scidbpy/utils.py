@@ -158,3 +158,33 @@ def broadcastable(shape1, shape2):
     """
     return all((i1 == 1 or i2 == 1 or i1 == i2)
                for (i1, i2) in zip(reversed(shape1), reversed(shape2)))
+
+
+def slice_syntax(f):
+    """
+    This decorator wraps a function that accepts a tuple of slices.
+
+    After wrapping, the function acts like a property that accepts
+    bracket syntax (e.g., p[1:3, :, :])
+
+    Parameters
+    ----------
+    f : function
+    """
+
+    def wrapper(self):
+        result = SliceIndexer(f, self)
+        result.__doc__ = f.__doc__
+        return result
+    result = property(wrapper)
+    return result
+
+
+class SliceIndexer(object):
+
+    def __init__(self, func, _other):
+        self._func = func
+        self._other = _other
+
+    def __getitem__(self, view):
+        return self._func(self._other, view)

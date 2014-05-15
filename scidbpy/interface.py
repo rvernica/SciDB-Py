@@ -18,6 +18,7 @@ import warnings
 import abc
 import os
 import atexit
+import logging
 
 from ._py3k_compat import urlopen, quote, HTTPError, iteritems, string_type
 
@@ -48,10 +49,12 @@ def _af(arr, ind):
 def _new_attribute_label(suggestion='val', *arrays):
     """Return a new attribute label
 
-    The label will not clash with any attribute labels in the given arrays
+    The label will not clash with any attribute or dimension labels in the given arrays
     """
     label_list = sum([[dim[0] for dim in arr.sdbtype.full_rep]
                       for arr in arrays], [])
+    label_list += sum([a.dim_names for a in arrays], [])
+
     if suggestion not in label_list:
         return suggestion
     else:
@@ -128,6 +131,7 @@ class SciDBInterface(object):
             either a string or a byte string is returned, depending on the
             value of ``fmt``.
         """
+        logging.getLogger(__name__).debug(query)
         if not hasattr(self, '_query_log'):
             self._query_log = []
         self._query_log.append(query)

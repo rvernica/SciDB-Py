@@ -8,13 +8,13 @@ from __future__ import print_function
 import numpy as np
 import re
 
-import warnings
 from copy import copy
 from .errors import SciDBError, SciDBForbidden
 
 # Numpy 1.7 meshgrid backport
-from .utils import meshgrid
+from .utils import meshgrid, slice_syntax
 from ._py3k_compat import genfromstr, iteritems
+from .schema_utils import change_axis_schema
 
 __all__ = ["sdbtype", "SciDBArray", "SciDBDataShape"]
 
@@ -32,7 +32,8 @@ SDB_NP_TYPE_MAP = {'bool': _np_typename('bool'),
                    'uint16': _np_typename('uint16'),
                    'uint32': _np_typename('uint32'),
                    'uint64': _np_typename('uint64'),
-                   'char': _np_typename('c')}
+                   'char': _np_typename('c'),
+                   'string': '|S100'}
 
 NP_SDB_TYPE_MAP = dict((val, key)
                        for key, val in iteritems(SDB_NP_TYPE_MAP))
@@ -277,12 +278,19 @@ class SciDBDataShape(object):
 
     @property
     def schema(self):
-        shape_arg = ','.join(['{0}=0:{1},{2},{3}'.format(d, s - 1, cs, co)
-                              for (d, s, cs, co) in zip(self.dim_names,
-                                                        self.shape,
-                                                        self.chunk_size,
-                                                        self.chunk_overlap)])
-        return '{0} [{1}]'.format(self.sdbtype, shape_arg)
+        return '{0} {1}'.format(self.sdbtype, self.dim_schema)
+
+    @property
+    def dim_schema(self):
+        """
+        The dimension part of the schema
+        """
+        result = ','.join(['{0}=0:{1},{2},{3}'.format(d, s - 1, cs, co)
+                           for (d, s, cs, co) in zip(self.dim_names,
+                                                     self.shape,
+                                                     self.chunk_size,
+                                                     self.chunk_overlap)])
+        return '[%s]' % result
 
     @property
     def ind_attr_dtype(self):
@@ -625,6 +633,12 @@ class SciDBArray(object):
         if output not in ['auto', 'dense', 'sparse']:
             raise ValueError("unrecognized output: '{0}'".format(output))
 
+        # workaround for strings
+        has_strings = False
+        if any(s[1] == 'string' for s in self.sdbtype.full_rep):
+            has_strings = True
+            transfer_bytes = False
+
         dtype = self.datashape.dtype
         sdbtype = self.sdbtype
         shape = self.datashape.shape
@@ -826,6 +840,11 @@ class SciDBArray(object):
         # if num indices is less than num dimensions, right-fill them
         indices = list(indices) + [slice(None)] * (self.ndim - len(indices))
 
+        # special case, indexing with N 1D SciDB arrays, return
+        # row/column/etc subset where these arrays are nonempty
+        if all(isinstance(i, SciDBArray) for i in indices):
+            return _subarray(self, *indices)
+
         # special case: accessing a single element (no slices)
         if all(not isinstance(i, slice) for i in indices):
             limits = list(map(int, indices + indices))
@@ -862,6 +881,11 @@ class SciDBArray(object):
             arr3 = arr2
 
         return arr3
+
+    @slice_syntax
+    def sdbslice(self, slices):
+        args = [s.start for s in slices] + [s.stop for s in slices]
+        return self.afl.subarray(self, *args).eval()
 
     # join operations: note that these ignore all but the first attribute
     # of each array.
@@ -985,6 +1009,17 @@ class SciDBArray(object):
         arr : SciDBArray
             new array of the specified shape
         """
+
+        # handle -1s (see :meth:`numpy.reshape`)
+        if any(s == 1 for s in shape):
+            n = np.prod([s for s in shape if s != -1])
+            ntot = np.prod(self.shape)
+            if (ntot / n) * n != ntot:
+                raise ValueError("total size of new array "
+                                 "must remain unchanged")
+            shape = list(shape)
+            shape[shape.index(-1)] = ntot / n
+
         if np.prod(shape) != np.prod(self.shape):
             raise ValueError("new shape is incompatible")
         arr = self.interface.new_array(shape=shape,
@@ -1319,3 +1354,90 @@ class SciDBArray(object):
         args = list(map(str, sizes)) + [agg]
         q = self.afl.regrid(self, *args)
         return q.eval()
+
+
+def _axis_filter(array, mask, axis):
+    """
+    Extract a subset of entries along a given mask,
+    where an input mask array is non-null
+
+    Parameters
+    ----------
+    array : SciDBArray
+        The array to filter
+    mask : SciDBArray
+        A 1-dimensional SciDBArray, whose non-null values indicate
+        the entries to retain
+    axis : int
+        The axis of array along which to apply the mask. The shape
+        of array along this axis must be the length of mask
+    """
+    from .interface import _new_attribute_label
+
+    f = array.interface.afl
+
+    # for now, force evaulation of AFL
+    # XXX remove this once we support deferred arrays
+    if hasattr(mask, 'eval'):
+        mask = mask.eval()
+
+    dim = array.dim_names[axis]
+    chunk = array.datashape.chunk_size[axis]
+    overlap = array.datashape.chunk_overlap[axis]
+    sz = array.shape[axis]
+    ct = int(f.aggregate(mask, 'count(*)').eval()[0])
+
+    new_att = _new_attribute_label(dim, mask)
+    idx_att = _new_attribute_label(new_att + '_0', mask)
+
+    # copy the dimension to a new attribute, sort moves nulls to end
+    q = f.papply(mask, new_att, mask.dim_names[0])
+    q = f.sort(q, '%s asc' % new_att)
+
+    # rename attributes, and swap sorted new_att to a dimension
+    # after this step, idx_att contains the final location for
+    # each original location
+    q = f.cast(q, '<%s:int64>[%s=0:*,1000,0]' % (new_att, idx_att))
+    q = f.redimension(q, '<{idx_att}:int64>[{new_att}=0:{stop},{chunk},{overlap}]'
+                      .format(new_att=new_att, stop=sz - 1,
+                              chunk=chunk, overlap=overlap,
+                              idx_att=idx_att))
+
+    # tack on new location for each element
+    q = f.cross_join(f.as_(array, 'xj1'),
+                     f.as_(q, 'xj2'),
+                     'xj1.%s' % dim, 'xj2.%s' % new_att)
+
+    # promote idx_att to a dimension, which rearranges + truncates
+    schema = array.sdbtype.schema
+    schema += change_axis_schema(array.datashape,
+                                 axis, name=idx_att, stop=ct - 1).dim_schema
+    q = f.redimension(q, schema)
+    return q
+
+
+def _subarray(array, *masks):
+    """
+    Return a row/column/etc subset of an Nd array, by dropping
+    null locations in N 1D masks
+
+    Parameters
+    ----------
+    array : SciDBArray
+        The array to filter
+
+    masks : tuple of 1D SciDBArrays
+       The axis filters
+
+    Returns
+    -------
+    out : SciDBArray
+       The filtered subarray
+    """
+
+    # XXX perform shape checking here
+
+    result = array
+    for i, mask in enumerate(masks):
+        result = _axis_filter(result, mask, i).eval()
+    return result
