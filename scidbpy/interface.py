@@ -27,7 +27,7 @@ import csv
 import numpy as np
 from .scidbarray import SciDBArray, SciDBDataShape, ArrayAlias, SDB_IND_TYPE
 from .errors import SHIM_ERROR_DICT
-from .utils import broadcastable
+from .utils import broadcastable, _is_query
 
 __all__ = ['SciDBInterface', 'SciDBShimInterface', 'connect']
 
@@ -188,6 +188,8 @@ class SciDBInterface(object):
         """Return the contents of the given array"""
         if 'response' not in kwargs:
             kwargs['response'] = True
+        if _is_query(name):
+            return self._execute_query(name, **kwargs)
         return self._execute_query("scan({0})".format(name), **kwargs)
 
     def _show_array(self, name, **kwargs):

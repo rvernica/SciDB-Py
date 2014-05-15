@@ -188,3 +188,11 @@ class SliceIndexer(object):
 
     def __getitem__(self, view):
         return self._func(self._other, view)
+
+
+def _is_query(name_or_query):
+    """
+    Returns True if input syntax matches an AFL query
+    """
+    if '(' in name_or_query:
+        return True

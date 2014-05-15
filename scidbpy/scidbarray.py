@@ -12,7 +12,7 @@ from copy import copy
 from .errors import SciDBError, SciDBForbidden
 
 # Numpy 1.7 meshgrid backport
-from .utils import meshgrid, slice_syntax
+from .utils import meshgrid, slice_syntax, _is_query
 from ._py3k_compat import genfromstr, iteritems
 from .schema_utils import change_axis_schema
 
@@ -276,6 +276,25 @@ class SciDBDataShape(object):
                    chunk_size=[int(d[3]) for d in dshapes],
                    chunk_overlap=[int(d[4]) for d in dshapes])
 
+    @classmethod
+    def from_query(cls, interface, query):
+        """
+        Build a datashape from an AFL query string
+
+        Parameters
+        ----------
+        interface : SciDBInterface
+        query : str
+
+        Returns
+        -------
+        A SciDBDataShape instance, inferred from the database
+        """
+        schema = interface._execute_query("show('%s', 'afl')" % query,
+                                          response=True)
+        schema = schema.split("'")[1]
+        return cls.from_schema(schema)
+
     @property
     def schema(self):
         return '{0} {1}'.format(self.sdbtype, self.dim_schema)
@@ -371,6 +390,25 @@ class SciDBArray(object):
         self.interface = interface
         self.name = name
         self.persistent = persistent
+
+    @classmethod
+    def from_query(cls, interface, query):
+        """
+        Build a lazily-evaulated SciDB array from a query string
+
+        Parameters
+        ----------
+        interface : SciDBInterface
+            The database connection to use
+        query : str
+            The query string to wrap
+
+        Returns
+        --------
+        array : SciDBArray
+        """
+        ds = SciDBDataShape.from_query(interface, query)
+        return cls(ds, interface, query)
 
     @property
     def afl(self):
@@ -634,9 +672,7 @@ class SciDBArray(object):
             raise ValueError("unrecognized output: '{0}'".format(output))
 
         # workaround for strings
-        has_strings = False
         if any(s[1] == 'string' for s in self.sdbtype.full_rep):
-            has_strings = True
             transfer_bytes = False
 
         dtype = self.datashape.dtype
@@ -733,6 +769,21 @@ class SciDBArray(object):
         """
         return self._download_data(transfer_bytes=transfer_bytes,
                                    output='dense')
+
+    def eval(self):
+        """
+        If the array is backed by an unevaluated query,
+        evaluate the query and store the result in the database
+
+        This changes array.name from a query string to a
+        stored array name. Calling eval() on an array
+        that is already backed by a stored array does nothing.
+        """
+        if not _is_query(self.name):
+            return
+        name = self.interface._db_array_name()
+        self.interface.query('store({X}, {name})', X=self, name=name)
+        self.name = name
 
     def todataframe(self, transfer_bytes=True):
         """Transfer array from database and store in a local Pandas dataframe
