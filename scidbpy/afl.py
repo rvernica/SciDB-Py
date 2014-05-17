@@ -2,6 +2,9 @@
 # See LICENSE.txt for more information
 
 import sys
+from functools import partial
+import threading
+
 
 from . import SciDBArray
 from .afldb import operators
@@ -14,7 +17,7 @@ __all__ = ['register_operator', 'AFLNamespace']
 def _format_operand(o):
     """
     Format the input into a string
-    approproate for use as an input to an AFLExpression call
+    appropriate for use as an input to an AFLExpression call
 
     Parameters
     ----------
@@ -41,6 +44,32 @@ def _format_operand(o):
         return o.name
 
     return str(o)
+
+
+def _query_string(operator, args):
+    args = ','.join(map(_format_operand, args))
+    return "{operator}({args})".format(operator=operator, args=args)
+
+
+def _default_interface():
+    return getattr(threading.local(), 'interface', None)
+
+
+def _find_interface(args):
+    for a in args:
+        if hasattr(args, 'interface'):
+            return args.interface
+
+
+def afl_call(operator, interface, *args):
+    interface = interface or _find_interface(args) or _default_interface()
+
+    if interface is None:
+        raise ("No SciDBInterface provided, and cannot be inferred "
+               "from input arguments")
+
+    query = _query_string(operator, args)
+    return SciDBArray.from_query(interface, query)
 
 
 class AFLExpression(object):
@@ -206,11 +235,9 @@ def register_operator(entry, interface=None):
     """
     name = str(entry['name'])
     doc = entry['doc']
-    signature = entry['signature']
+    result = partial(afl_call, name, interface)
+    result.__doc__ = doc
 
-    attrs = {'__doc__': doc, '_signature': signature,
-             '_interface': interface}
-    result = type(name, (AFLExpression,), attrs)
     return result
 
 

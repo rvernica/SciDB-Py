@@ -32,6 +32,7 @@ from .utils import broadcastable, _is_query
 __all__ = ['SciDBInterface', 'SciDBShimInterface', 'connect']
 
 SCIDB_RAND_MAX = 2147483647  # 2 ** 31 - 1
+UNESCAPED_QUOTE = re.compile(r"(?<!\\)'")
 
 
 def _df(arr, ind):
@@ -196,7 +197,13 @@ class SciDBInterface(object):
         """Show the schema of the given array"""
         if 'response' not in kwargs:
             kwargs['response'] = True
-        return self._execute_query("show({0})".format(name), **kwargs)
+        name = UNESCAPED_QUOTE.sub(r"\'", name)
+        if _is_query(name):
+            query = "show('{0}', 'afl')".format(name)
+        else:
+            query = "show({0})".format(name)
+
+        return self._execute_query(query, **kwargs)
 
     def _array_dimensions(self, name, **kwargs):
         """Show the dimensions of the given array"""

@@ -290,8 +290,7 @@ class SciDBDataShape(object):
         -------
         A SciDBDataShape instance, inferred from the database
         """
-        schema = interface._execute_query("show('%s', 'afl')" % query,
-                                          response=True)
+        schema = interface._show_array(query)
         schema = schema.split("'")[1]
         return cls.from_schema(schema)
 
@@ -407,8 +406,7 @@ class SciDBArray(object):
         --------
         array : SciDBArray
         """
-        ds = SciDBDataShape.from_query(interface, query)
-        return cls(ds, interface, query)
+        return cls(None, interface, query)
 
     @property
     def afl(self):
@@ -544,6 +542,12 @@ class SciDBArray(object):
     def dtype(self):
         return self.datashape.dtype
 
+    @property
+    def query(self):
+        if _is_query(self.name):
+            return self.name
+        return None
+
     def reap(self, ignore=False):
         """
         Delete this object from the database if it isn't persistent.
@@ -558,6 +562,9 @@ class SciDBArray(object):
         ------
         SciDBForbidden if ``persistent=True`` and ``ignore=False`
         """
+        if _is_query(self.name):
+            return
+
         if self.persistent:
             if not ignore:
                 raise SciDBForbidden("Cannot reap: persistent=True")
@@ -766,11 +773,17 @@ class SciDBArray(object):
         -------
         arr : np.ndarray
             The dense array containing the data.
+
+        Notes
+        -----
+        If the array is backed by a query, the query is evaluated and stored
+        in the database
         """
+        self.eval()  # evaluate if needed, for speed
         return self._download_data(transfer_bytes=transfer_bytes,
                                    output='dense')
 
-    def eval(self):
+    def eval(self, out=None, store=True, **kwargs):
         """
         If the array is backed by an unevaluated query,
         evaluate the query and store the result in the database
@@ -778,12 +791,25 @@ class SciDBArray(object):
         This changes array.name from a query string to a
         stored array name. Calling eval() on an array
         that is already backed by a stored array does nothing.
+
+        Parameters
+        ----------
+        out : SciDBArray (optional)
+           An optional pre-existing array to store the evaluation into.
         """
         if not _is_query(self.name):
-            return
-        name = self.interface._db_array_name()
-        self.interface.query('store({X}, {name})', X=self, name=name)
+            return self
+
+        if not store:
+            return self.interface._execute_query(self.name, **kwargs)
+
+        name = out.name if out is not None else self.interface._db_array_name()
+
+        query = 'store({q}, {name})'.format(q=self.name, name=name)
+        self.interface._execute_query(query, **kwargs)
+
         self.name = name
+        return self
 
     def todataframe(self, transfer_bytes=True):
         """Transfer array from database and store in a local Pandas dataframe

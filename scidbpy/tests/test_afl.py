@@ -23,42 +23,10 @@ def test_docstring():
     assert afl.create_array.__doc__ == expected
 
 
-def test_tostring():
-    expression = afl.normalize(afl.transpose(3))
-    assert str(expression) == "normalize(transpose(3))"
-
-
-def test_repr():
-    expression = afl.normalize(afl.transpose(3))
-    assert repr(expression) == "SciDB Expression: <normalize(transpose(3))>"
-
-
-class TestArgumentChecks(object):
-
-    def test_0_args_given_2_expected(self):
-        with pytest.raises(TypeError) as cm:
-            afl.concat()
-        assert cm.value.args[0] == ("concat() takes exactly 2 "
-                                    "arguments (0 given)")
-
-    def test_0_args_given_1_expected(self):
-        with pytest.raises(TypeError) as cm:
-            afl.dimensions()
-        assert cm.value.args[0] == ("dimensions() takes exactly 1 "
-                                    "argument (0 given)")
-
-    def test_0_args_given_at_least_1_expected(self):
-        with pytest.raises(TypeError) as cm:
-            afl.analyze()
-        assert cm.value.args[0] == ("analyze() takes at least 1 "
-                                    "argument (0 given)")
-
-    def test_valid_exact(self):
-        afl.cancel(0)
-
-    def test_valid_atleast(self):
-        afl.subarray('x')
-        afl.subarray('x', 0, 1)
+def test_name():
+    x = sdb.zeros((2, 2))
+    expression = afl.transpose(afl.transpose(x))
+    assert expression.name == "transpose(transpose(%s))" % x.name
 
 
 class TestBasicUse(object):
@@ -85,7 +53,7 @@ class TestBasicUse(object):
         s = afl.normalize(ARR)
         out = sdb.new_array()
         result = s.eval(out=out)
-        assert result is out
+        assert result.name is out.name
         expected = np.ones(4) / 2
         np.testing.assert_array_almost_equal(s.toarray(), expected)
 
