@@ -35,7 +35,7 @@ def test_copy_rename():
     Xcopy = X.copy()
     assert X.name != Xcopy.name
 
-    new_name = 'silly_array1234'
+    new_name = X.name + '_1'
     X.rename(new_name)
     assert X.name == new_name
     assert_array_equal(X.toarray(), Xcopy.toarray())
@@ -561,10 +561,10 @@ def test_array_eval():
     x = sdb.ones(4)
     q = sdb.afl.apply(x, 'g', 'f0 + 3').query
     array = SciDBArray.from_query(sdb, q)
-    expected = array.toarray()
-
     assert array.name == q
+
     array.eval()
     assert array.name != q
 
+    expected = array.toarray()
     np.testing.assert_array_equal(expected, array.toarray())

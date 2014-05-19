@@ -803,13 +803,19 @@ class SciDBArray(object):
         if not store:
             return self.interface._execute_query(self.name, **kwargs)
 
-        name = out.name if out is not None else self.interface._db_array_name()
+        if out is not None:
+            self.persistent = out.persistent
+            name = out.name
+            result = out
+        else:
+            name = self.interface._db_array_name()
+            result = self
 
         query = 'store({q}, {name})'.format(q=self.name, name=name)
         self.interface._execute_query(query, **kwargs)
 
         self.name = name
-        return self
+        return result
 
     def todataframe(self, transfer_bytes=True):
         """Transfer array from database and store in a local Pandas dataframe
@@ -1088,7 +1094,7 @@ class SciDBArray(object):
         """
 
         # handle -1s (see :meth:`numpy.reshape`)
-        if any(s == 1 for s in shape):
+        if any(s == -1 for s in shape):
             n = np.prod([s for s in shape if s != -1])
             ntot = np.prod(self.shape)
             if (ntot / n) * n != ntot:
