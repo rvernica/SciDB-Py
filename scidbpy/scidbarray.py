@@ -4,6 +4,7 @@
 # See LICENSE.txt for more information
 
 from __future__ import print_function
+import warnings
 
 import numpy as np
 import re
@@ -231,6 +232,12 @@ class SciDBDataShape(object):
             raise ValueError("length of chunk_overlap should match "
                              "number of dimensions")
         self.chunk_overlap = chunk_overlap
+
+        if len(self.dim_names) != len(set(self.dim_names)):
+            warnings.warn("Duplicate dimension names: %s" % self.dim_names)
+
+        if len(self.sdbtype.names) != len(set(self.sdbtype.names)):
+            warnings.warn("Duplicate attribute names: %s" % self.sdbtype.names)
 
     @classmethod
     def from_schema(cls, schema):
@@ -525,6 +532,10 @@ class SciDBArray(object):
     @property
     def dim_names(self):
         return self.datashape.dim_names
+
+    @property
+    def att_names(self):
+        return self.sdbtype.names
 
     @property
     def ndim(self):
@@ -940,7 +951,7 @@ class SciDBArray(object):
                   if not isinstance(s, slice)
                   for item in (d, s)]
         if slices:
-            arr1 = self.afl.slice(self, *slices).eval()
+            arr1 = self.afl.slice(self, *slices)
         else:
             arr1 = self
 
@@ -952,14 +963,14 @@ class SciDBArray(object):
         # if a subarray is required, then call the subarray() command
         if any(i[0] != 0 or i[1] != s for (i, s) in zip(indices, shape)):
             limits = [i[0] for i in indices] + [i[1] - 1 for i in indices]
-            arr2 = self.afl.subarray(arr1, *limits).eval()
+            arr2 = self.afl.subarray(arr1, *limits)
         else:
             arr2 = arr1
 
         # if thinning is required, then call the thin() command
         if any(i[2] != 1 for i in indices):
             steps = sum([[0, i[2]] for i in indices], [])
-            arr3 = self.afl.thin(arr2, *steps).eval()
+            arr3 = self.afl.thin(arr2, *steps)
         else:
             arr3 = arr2
 
@@ -968,7 +979,7 @@ class SciDBArray(object):
     @slice_syntax
     def sdbslice(self, slices):
         args = [s.start for s in slices] + [s.stop for s in slices]
-        return self.afl.subarray(self, *args).eval()
+        return self.afl.subarray(self, *args)
 
     # join operations: note that these ignore all but the first attribute
     # of each array.
@@ -1051,7 +1062,7 @@ class SciDBArray(object):
                     pass
 
         if not axes:
-            arr = self.afl.transpose(self).eval()
+            arr = self.afl.transpose(self)
         else:
             # first validate the axes
             axes = [(a + self.ndim if a < 0 else a) for a in axes]
@@ -1070,6 +1081,7 @@ class SciDBArray(object):
                                            chunk_size=chunk_size,
                                            chunk_overlap=chunk_overlap,
                                            dim_names=dim_names)
+            arr.persistent = True
             self.afl.redimension_store(self, arr).eval(store=False)
         return arr
 
@@ -1124,7 +1136,7 @@ class SciDBArray(object):
         """
         b = self.afl.build('%s[i=0:0,1,0]' % self.sdbtype, value)
         q = self.afl.substitute(self, b)
-        return q.eval()
+        return q
 
     def _aggregate_operation(self, agg, index=None, scidb_syntax=True):
         """Perform an aggregation query
@@ -1186,8 +1198,7 @@ class SciDBArray(object):
                 idx_args = [self.dim_names[i] for i in ind]
 
         agg = "{agg}({att})".format(agg=agg, att=self.att(0))
-        q = self.afl.aggregate(self, agg, *idx_args)
-        return q.eval()
+        return self.afl.aggregate(self, agg, *idx_args)
 
     def min(self, index=None, scidb_syntax=False):
         """
@@ -1435,8 +1446,7 @@ class SciDBArray(object):
 
         agg = "{agg}({att})".format(agg=aggregate, att=self.att(0))
         args = list(map(str, sizes)) + [agg]
-        q = self.afl.regrid(self, *args)
-        return q.eval()
+        return self.afl.regrid(self, *args)
 
 
 def _axis_filter(array, mask, axis):
@@ -1457,7 +1467,7 @@ def _axis_filter(array, mask, axis):
     """
     from .interface import _new_attribute_label
 
-    f = array.interface.afl
+    f = array.afl
 
     # for now, force evaulation of AFL
     # XXX remove this once we support deferred arrays

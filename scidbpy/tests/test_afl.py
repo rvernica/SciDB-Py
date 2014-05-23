@@ -60,7 +60,7 @@ class TestBasicUse(object):
     def test_access_from_interface(self):
         assert sdb.afl.list("'arrays'").interface is sdb
 
-    def test_interface_acces_cached(self):
+    def test_interface_access_cached(self):
         assert sdb.afl is sdb.afl
         assert sdb.afl.normalize is sdb.afl.normalize
 

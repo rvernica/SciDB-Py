@@ -22,7 +22,7 @@ needs_scipy = pytest.mark.skipif(MISSING_SP, reason='Test requires SciPy')
 
 # In order to run tests, we need to connect to a valid SciDB engine
 from scidbpy import SciDBArray, SciDBShimInterface, connect, SciDBDataShape
-
+from scidbpy.schema_utils import disambiguate
 
 sdb = connect()
 
@@ -501,6 +501,7 @@ def test_reap_ignored_if_persistent():
 
 def test_interface_reap():
 
+    sdb = connect()
     A = sdb.random((1, 1))
     B = sdb.random((1, 1))
 
@@ -568,3 +569,27 @@ def test_array_eval():
 
     expected = array.toarray()
     np.testing.assert_array_equal(expected, array.toarray())
+
+
+@pytest.mark.parametrize('n', [0, 1, 2, 5])
+def test_disambiguate(n):
+
+    arrays = [sdb.ones(4) for _ in range(n)]
+    arrays = disambiguate(*arrays)
+    visited = set()
+    for a in arrays:
+        for d in a.dim_names:
+            assert d not in visited
+            visited.add(d)
+        for a in a.att_names:
+            assert a not in visited
+            visited.add(a)
+
+
+def test_dismbiguate_ignores_uniques():
+    x = sdb.ones(4)
+    assert disambiguate(x)[0] is x
+
+    y = sdb.afl.build('<x:double>[i=0:3,10,0]', 0).eval()
+    z = sdb.afl.build('<y:double>[j=0:3,10,0]', 1).eval()
+    assert disambiguate(y, z) == (y, z)

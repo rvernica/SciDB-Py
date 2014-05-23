@@ -28,6 +28,7 @@ import numpy as np
 from .scidbarray import SciDBArray, SciDBDataShape, ArrayAlias, SDB_IND_TYPE
 from .errors import SHIM_ERROR_DICT
 from .utils import broadcastable, _is_query
+from .schema_utils import disambiguate
 
 __all__ = ['SciDBInterface', 'SciDBShimInterface', 'connect']
 
@@ -199,7 +200,10 @@ class SciDBInterface(object):
             kwargs['response'] = True
         name = UNESCAPED_QUOTE.sub(r"\'", name)
         if _is_query(name):
-            query = "show('{0}', 'afl')".format(name)
+            # need to add a fake store command to trigger
+            # att/dim disambiguation
+            tmp = self._db_array_name()
+            query = "show('store({0}, {1})', 'afl')".format(name, tmp)
         else:
             query = "show({0})".format(name)
 
@@ -737,7 +741,7 @@ class SciDBInterface(object):
         ret = []
         for output in ['U', 'S', 'VT']:
             if out_dict[output]:
-                ret.append(self.afl.gesvd(A, "'%s'" % output).eval())
+                ret.append(self.afl.gesvd(A, "'%s'" % output))
         return tuple(ret)
 
     def from_array(self, A, instance_id=0, **kwargs):
@@ -874,12 +878,10 @@ class SciDBInterface(object):
     def _apply_func(self, A, func):
         # TODO: new value name could conflict.  How to generate a unique one?
         # TODO: add optional ``out`` argument as in numpy
-        f = self.afl
         att = A.att(0)
         newatt = "{0}_{1}".format(func, att)
         expr = "{0}({1})".format(func, att)
-        q = f.papply(A, newatt, expr)
-        return q.eval()
+        return self.afl.papply(A, newatt, expr)
 
     def sin(self, A):
         """Element-wise trigonometric sine"""
@@ -998,14 +1000,14 @@ class SciDBInterface(object):
     def merge(self, A, B):
         """Merge two arrays"""
         # TODO: pre-check for non-matching arrays?
-        return self.afl.merge(A, B).eval()
+        return self.afl.merge(A, B)
 
     def join(self, *args):
         """
         Perform a series of array joins on the arguments
         and return the result.
         """
-        return reduce(self.afl.join, args).eval()
+        return reduce(self.afl.join, args)
 
     def cross_join(self, A, B, *dims):
         """Perform a cross-join on arrays A and B.
@@ -1020,7 +1022,7 @@ class SciDBInterface(object):
         dims = [_df(arr, index)
                 for dim in dims
                 for arr, index in zip([A, B], dim)]
-        return self.afl.cross_join(A, B, *dims).eval()
+        return self.afl.cross_join(A, B, *dims)
 
     def _join_operation(self, left, right, op):
         """Perform a join operation across arrays or values.
@@ -1028,8 +1030,10 @@ class SciDBInterface(object):
         See e.g. SciDBArray.__add__ for an example usage.
         """
         f = self.afl
+        left, right = disambiguate(left, right)
 
         if isinstance(left, SciDBArray):
+            left = left.eval()
             left_name = left.name
             left_fmt = _af(left, 0)
             left_is_sdb = True
@@ -1039,6 +1043,7 @@ class SciDBInterface(object):
             left_is_sdb = False
 
         if isinstance(right, SciDBArray):
+            right = right.eval()
             right_name = right.name
             right_fmt = _af(right, 0)
             right_is_sdb = True
@@ -1068,10 +1073,9 @@ class SciDBInterface(object):
                 attr = _new_attribute_label('x', left, right)
                 if left_name == right_name:
                     # same array: we can do this without a join
-                    return f.papply(left, attr, op).eval()
+                    return f.papply(left, attr, op)
                 else:
-                    q = f.papply(f.join(left, right), attr, op)
-                    return q.eval()
+                    return f.papply(f.join(left, right), attr, op)
 
             # array shapes are broadcastable: use a cross_join
             elif broadcastable(left.shape, right.shape):
@@ -1100,8 +1104,8 @@ class SciDBInterface(object):
                 if left_slices:
                     aL = ArrayAlias(left, "alias_left")
                     dims = [item for sl in left_slices
-                            for item in [_df(left, sl), 0]]
-                    left_query = f.as_(f.slice(left, *dims), aL).query
+                            for item in [left.dim_names[sl], 0]]
+                    left_query = f.as_(f.slice(left, *dims), aL)
                 else:
                     left_query = left
                     aL = left
@@ -1110,21 +1114,22 @@ class SciDBInterface(object):
                 if right_slices:
                     aR = ArrayAlias(right, "alias_right")
                     dims = [item for sl in right_slices
-                            for item in [_df(right, sl), 0]]
-                    right_query = f.as_(f.slice(right, *dims), aR).query
+                            for item in [right.dim_names[sl], 0]]
+                    right_query = f.as_(f.slice(right, *dims), aR)
                 else:
                     right_query = right
                     aR = right
 
                 # build the cross_join query
-                dims = [_df(arr, att)
-                        for atts in join_indices
-                        for arr, att in zip([aL, aR], atts)]
+                dims = [_df(arr, ind)
+                        for inds in join_indices
+                        for arr, ind in zip([aL, aR], inds)]
+
                 attr = _new_attribute_label('x', left, right)
                 query = f.papply(f.cross_join(
                                  left_query, right_query, *dims),
                                  attr, op)
-                result = query.eval()
+                result = query
 
                 # determine the dimension permutation
                 # Here's the problem: cross_join puts all the left array dims
@@ -1178,7 +1183,7 @@ class SciDBInterface(object):
             except:
                 raise ValueError("rhs must be a scalar or SciDBArray")
             attr = _new_attribute_label('x', left)
-            return f.papply(left, attr, op).eval()
+            return f.papply(left, attr, op)
 
         # only right entry is a SciDBArray
         elif right_is_sdb:
@@ -1187,7 +1192,7 @@ class SciDBInterface(object):
             except:
                 raise ValueError("lhs must be a scalar or SciDBArray")
             attr = _new_attribute_label('x', right)
-            return f.papply(right, attr, op).eval()
+            return f.papply(right, attr, op)
 
         # reorder the dimensions if needed (for cross_join)
         if permutation is not None:

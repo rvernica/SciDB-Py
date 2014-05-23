@@ -2,7 +2,6 @@
 # See LICENSE.txt for more information
 
 import sys
-from functools import partial
 import threading
 
 
@@ -17,11 +16,11 @@ __all__ = ['register_operator', 'AFLNamespace']
 def _format_operand(o):
     """
     Format the input into a string
-    appropriate for use as an input to an AFLExpression call
+    appropriate for use as an input to an AFL call
 
     Parameters
     ----------
-    o : AFLExpression, SciDBArray, number, or string
+    o : SciDBArray, number, or string
         The input to format
 
     Returns
@@ -34,11 +33,6 @@ def _format_operand(o):
     #          for now, this has to be done manually
     if isinstance(o, basestring):
         return o
-
-    if isinstance(o, AFLExpression):
-        if o.cached_result is not None:
-            return o.cached_result.name
-        return o.query
 
     if isinstance(o, SciDBArray):
         return o.name
@@ -65,154 +59,16 @@ def afl_call(operator, interface, *args):
     interface = interface or _find_interface(args) or _default_interface()
 
     if interface is None:
-        raise ("No SciDBInterface provided, and cannot be inferred "
-               "from input arguments")
+        raise ValueError("No SciDBInterface provided, and cannot be inferred "
+                         "from input arguments")
 
     query = _query_string(operator, args)
     return SciDBArray.from_query(interface, query)
 
 
-class AFLExpression(object):
-    _signature = []
-    _interface = None
-
-    def __init__(self, *args):
-        self._check_arguments(args)
-        self.args = args
-        self._result = None
-
-    def _check_arguments(self, args):
-        if len(self._signature) == 0:
-            return
-
-        ngiven = len(args)
-        exact = self._signature[-1] != 'args'
-        nrequired = len(self._signature) - 1 + int(exact)
-
-        if ngiven < nrequired:
-            arg = "argument" if nrequired == 1 else "arguments"
-            constraint = "exactly" if exact else "at least"
-            name = self.name
-            raise TypeError("{name}() takes {constraint} {nrequired} {arg} "
-                            "({ngiven} given)".format(**locals()))
-
-    @property
-    def name(self):
-        """
-        The SciDB operator name, assumed to be the same as the class name
-        """
-        return self.__class__.__name__
-
-    @property
-    def interface(self):
-        if self._interface is not None:
-            return self._interface
-
-        # look for an interface in arguments
-        for a in self.args:
-            try:
-                return a.interface
-            except AttributeError:
-                pass
-
-        raise AttributeError("Could not find an interface")
-
-    @interface.setter
-    def interface(self, value):
-        self._interface = value
-
-    @property
-    def query(self):
-        ops = map(_format_operand, self.args)
-        q = "{function}({args})".format(function=self.name, args=','.join(ops))
-        return q
-
-    @property
-    def cached_result(self):
-        """
-        Return the result if already evaluated, or None.
-
-        Returns
-        -------
-        A SciDBArray instance, or None
-        """
-        return self._result
-
-    def eval(self, out=None, store=True, **kwargs):
-        """
-        Evaluate the expression if necessary, and return the
-        result as a SciDBArray.
-
-        Parameters
-        ----------
-        out : SciDBArray instance (optional)
-            The array to store the result in.
-            One will be created if necessary
-
-        store : bool
-            If True (the default), the query will be
-            wrapped in a store call, and wrapped in
-            a SciDBAarray (specified by `out`). If
-            false, this executes the query, but
-            doesn't save the result
-
-        Returns
-        --------
-        out : SciDBArray instance, or None
-
-        Notes
-        -----
-        The result of eval() is cached, so subsequent calls
-        will not trigger additional database computation
-        """
-        if self._result is not None:
-            return self._result
-
-        if not store:
-            return self.interface._execute_query(self.query, **kwargs)
-
-        if out is None:
-            out = self.interface.new_array()
-
-        self._result = out
-        self.interface._execute_query('store(%s, %s)' %
-                                      (self.query, out.name))
-        return self._result
-
-    def toarray(self):
-        """
-        Return the result of the expression as a numpy array
-        """
-        return self.eval().toarray()
-
-    def __str__(self):
-        return self.query
-
-    def __repr__(self):
-        return "SciDB Expression: <%s>" % self
-
-
-class BinaryInfixAFLOperator(AFLExpression):
-
-    """
-    Bindings to AFL scalar functions like +, -, etc.
-
-    These Operators are called using the normal functional notation
-    (e.g., ``add(X, 5)``), but their query strings expand to ``X + 5``
-
-    Attributes
-    ----------
-    op : str
-       The SciDB operator token (e.g., ``+``)
-    """
-
-    op = None
-
-    @property
-    def query(self):
-        l, r = map(_format_operand, self.args)
-        q = "({l} {op} {r})".format(l=l, op=self.op, r=r)
-        return q
+def infix_call(operator, left, right):
+    query = ' '.join([_format_operand(left), operator, _format_operand(right)])
+    return query
 
 
 def register_operator(entry, interface=None):
@@ -231,39 +87,40 @@ def register_operator(entry, interface=None):
 
     Returns
     --------
-    A new AFLExpression subclass, representing the operator
+    A new afl wrapper function, representing the operator
     """
-    name = str(entry['name'])
-    doc = entry['doc']
-    result = partial(afl_call, name, interface)
-    result.__doc__ = doc
 
-    return result
+    # we avoid partial here because its repr isn't great
+    def call(*args):
+        return afl_call(entry['name'], interface, *args)
+
+    call.__doc__ = str(entry['doc'])
+    call.__name__ = str(entry['name'])
+
+    return call
 
 
-def register_infix(name, op, interface=None):
+def register_infix(name, op):
     """
-    Create a new BinaryInfixAFLOperator type
+    Create a new infix operator like '<', '+', etc.
 
     Parameters
     ----------
     name : str
-        Name of the class
+        Name of the class (e.g., 'add')
     op : str
-        SciDB operator name
-    interface : SciDBInterface instance (optional)
-        Which interface to bind to
+        SciDB operator name (e.g., '+')
 
     Returns
     -------
-    A new subtype of BinaryInfixAFLOperator
+    A new function representing the operator
     """
-    doc = "The operator %s" % op
-    signature = ['item', 'item']
-    attrs = {'__doc__': doc, '_signature': signature,
-             'op': op,
-             '_interface': interface}
-    return type(name, (BinaryInfixAFLOperator,), attrs)
+    def call(*args):
+        return infix_call(op, *args)
+    call.__doc__ = "The operator %s" % op
+    call.__name__ = name
+
+    return call
 
 
 class AFLNamespace(object):
@@ -279,7 +136,7 @@ class AFLNamespace(object):
             setattr(self, op['name'], register_operator(op, interface))
 
         for name, op in infix_functions:
-            setattr(self, name, register_infix(name, op, interface))
+            setattr(self, name, register_infix(name, op))
 
     def papply(self, array, attr, expression):
         """
