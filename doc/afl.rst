@@ -11,7 +11,7 @@ AFL Operators can be used as follows::
     afl = sdb.afl
     query = afl.aggregate(x, 'count(*)')
     query.query  # The query string
-    output = query.eval()  # send query to SciDB, return as a SciDB Array
+    query.eval()  # evaluate the query, and store the result
 
 
 Operator Reference

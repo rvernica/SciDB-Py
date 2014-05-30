@@ -4,17 +4,18 @@
 # See LICENSE.txt for more information
 
 from __future__ import print_function
+import warnings
 
 import numpy as np
 import re
 
-import warnings
 from copy import copy
 from .errors import SciDBError, SciDBForbidden
 
 # Numpy 1.7 meshgrid backport
-from .utils import meshgrid
+from .utils import meshgrid, slice_syntax, _is_query
 from ._py3k_compat import genfromstr, iteritems
+from .schema_utils import change_axis_schema
 
 __all__ = ["sdbtype", "SciDBArray", "SciDBDataShape"]
 
@@ -32,7 +33,8 @@ SDB_NP_TYPE_MAP = {'bool': _np_typename('bool'),
                    'uint16': _np_typename('uint16'),
                    'uint32': _np_typename('uint32'),
                    'uint64': _np_typename('uint64'),
-                   'char': _np_typename('c')}
+                   'char': _np_typename('c'),
+                   'string': '|S100'}
 
 NP_SDB_TYPE_MAP = dict((val, key)
                        for key, val in iteritems(SDB_NP_TYPE_MAP))
@@ -231,6 +233,12 @@ class SciDBDataShape(object):
                              "number of dimensions")
         self.chunk_overlap = chunk_overlap
 
+        if len(self.dim_names) != len(set(self.dim_names)):
+            warnings.warn("Duplicate dimension names: %s" % self.dim_names)
+
+        if len(self.sdbtype.names) != len(set(self.sdbtype.names)):
+            warnings.warn("Duplicate attribute names: %s" % self.sdbtype.names)
+
     @classmethod
     def from_schema(cls, schema):
         """Create a DataShape object from a SciDB Schema.
@@ -275,14 +283,39 @@ class SciDBDataShape(object):
                    chunk_size=[int(d[3]) for d in dshapes],
                    chunk_overlap=[int(d[4]) for d in dshapes])
 
+    @classmethod
+    def from_query(cls, interface, query):
+        """
+        Build a datashape from an AFL query string
+
+        Parameters
+        ----------
+        interface : SciDBInterface
+        query : str
+
+        Returns
+        -------
+        A SciDBDataShape instance, inferred from the database
+        """
+        schema = interface._show_array(query)
+        schema = schema.split("'")[1]
+        return cls.from_schema(schema)
+
     @property
     def schema(self):
-        shape_arg = ','.join(['{0}=0:{1},{2},{3}'.format(d, s - 1, cs, co)
-                              for (d, s, cs, co) in zip(self.dim_names,
-                                                        self.shape,
-                                                        self.chunk_size,
-                                                        self.chunk_overlap)])
-        return '{0} [{1}]'.format(self.sdbtype, shape_arg)
+        return '{0} {1}'.format(self.sdbtype, self.dim_schema)
+
+    @property
+    def dim_schema(self):
+        """
+        The dimension part of the schema
+        """
+        result = ','.join(['{0}=0:{1},{2},{3}'.format(d, s - 1, cs, co)
+                           for (d, s, cs, co) in zip(self.dim_names,
+                                                     self.shape,
+                                                     self.chunk_size,
+                                                     self.chunk_overlap)])
+        return '[%s]' % result
 
     @property
     def ind_attr_dtype(self):
@@ -363,6 +396,24 @@ class SciDBArray(object):
         self.interface = interface
         self.name = name
         self.persistent = persistent
+
+    @classmethod
+    def from_query(cls, interface, query):
+        """
+        Build a lazily-evaulated SciDB array from a query string
+
+        Parameters
+        ----------
+        interface : SciDBInterface
+            The database connection to use
+        query : str
+            The query string to wrap
+
+        Returns
+        --------
+        array : SciDBArray
+        """
+        return cls(None, interface, query)
 
     @property
     def afl(self):
@@ -483,6 +534,10 @@ class SciDBArray(object):
         return self.datashape.dim_names
 
     @property
+    def att_names(self):
+        return self.sdbtype.names
+
+    @property
     def ndim(self):
         return len(self.datashape.shape)
 
@@ -498,6 +553,12 @@ class SciDBArray(object):
     def dtype(self):
         return self.datashape.dtype
 
+    @property
+    def query(self):
+        if _is_query(self.name):
+            return self.name
+        return None
+
     def reap(self, ignore=False):
         """
         Delete this object from the database if it isn't persistent.
@@ -512,6 +573,9 @@ class SciDBArray(object):
         ------
         SciDBForbidden if ``persistent=True`` and ``ignore=False`
         """
+        if _is_query(self.name):
+            return
+
         if self.persistent:
             if not ignore:
                 raise SciDBForbidden("Cannot reap: persistent=True")
@@ -625,6 +689,10 @@ class SciDBArray(object):
         if output not in ['auto', 'dense', 'sparse']:
             raise ValueError("unrecognized output: '{0}'".format(output))
 
+        # workaround for strings
+        if any(s[1] == 'string' for s in self.sdbtype.full_rep):
+            transfer_bytes = False
+
         dtype = self.datashape.dtype
         sdbtype = self.sdbtype
         shape = self.datashape.shape
@@ -716,9 +784,49 @@ class SciDBArray(object):
         -------
         arr : np.ndarray
             The dense array containing the data.
+
+        Notes
+        -----
+        If the array is backed by a query, the query is evaluated and stored
+        in the database
         """
+        self.eval()  # evaluate if needed, for speed
         return self._download_data(transfer_bytes=transfer_bytes,
                                    output='dense')
+
+    def eval(self, out=None, store=True, **kwargs):
+        """
+        If the array is backed by an unevaluated query,
+        evaluate the query and store the result in the database
+
+        This changes array.name from a query string to a
+        stored array name. Calling eval() on an array
+        that is already backed by a stored array does nothing.
+
+        Parameters
+        ----------
+        out : SciDBArray (optional)
+           An optional pre-existing array to store the evaluation into.
+        """
+        if not _is_query(self.name):
+            return self
+
+        if not store:
+            return self.interface._execute_query(self.name, **kwargs)
+
+        if out is not None:
+            self.persistent = out.persistent
+            name = out.name
+            result = out
+        else:
+            name = self.interface._db_array_name()
+            result = self
+
+        query = 'store({q}, {name})'.format(q=self.name, name=name)
+        self.interface._execute_query(query, **kwargs)
+
+        self.name = name
+        return result
 
     def todataframe(self, transfer_bytes=True):
         """Transfer array from database and store in a local Pandas dataframe
@@ -826,6 +934,11 @@ class SciDBArray(object):
         # if num indices is less than num dimensions, right-fill them
         indices = list(indices) + [slice(None)] * (self.ndim - len(indices))
 
+        # special case, indexing with N 1D SciDB arrays, return
+        # row/column/etc subset where these arrays are nonempty
+        if all(isinstance(i, SciDBArray) for i in indices):
+            return _subarray(self, *indices)
+
         # special case: accessing a single element (no slices)
         if all(not isinstance(i, slice) for i in indices):
             limits = list(map(int, indices + indices))
@@ -838,7 +951,7 @@ class SciDBArray(object):
                   if not isinstance(s, slice)
                   for item in (d, s)]
         if slices:
-            arr1 = self.afl.slice(self, *slices).eval()
+            arr1 = self.afl.slice(self, *slices)
         else:
             arr1 = self
 
@@ -850,18 +963,23 @@ class SciDBArray(object):
         # if a subarray is required, then call the subarray() command
         if any(i[0] != 0 or i[1] != s for (i, s) in zip(indices, shape)):
             limits = [i[0] for i in indices] + [i[1] - 1 for i in indices]
-            arr2 = self.afl.subarray(arr1, *limits).eval()
+            arr2 = self.afl.subarray(arr1, *limits)
         else:
             arr2 = arr1
 
         # if thinning is required, then call the thin() command
         if any(i[2] != 1 for i in indices):
             steps = sum([[0, i[2]] for i in indices], [])
-            arr3 = self.afl.thin(arr2, *steps).eval()
+            arr3 = self.afl.thin(arr2, *steps)
         else:
             arr3 = arr2
 
         return arr3
+
+    @slice_syntax
+    def sdbslice(self, slices):
+        args = [s.start for s in slices] + [s.stop for s in slices]
+        return self.afl.subarray(self, *args)
 
     # join operations: note that these ignore all but the first attribute
     # of each array.
@@ -944,7 +1062,7 @@ class SciDBArray(object):
                     pass
 
         if not axes:
-            arr = self.afl.transpose(self).eval()
+            arr = self.afl.transpose(self)
         else:
             # first validate the axes
             axes = [(a + self.ndim if a < 0 else a) for a in axes]
@@ -963,6 +1081,7 @@ class SciDBArray(object):
                                            chunk_size=chunk_size,
                                            chunk_overlap=chunk_overlap,
                                            dim_names=dim_names)
+            arr.persistent = True
             self.afl.redimension_store(self, arr).eval(store=False)
         return arr
 
@@ -985,6 +1104,17 @@ class SciDBArray(object):
         arr : SciDBArray
             new array of the specified shape
         """
+
+        # handle -1s (see :meth:`numpy.reshape`)
+        if any(s == -1 for s in shape):
+            n = np.prod([s for s in shape if s != -1])
+            ntot = np.prod(self.shape)
+            if (ntot / n) * n != ntot:
+                raise ValueError("total size of new array "
+                                 "must remain unchanged")
+            shape = list(shape)
+            shape[shape.index(-1)] = ntot / n
+
         if np.prod(shape) != np.prod(self.shape):
             raise ValueError("new shape is incompatible")
         arr = self.interface.new_array(shape=shape,
@@ -1006,7 +1136,7 @@ class SciDBArray(object):
         """
         b = self.afl.build('%s[i=0:0,1,0]' % self.sdbtype, value)
         q = self.afl.substitute(self, b)
-        return q.eval()
+        return q
 
     def _aggregate_operation(self, agg, index=None, scidb_syntax=True):
         """Perform an aggregation query
@@ -1068,8 +1198,7 @@ class SciDBArray(object):
                 idx_args = [self.dim_names[i] for i in ind]
 
         agg = "{agg}({att})".format(agg=agg, att=self.att(0))
-        q = self.afl.aggregate(self, agg, *idx_args)
-        return q.eval()
+        return self.afl.aggregate(self, agg, *idx_args)
 
     def min(self, index=None, scidb_syntax=False):
         """
@@ -1317,5 +1446,91 @@ class SciDBArray(object):
 
         agg = "{agg}({att})".format(agg=aggregate, att=self.att(0))
         args = list(map(str, sizes)) + [agg]
-        q = self.afl.regrid(self, *args)
-        return q.eval()
+        return self.afl.regrid(self, *args)
+
+
+def _axis_filter(array, mask, axis):
+    """
+    Extract a subset of entries along a given mask,
+    where an input mask array is non-null
+
+    Parameters
+    ----------
+    array : SciDBArray
+        The array to filter
+    mask : SciDBArray
+        A 1-dimensional SciDBArray, whose non-null values indicate
+        the entries to retain
+    axis : int
+        The axis of array along which to apply the mask. The shape
+        of array along this axis must be the length of mask
+    """
+    from .interface import _new_attribute_label
+
+    f = array.afl
+
+    # for now, force evaulation of AFL
+    # XXX remove this once we support deferred arrays
+    if hasattr(mask, 'eval'):
+        mask = mask.eval()
+
+    dim = array.dim_names[axis]
+    chunk = array.datashape.chunk_size[axis]
+    overlap = array.datashape.chunk_overlap[axis]
+    sz = array.shape[axis]
+    ct = int(f.aggregate(mask, 'count(*)').eval()[0])
+
+    new_att = _new_attribute_label(dim, mask)
+    idx_att = _new_attribute_label(new_att + '_0', mask)
+
+    # copy the dimension to a new attribute, sort moves nulls to end
+    q = f.papply(mask, new_att, mask.dim_names[0])
+    q = f.sort(q, '%s asc' % new_att)
+
+    # rename attributes, and swap sorted new_att to a dimension
+    # after this step, idx_att contains the final location for
+    # each original location
+    q = f.cast(q, '<%s:int64>[%s=0:*,1000,0]' % (new_att, idx_att))
+    q = f.redimension(q, '<{idx_att}:int64>[{new_att}=0:{stop},{chunk},{overlap}]'
+                      .format(new_att=new_att, stop=sz - 1,
+                              chunk=chunk, overlap=overlap,
+                              idx_att=idx_att))
+
+    # tack on new location for each element
+    q = f.cross_join(f.as_(array, 'xj1'),
+                     f.as_(q, 'xj2'),
+                     'xj1.%s' % dim, 'xj2.%s' % new_att)
+
+    # promote idx_att to a dimension, which rearranges + truncates
+    schema = array.sdbtype.schema
+    schema += change_axis_schema(array.datashape,
+                                 axis, name=idx_att, stop=ct - 1).dim_schema
+    q = f.redimension(q, schema)
+    return q
+
+
+def _subarray(array, *masks):
+    """
+    Return a row/column/etc subset of an Nd array, by dropping
+    null locations in N 1D masks
+
+    Parameters
+    ----------
+    array : SciDBArray
+        The array to filter
+
+    masks : tuple of 1D SciDBArrays
+       The axis filters
+
+    Returns
+    -------
+    out : SciDBArray
+       The filtered subarray
+    """
+
+    # XXX perform shape checking here
+
+    result = array
+    for i, mask in enumerate(masks):
+        result = _axis_filter(result, mask, i).eval()
+    return result

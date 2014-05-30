@@ -602,6 +602,71 @@ we compute the column mean of ``XC``::
 The broadcasting operation which creates ``XC`` is implemented using a
 join operation along dimension 1.
 
+.. _lazy:
+
+Lazy Evaluation
+^^^^^^^^^^^^^^^
+
+When possible, SciDB-Py defers actual database computation
+until data are needed. It does this by using **lazy arrays**, which are
+references to  as-yet unevaluated SciDB queries. Many array methods
+actually return lazy arrays::
+
+   >>> x = sdb.random((3,4))
+   >>> x.name  # an array in the database
+   'py1102522658694_00001'
+   >>> y = x.mean(0)
+   >>> y.name  # not yet in the database
+   'aggregate(py1102522658694_00001,avg(f0),i1)'
+
+Note that y's name doesn't refer to an array in the database, but
+rather a query on x. Lazy arrays can also be identified by their non-null
+`query` attribute::
+
+   >>> y.query
+   'aggregate(py1102522658694_00001,avg(f0),i1)'
+   >>> x.query is None
+   True
+
+Calling :meth:`~SciDBArray.eval` forces lazy-arrays to be evaluated (it has no effect
+on non-lazy arrays)::
+
+   >>> y.eval()
+   >>> y.name
+   'py1102522658694_00014'
+
+In most cases you don't need to worry about whether an array is lazy or not --
+lazy arrays have all the same methods as regular arrays, and normally the
+difference is transparent to the user. However, lazy arrays can be more
+efficient with regard to compound queries. Consider an equation like
+the law of cosines::
+
+  c2 = a ** 2 + b ** 2 - 2 * a * b * sdb.cos(C)
+
+This equation involves creating 7 intermediate data products:
+
+ * ``t1 = a ** 2``
+ * ``t2 = b ** 2``
+ * ``t3 = 2 * a``
+ * ``t4 = t3 * b``
+ * ``t5 = sdb.cos(C)``
+ * ``t6 = t4 * t5``
+ * ``t7 = t1 + t2``
+ * ``c2 = t7 - t3``
+
+If ``a``, ``b``, and ``C`` are large SciDBArrays, this involves many
+round-trip communiciations to the databse, several passes over the data,
+and the storage of 7 arrays. Lazy arrays reduce this overhead by representing
+some of these temporary arrays as unevaluated sub-queries. Passing larger
+queries to SciDB at once also gives the database more opportunity to optimize
+the final query, performing the computation in fewer passes over the data.
+
+In some situations it's necessary or more efficient to
+force evaluation of lazy arrays (often places where an array appears
+several times in a complex query). Some SciDB-Py methods perform this
+evaluation internally. You should also consider calling :meth:`~SciDBArray.eval` on lazy
+arrays if you think the unevaluated queries are becoming too cumbersome.
+
 Advanced Usage: the SciDB Query Interface
 -----------------------------------------
 
@@ -765,12 +830,12 @@ finds the maximum value of those 50 numbers:
 Working with AFL has a few advantages:
 
  * AFL functions map directly onto database queries, giving you
-    more control over query building
- * AFL expressions are evaluated lazily -- no database communication
-    occurs until you call the ``eval`` or ``toarray`` methods on an expression.
-    This means you can compose complex queries, without unnecessary
-    communication with the server. Likewise, passing complex AFL expressions
-    makes it easier for SciDB to perform query optimization.
+   more control over query building
+ * All AFL expressions are evaluated lazily (see :ref:`lazy`) -- no database communication
+   occurs until you call the :meth:`~SciDBArray.eval` or :meth:`~SciDBArray.toarray`
+   methods on an expression. This means you can compose complex queries, without unnecessary
+   communication with the server. Likewise, passing complex AFL expressions
+   makes it easier for SciDB to perform query optimization.
 
 .. _Shim: http://github.com/paradigm4/shim
 

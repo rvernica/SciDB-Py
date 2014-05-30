@@ -21,8 +21,8 @@ needs_scipy = pytest.mark.skipif(MISSING_SP, reason='Test requires SciPy')
 
 
 # In order to run tests, we need to connect to a valid SciDB engine
-from scidbpy import SciDBArray, SciDBShimInterface, connect
-
+from scidbpy import SciDBArray, SciDBShimInterface, connect, SciDBDataShape
+from scidbpy.schema_utils import disambiguate
 
 sdb = connect()
 
@@ -35,7 +35,7 @@ def test_copy_rename():
     Xcopy = X.copy()
     assert X.name != Xcopy.name
 
-    new_name = 'silly_array1234'
+    new_name = X.name + '_1'
     X.rename(new_name)
     assert X.name == new_name
     assert_array_equal(X.toarray(), Xcopy.toarray())
@@ -501,6 +501,7 @@ def test_reap_ignored_if_persistent():
 
 def test_interface_reap():
 
+    sdb = connect()
     A = sdb.random((1, 1))
     B = sdb.random((1, 1))
 
@@ -530,3 +531,65 @@ def test_reap_called_on_context_manager():
 
     assert X.name == "__DELETED__"
     assert name not in sdb.list_arrays()
+
+
+def test_datashape_from_query():
+
+    x = sdb.zeros(4)
+    q = sdb.afl.apply(x, 'g', 'f0 + 3').query
+    ds = SciDBDataShape.from_query(sdb, q)
+
+    assert ds.chunk_size == x.datashape.chunk_size
+    assert ds.chunk_overlap == x.datashape.chunk_overlap
+    assert ds.dim_names == x.dim_names
+    assert set(ds.sdbtype.names) == set(x.sdbtype.names + ['g'])
+
+
+def test_array_from_query():
+
+    x = sdb.ones(4)
+    q = sdb.afl.apply(x, 'g', 'f0 + 3').query
+    array = SciDBArray.from_query(sdb, q)
+
+    assert array.shape == x.shape
+
+    assert_allclose(x.toarray(), array.toarray()['f0'])
+    assert_allclose(x.toarray() + 3, array.toarray()['g'])
+
+
+def test_array_eval():
+
+    x = sdb.ones(4)
+    q = sdb.afl.apply(x, 'g', 'f0 + 3').query
+    array = SciDBArray.from_query(sdb, q)
+    assert array.name == q
+
+    array.eval()
+    assert array.name != q
+
+    expected = array.toarray()
+    np.testing.assert_array_equal(expected, array.toarray())
+
+
+@pytest.mark.parametrize('n', [0, 1, 2, 5])
+def test_disambiguate(n):
+
+    arrays = [sdb.ones(4) for _ in range(n)]
+    arrays = disambiguate(*arrays)
+    visited = set()
+    for a in arrays:
+        for d in a.dim_names:
+            assert d not in visited
+            visited.add(d)
+        for a in a.att_names:
+            assert a not in visited
+            visited.add(a)
+
+
+def test_dismbiguate_ignores_uniques():
+    x = sdb.ones(4)
+    assert disambiguate(x)[0] is x
+
+    y = sdb.afl.build('<x:double>[i=0:3,10,0]', 0).eval()
+    z = sdb.afl.build('<y:double>[j=0:3,10,0]', 1).eval()
+    assert disambiguate(y, z) == (y, z)
