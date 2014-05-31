@@ -19,15 +19,15 @@ import abc
 import os
 import atexit
 import logging
+import csv
 
 from ._py3k_compat import urlopen, quote, HTTPError, iteritems, string_type
 
 import re
-import csv
 import numpy as np
 from .scidbarray import SciDBArray, SciDBDataShape, ArrayAlias, SDB_IND_TYPE
 from .errors import SHIM_ERROR_DICT
-from .utils import broadcastable, _is_query
+from .utils import broadcastable, _is_query, iter_record
 from .schema_utils import disambiguate
 
 __all__ = ['SciDBInterface', 'SciDBShimInterface', 'connect']
@@ -46,6 +46,31 @@ def _af(arr, ind):
     if not isinstance(arr, ArrayAlias):
         arr = ArrayAlias(arr)
     return "{{a.a{i}f}}".format(i=ind).format(a=arr)
+
+
+def _to_bytes(arr):
+    """
+    Convert a numpy array to a bytestring in SciDB's binary format
+    """
+    # very inefficient like this.
+
+    # easy case: no strings, SciDB format matches numpy format
+    if not any(np.issubdtype(t, np.character) for l, t in arr.dtype.descr):
+        return arr.tostring(order='C')
+
+    # some attributes are strings
+    result = []
+    for item in arr.ravel():
+        for datum in iter_record(item):
+            dtype = datum.dtype
+            if np.issubdtype(dtype, np.character):
+                sz = datum.itemsize + 1
+                prefix = np.int32(sz).tostring()
+                result.append(prefix + datum + '\x00')
+            else:
+                result.append(np.array(datum, dtype=dtype).tostring())
+    result = ''.join(result)
+    return result
 
 
 def _new_attribute_label(suggestion='val', *arrays):
@@ -765,7 +790,7 @@ class SciDBInterface(object):
         q = self.afl.quote
         A = np.asarray(A)
         instance_id = int(instance_id)
-        filename = q(self._upload_bytes(A.tostring(order='C')))
+        filename = q(self._upload_bytes(_to_bytes(A)))
         arr = self.new_array(A.shape, A.dtype, **kwargs)
         self.afl.load(arr, filename, instance_id,
                       q(arr.sdbtype.bytes_fmt)).eval(store=False)

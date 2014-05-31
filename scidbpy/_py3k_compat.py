@@ -20,9 +20,18 @@ else:
     _iteritems = "iteritems"
     from urllib2 import urlopen, quote, HTTPError
 
+
 def iteritems(D, **kwargs):
     """Return an iterator over the (key, value) pairs of a dictionary."""
     return iter(getattr(D, _iteritems)(**kwargs))
+
+
+def stringio(s):
+    if PYTHON3:
+        from io import BytesIO
+        return BytesIO(s.encode())
+    from cStringIO import StringIO
+    return StringIO(s)
 
 
 def genfromstr(s, **kwargs):
@@ -31,9 +40,4 @@ def genfromstr(s, **kwargs):
     This uses either StringIO or BytesIO, depending on whether we're on
     Python 2 or Python 3.
     """
-    if PYTHON3:
-        from io import BytesIO
-        return np.genfromtxt(BytesIO(s.encode()), **kwargs)
-    else:
-        from cStringIO import StringIO
-        return np.genfromtxt(StringIO(s), **kwargs)
+    return np.genfromtxt(stringio(s), **kwargs)

@@ -183,7 +183,7 @@ def test_reshape():
         Bnp = A.toarray().reshape(shape)
         assert_allclose(B.toarray(), Bnp)
 
-    for shape in [(3, 4), (2, 2, 3), (1, 3, 4)]:
+    for shape in [(3, 4), (2, 2, 3), (1, 3, 4), (1, 3, -1), (1, -1, 4)]:
         yield check_reshape, shape
 
 
@@ -615,3 +615,15 @@ def test_dismbiguate_ignores_uniques():
     y = sdb.afl.build('<x:double>[i=0:3,10,0]', 0).eval()
     z = sdb.afl.build('<y:double>[j=0:3,10,0]', 1).eval()
     assert disambiguate(y, z) == (y, z)
+
+
+def test_string_roundtrip():
+    def check(x):
+        assert_array_equal(x, sdb.wrap_array(sdb.from_array(x).name).toarray())
+
+    yield check, np.array(['a', 'bcd', "ef'"])
+    yield check, np.array([(0, 'a'), (1, 'bcd')], dtype='i4,S3')
+    yield check, np.array([(0, 'a', 3.0), (1, 'bcd', 5.0)],
+                          dtype='i4,S3,f4')
+    yield check, np.array(['a' * 500, 'b' * 20])
+    yield check, np.array(['abc', 'de\nf'])
