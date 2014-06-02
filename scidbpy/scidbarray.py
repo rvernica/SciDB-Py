@@ -5,16 +5,17 @@
 
 from __future__ import print_function
 import warnings
+import re
+import csv
 
 import numpy as np
-import re
 
 from copy import copy
 from .errors import SciDBError, SciDBForbidden
 
 # Numpy 1.7 meshgrid backport
 from .utils import meshgrid, slice_syntax, _is_query
-from ._py3k_compat import genfromstr, iteritems
+from ._py3k_compat import genfromstr, iteritems, stringio
 from .schema_utils import change_axis_schema
 
 __all__ = ["sdbtype", "SciDBArray", "SciDBDataShape"]
@@ -39,7 +40,45 @@ SDB_NP_TYPE_MAP = {'bool': _np_typename('bool'),
 NP_SDB_TYPE_MAP = dict((val, key)
                        for key, val in iteritems(SDB_NP_TYPE_MAP))
 
+
+def _sdb_type(np_type):
+    if np_type in NP_SDB_TYPE_MAP:
+        return NP_SDB_TYPE_MAP[np_type]
+    if np.issubdtype(np_type, np.character):
+        return 'string'
+
+    raise TypeError("Numpy dtype has no SciDB equivalent: %s" % np_type)
+
 SDB_IND_TYPE = 'int64'
+
+
+def _parse_csv_builtin(txt, dtype):
+    """
+    Convert a SciDB-output csv document into a NumPy array
+
+    Uses the builtin CSV module to handle string dtypes
+    """
+    # TODO: optional pandas version, for speed
+
+    if not any(np.issubdtype(t, np.character) for f, t in dtype.descr):
+        return genfromstr(txt, skip_header=1, delimiter=',', dtype=dtype)
+
+    buff = stringio(txt)
+    r = csv.reader(buff, delimiter=',', quotechar="'",
+                   escapechar='\\')
+    r = list(map(tuple, r))[1:]
+
+    # resize string dtypes to accommodate longest string
+    new_dtype = [f if not np.issubdtype(f[1], np.character)
+                 else (f[0], 'S%i' % max(len(row[i]) for row in r))
+                 for i, f in enumerate(dtype.descr)]
+    if len(new_dtype) == 1:
+        new_dtype = new_dtype[0][1]
+    dtype = np.dtype(new_dtype)
+
+    return np.array(r, dtype=dtype)
+
+_parse_csv = _parse_csv_builtin
 
 
 class sdbtype(object):
@@ -177,7 +216,7 @@ class sdbtype(object):
         # Hack: if we re-encode this as a dtype, then de-encode again, numpy
         #       will add default names where they are missing
         dtype = np.dtype(dtype).descr
-        pairs = ["{0}:{1}".format(d[0], NP_SDB_TYPE_MAP[d[1]]) for d in dtype]
+        pairs = ["{0}:{1}".format(d[0], _sdb_type(d[1])) for d in dtype]
         return '<{0}>'.format(','.join(pairs))
 
 
@@ -723,9 +762,7 @@ class SciDBArray(object):
                 raise ValueError("Fatal: unexpected array labels.")
 
             # convert the ASCII representation into a numpy record array
-            arr = np.atleast_1d(genfromstr(str_rep, delimiter=',',
-                                           skip_header=1,
-                                           dtype=full_dtype))
+            arr = np.atleast_1d(_parse_csv(str_rep, full_dtype))
 
             if transfer_bytes:
                 # replace parsed ASCII columns with more accurate bytes
@@ -737,13 +774,16 @@ class SciDBArray(object):
                         arr[name] = bytes_arr[name]
 
             if output == 'dense':
-                if self.ndim != 2:
-                    raise NotImplementedError("sparse to dense for ndim != 2")
-                from scipy import sparse
-                data = arr[full_dtype.names[2]]
-                ij = (arr[full_dtype.names[0]], arr[full_dtype.names[1]])
-                arr_coo = sparse.coo_matrix((data, ij), shape=self.shape)
-                arr = arr_coo.toarray()
+                result = np.zeros(self.shape, self.dtype)
+                coords = tuple([arr[d] for d in self.dim_names])
+
+                if len(self.att_names) == 1:
+                    result[coords] = arr[self.att_names[0]]
+                    return result
+
+                for att in self.att_names:
+                    result[att][coords] = arr[att]
+                return result
 
         else:
             if transfer_bytes:
@@ -753,8 +793,7 @@ class SciDBArray(object):
                 # transfer via ASCII.  Here we don't need the indices, so we
                 # use 'csv' output.
                 str_rep = self.interface._scan_array(self.name, n=0, fmt='csv')
-                arr = genfromstr(str_rep, delimiter=',', skip_header=1,
-                                 dtype=dtype).reshape(shape)
+                arr = _parse_csv(str_rep, dtype).reshape(shape)
 
             if output == 'sparse':
                 index_arrays = list(map(np.ravel,

@@ -4,7 +4,7 @@
 import numpy as np
 
 
-__all__ = ['meshgrid', 'broadcastable']
+__all__ = ['meshgrid', 'broadcastable', 'iter_record']
 
 
 # This is back-ported from numpy version 1.7
@@ -196,3 +196,18 @@ def _is_query(name_or_query):
     """
     if '(' in name_or_query:
         return True
+
+
+def iter_record(item):
+    """
+    Iterator over items in a single array record, or yield a scalar.
+
+    This provides a uniform way to iterate over each scalar item
+    in an array element, regardless of whether the array dtype
+    is a scalar or record
+    """
+    if item.dtype.fields is not None:
+        for i in item:
+            yield i
+    else:
+        yield item
