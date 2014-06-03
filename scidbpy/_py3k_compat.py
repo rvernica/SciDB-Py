@@ -15,10 +15,12 @@ if PYTHON3:
     from urllib.request import urlopen
     from urllib.error import HTTPError
     from urllib.parse import quote
+    from functools import reduce
 else:
     string_type = basestring
     _iteritems = "iteritems"
     from urllib2 import urlopen, quote, HTTPError
+    reduce = reduce
 
 
 def iteritems(D, **kwargs):

@@ -621,9 +621,9 @@ def test_string_roundtrip():
     def check(x):
         assert_array_equal(x, sdb.wrap_array(sdb.from_array(x).name).toarray())
 
-    yield check, np.array(['a', 'bcd', "ef'"])
+    yield check, np.array(['a', 'bcd', "ef'"], dtype='S')
     yield check, np.array([(0, 'a'), (1, 'bcd')], dtype='i4,S3')
     yield check, np.array([(0, 'a', 3.0), (1, 'bcd', 5.0)],
                           dtype='i4,S3,f4')
-    yield check, np.array(['a' * 500, 'b' * 20])
-    yield check, np.array(['abc', 'de\nf'])
+    yield check, np.array(['a' * 500, 'b' * 20], dtype='S')
+    yield check, np.array(['abc', 'de\nf'], dtype='S')

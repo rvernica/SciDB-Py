@@ -3,7 +3,7 @@
 # License: Simplified BSD, 2014
 # See LICENSE.txt for more information
 
-from __future__ import print_function
+from __future__ import print_function, division
 import warnings
 import re
 import csv
@@ -63,11 +63,10 @@ def _parse_csv_builtin(txt, dtype):
     if not any(np.issubdtype(t, np.character) for f, t in dtype.descr):
         return genfromstr(txt, skip_header=1, delimiter=',', dtype=dtype)
 
-    buff = stringio(txt)
+    buff = (t.decode() for t in stringio(txt))
     r = csv.reader(buff, delimiter=',', quotechar="'",
                    escapechar='\\')
     r = list(map(tuple, r))[1:]
-
     # resize string dtypes to accommodate longest string
     new_dtype = [f if not np.issubdtype(f[1], np.character)
                  else (f[0], 'S%i' % max(len(row[i]) for row in r))
@@ -1148,11 +1147,11 @@ class SciDBArray(object):
         if any(s == -1 for s in shape):
             n = np.prod([s for s in shape if s != -1])
             ntot = np.prod(self.shape)
-            if (ntot / n) * n != ntot:
+            if (ntot // n) * n != ntot:
                 raise ValueError("total size of new array "
                                  "must remain unchanged")
             shape = list(shape)
-            shape[shape.index(-1)] = ntot / n
+            shape[shape.index(-1)] = ntot // n
 
         if np.prod(shape) != np.prod(self.shape):
             raise ValueError("new shape is incompatible")
