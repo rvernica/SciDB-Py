@@ -6,7 +6,6 @@
 from __future__ import print_function, division
 import warnings
 import re
-import csv
 
 import numpy as np
 
@@ -15,7 +14,7 @@ from .errors import SciDBError, SciDBForbidden
 
 # Numpy 1.7 meshgrid backport
 from .utils import meshgrid, slice_syntax, _is_query
-from ._py3k_compat import genfromstr, iteritems, stringio
+from ._py3k_compat import genfromstr, iteritems, csv_reader
 from .schema_utils import change_axis_schema
 
 __all__ = ["sdbtype", "SciDBArray", "SciDBDataShape"]
@@ -62,11 +61,10 @@ def _parse_csv_builtin(txt, dtype):
 
     if not any(np.issubdtype(t, np.character) for f, t in dtype.descr):
         return genfromstr(txt, skip_header=1, delimiter=',', dtype=dtype)
-    buff = (t.decode('utf8') for t in stringio(txt))
 
-    r = csv.reader(buff, delimiter=',', quotechar="'",
-                   escapechar='\\')
-    r = list(map(tuple, r))[1:]
+    r = csv_reader(txt, delimiter=',', quotechar="'",
+                   escapechar='\\', skiplines=1)
+    r = list(map(tuple, r))
 
     # resize string dtypes to accommodate longest string
     new_dtype = [f if not np.issubdtype(f[1], np.character)
