@@ -21,7 +21,8 @@ import atexit
 import logging
 import csv
 
-from ._py3k_compat import urlopen, quote, HTTPError, iteritems, string_type
+from ._py3k_compat import (urlopen, quote, HTTPError,
+                           iteritems, string_type, reduce)
 
 import re
 import numpy as np
@@ -64,12 +65,13 @@ def _to_bytes(arr):
         for datum in iter_record(item):
             dtype = datum.dtype
             if np.issubdtype(dtype, np.character):
-                sz = datum.itemsize + 1
-                prefix = np.int32(sz).tostring()
-                result.append(prefix + datum + '\x00')
+                datum = datum.astype('U').tostring().decode('utf32').encode('utf8')
+                sz = len(datum) + 1
+                prefix = np.int32(sz).newbyteorder('<').tostring()
+                result.append(prefix + datum + b'\x00')
             else:
                 result.append(np.array(datum, dtype=dtype).tostring())
-    result = ''.join(result)
+    result = b''.join(result)
     return result
 
 
@@ -88,7 +90,7 @@ def _new_attribute_label(suggestion='val', *arrays):
         # find all labels of the form val_0, val_1, val_2 ... etc.
         # where `val` is replaced by suggestion
         R = re.compile(r'^{0}_(\d+)$'.format(suggestion))
-        nums = sum([map(int, R.findall(label)) for label in label_list], [])
+        nums = sum([list(map(int, R.findall(label))) for label in label_list], [])
 
         nums.append(-1)  # in case it's empty
         return '{0}_{1}'.format(suggestion, max(nums) + 1)

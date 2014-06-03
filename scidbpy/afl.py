@@ -7,6 +7,7 @@ import threading
 
 from . import SciDBArray
 from .afldb import operators
+from ._py3k_compat import string_type
 
 _mod = sys.modules[__name__]
 
@@ -31,7 +32,7 @@ def _format_operand(o):
 
     # awkward: commands like list need their strings to be single-quoted
     #          for now, this has to be done manually
-    if isinstance(o, basestring):
+    if isinstance(o, string_type):
         return o
 
     if isinstance(o, SciDBArray):

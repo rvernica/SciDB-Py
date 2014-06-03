@@ -3,10 +3,9 @@
 # License: Simplified BSD, 2014
 # See LICENSE.txt for more information
 
-from __future__ import print_function
+from __future__ import print_function, division
 import warnings
 import re
-import csv
 
 import numpy as np
 
@@ -15,7 +14,7 @@ from .errors import SciDBError, SciDBForbidden
 
 # Numpy 1.7 meshgrid backport
 from .utils import meshgrid, slice_syntax, _is_query
-from ._py3k_compat import genfromstr, iteritems, stringio
+from ._py3k_compat import genfromstr, iteritems, csv_reader
 from .schema_utils import change_axis_schema
 
 __all__ = ["sdbtype", "SciDBArray", "SciDBDataShape"]
@@ -35,7 +34,7 @@ SDB_NP_TYPE_MAP = {'bool': _np_typename('bool'),
                    'uint32': _np_typename('uint32'),
                    'uint64': _np_typename('uint64'),
                    'char': _np_typename('c'),
-                   'string': '|S100'}
+                   'string': '|U100'}
 
 NP_SDB_TYPE_MAP = dict((val, key)
                        for key, val in iteritems(SDB_NP_TYPE_MAP))
@@ -63,14 +62,13 @@ def _parse_csv_builtin(txt, dtype):
     if not any(np.issubdtype(t, np.character) for f, t in dtype.descr):
         return genfromstr(txt, skip_header=1, delimiter=',', dtype=dtype)
 
-    buff = stringio(txt)
-    r = csv.reader(buff, delimiter=',', quotechar="'",
-                   escapechar='\\')
-    r = list(map(tuple, r))[1:]
+    r = csv_reader(txt, delimiter=',', quotechar="'",
+                   escapechar='\\', skiplines=1)
+    r = list(map(tuple, r))
 
     # resize string dtypes to accommodate longest string
     new_dtype = [f if not np.issubdtype(f[1], np.character)
-                 else (f[0], 'S%i' % max(len(row[i]) for row in r))
+                 else (f[0], 'U%i' % max(len(row[i]) for row in r))
                  for i, f in enumerate(dtype.descr)]
     if len(new_dtype) == 1:
         new_dtype = new_dtype[0][1]
@@ -1148,11 +1146,11 @@ class SciDBArray(object):
         if any(s == -1 for s in shape):
             n = np.prod([s for s in shape if s != -1])
             ntot = np.prod(self.shape)
-            if (ntot / n) * n != ntot:
+            if (ntot // n) * n != ntot:
                 raise ValueError("total size of new array "
                                  "must remain unchanged")
             shape = list(shape)
-            shape[shape.index(-1)] = ntot / n
+            shape[shape.index(-1)] = ntot // n
 
         if np.prod(shape) != np.prod(self.shape):
             raise ValueError("new shape is incompatible")
