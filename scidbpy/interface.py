@@ -65,10 +65,9 @@ def _to_bytes(arr):
         for datum in iter_record(item):
             dtype = datum.dtype
             if np.issubdtype(dtype, np.character):
-                sz = datum.itemsize + 1
-                # XXX Does machine endianness matter here?
-                prefix = np.int32(sz).tostring()
-                datum = datum.tostring()
+                datum = datum.astype('U').tostring().decode('utf32').encode('utf8')
+                sz = len(datum) + 1
+                prefix = np.int32(sz).newbyteorder('<').tostring()
                 result.append(prefix + datum + b'\x00')
             else:
                 result.append(np.array(datum, dtype=dtype).tostring())

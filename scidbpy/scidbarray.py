@@ -35,7 +35,7 @@ SDB_NP_TYPE_MAP = {'bool': _np_typename('bool'),
                    'uint32': _np_typename('uint32'),
                    'uint64': _np_typename('uint64'),
                    'char': _np_typename('c'),
-                   'string': '|S100'}
+                   'string': '|U100'}
 
 NP_SDB_TYPE_MAP = dict((val, key)
                        for key, val in iteritems(SDB_NP_TYPE_MAP))
@@ -62,14 +62,15 @@ def _parse_csv_builtin(txt, dtype):
 
     if not any(np.issubdtype(t, np.character) for f, t in dtype.descr):
         return genfromstr(txt, skip_header=1, delimiter=',', dtype=dtype)
+    buff = (t.decode('utf8') for t in stringio(txt))
 
-    buff = (t.decode() for t in stringio(txt))
     r = csv.reader(buff, delimiter=',', quotechar="'",
                    escapechar='\\')
     r = list(map(tuple, r))[1:]
+
     # resize string dtypes to accommodate longest string
     new_dtype = [f if not np.issubdtype(f[1], np.character)
-                 else (f[0], 'S%i' % max(len(row[i]) for row in r))
+                 else (f[0], 'U%i' % max(len(row[i]) for row in r))
                  for i, f in enumerate(dtype.descr)]
     if len(new_dtype) == 1:
         new_dtype = new_dtype[0][1]
