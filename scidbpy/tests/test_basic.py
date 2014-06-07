@@ -642,6 +642,24 @@ def test_inequality_scalar():
         x = sdb.arange(10)
         xnp = x.toarray()
         assert_array_equal(op(x, 5).toarray(), op(xnp, 5))
+        assert_array_equal(op(5, x).toarray(), op(5, xnp))
 
     for op in (lt, le, eq, gt, ge, ne):
         yield check, op
+
+
+def test_inequality_multiattribute():
+
+    x = sdb.arange(5)
+    x = sdb.afl.apply(x, 'y', 'f0+1')
+
+    with pytest.raises(TypeError):
+        x < 5
+
+
+def test_inequality_filter():
+
+    x = sdb.arange(15)
+    y = np.arange(15)
+
+    assert_array_equal(x[x < 5], y[y < 5])

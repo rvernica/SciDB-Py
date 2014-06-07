@@ -1068,6 +1068,10 @@ class SciDBArray(object):
         return self.interface._apply_func(self, 'abs')
 
     def _boolean_compare(self, operator, other):
+        if len(self.att_names) > 1:
+            raise TypeError("Inequality comparison not supported for "
+                            "multi-attribute arrays")
+
         f = self.afl
         expr = 'iif({att} {op} {other}, 1, 0)'.format(att=self.att(0),
                                                       other=other,
