@@ -633,3 +633,15 @@ def test_string_roundtrip():
     yield check, np.array([(0, 'a', 3.0), (1, 'bcd', 5.0)],
                           dtype='i4,S3,f4')
     yield check, np.array([(0, u'a'), (1, u'aßc')], dtype='i4,U3')
+
+
+def test_inequality_scalar():
+    from operator import lt, le, eq, gt, ge, ne
+
+    def check(op):
+        x = sdb.arange(10)
+        xnp = x.toarray()
+        assert_array_equal(op(x, 5).toarray(), op(xnp, 5))
+
+    for op in (lt, le, eq, gt, ge, ne):
+        yield check, op

@@ -13,7 +13,7 @@ from copy import copy
 from .errors import SciDBError, SciDBForbidden
 
 # Numpy 1.7 meshgrid backport
-from .utils import meshgrid, slice_syntax, _is_query
+from .utils import meshgrid, slice_syntax, _is_query, _new_attribute_label
 from ._py3k_compat import genfromstr, iteritems, csv_reader
 from .schema_utils import change_axis_schema
 
@@ -1066,6 +1066,32 @@ class SciDBArray(object):
 
     def __abs__(self):
         return self.interface._apply_func(self, 'abs')
+
+    def _boolean_compare(self, operator, other):
+        f = self.afl
+        expr = 'iif({att} {op} {other}, 1, 0)'.format(att=self.att(0),
+                                                      other=other,
+                                                      op=operator)
+        att = _new_attribute_label('hit', self)
+        return f.papply(self, att, expr)
+
+    def __lt__(self, other):
+        return self._boolean_compare('<', other)
+
+    def __le__(self, other):
+        return self._boolean_compare('<=', other)
+
+    def __eq__(self, other):
+        return self._boolean_compare('=', other)
+
+    def __ne__(self, other):
+        return self._boolean_compare('!=', other)
+
+    def __ge__(self, other):
+        return self._boolean_compare('>=', other)
+
+    def __gt__(self, other):
+        return self._boolean_compare('>', other)
 
     def transpose(self, *axes):
         """Permute the dimensions of an array.

@@ -211,3 +211,24 @@ def iter_record(item):
             yield i
     else:
         yield item
+
+
+def _new_attribute_label(suggestion='val', *arrays):
+    """Return a new attribute label
+
+    The label will not clash with any attribute or dimension labels in the given arrays
+    """
+    label_list = sum([[dim[0] for dim in arr.sdbtype.full_rep]
+                      for arr in arrays], [])
+    label_list += sum([a.dim_names for a in arrays], [])
+
+    if suggestion not in label_list:
+        return suggestion
+    else:
+        # find all labels of the form val_0, val_1, val_2 ... etc.
+        # where `val` is replaced by suggestion
+        R = re.compile(r'^{0}_(\d+)$'.format(suggestion))
+        nums = sum([list(map(int, R.findall(label))) for label in label_list], [])
+
+        nums.append(-1)  # in case it's empty
+        return '{0}_{1}'.format(suggestion, max(nums) + 1)
