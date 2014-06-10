@@ -14,7 +14,7 @@ from .errors import SciDBError, SciDBForbidden
 
 # Numpy 1.7 meshgrid backport
 from .utils import meshgrid, slice_syntax, _is_query, _new_attribute_label
-from ._py3k_compat import genfromstr, iteritems, csv_reader
+from ._py3k_compat import genfromstr, iteritems, csv_reader, string_type
 from .schema_utils import change_axis_schema
 
 __all__ = ["sdbtype", "SciDBArray", "SciDBDataShape"]
@@ -41,10 +41,11 @@ NP_SDB_TYPE_MAP = dict((val, key)
 
 
 def _sdb_type(np_type):
-    if np_type in NP_SDB_TYPE_MAP:
-        return NP_SDB_TYPE_MAP[np_type]
     if np.issubdtype(np_type, np.character):
         return 'string'
+
+    if np_type in NP_SDB_TYPE_MAP:
+        return NP_SDB_TYPE_MAP[np_type]
 
     raise TypeError("Numpy dtype has no SciDB equivalent: %s" % np_type)
 
@@ -223,12 +224,26 @@ class SciDBDataShape(object):
     """Object to store SciDBArray data type and shape"""
 
     def __init__(self, shape, typecode, dim_names=None,
-                 chunk_size=1000, chunk_overlap=0):
+                 chunk_size=1000, chunk_overlap=0, dim_low=None,
+                 dim_high=None):
+
         # Process array shape
-        try:
-            self.shape = tuple(shape)
-        except:
-            self.shape = (shape,)
+        if shape is not None:
+            try:
+                shape = tuple(shape)
+            except:
+                shape = (shape,)
+            dim_low = [0] * len(shape)
+            dim_high = [s - 1 for s in shape]
+
+        if dim_low is None or dim_high is None:
+            raise ValueError("Must specify dim_low and dim_high, or shape")
+
+        dim_low = tuple(map(lambda x: None if x == '*' else int(x), dim_low))
+        dim_high = tuple(map(lambda x: None if x == '*' else int(x), dim_high))
+
+        self.dim_low = dim_low
+        self.dim_high = dim_high
 
         # process array typecode: either a scidb schema or a numpy dtype
         self.sdbtype = sdbtype(typecode)
@@ -249,23 +264,25 @@ class SciDBDataShape(object):
             dim_names = ['i{0}'.format(i)
                          for i in range(start, start + len(self.shape))]
 
-        if len(dim_names) != len(self.shape):
+        if len(dim_names) != len(self.dim_high):
             raise ValueError("length of dim_names should match "
                              "number of dimensions")
         self.dim_names = dim_names
 
+        ndim = len(dim_names)
+
         # process chunk sizes.  Either an integer, or a list of integers
         if not hasattr(chunk_size, '__len__'):
-            chunk_size = [chunk_size for s in self.shape]
-        if len(chunk_size) != len(self.shape):
+            chunk_size = [chunk_size] * ndim
+        if len(chunk_size) != ndim:
             raise ValueError("length of chunk_size should match "
                              "number of dimensions")
         self.chunk_size = chunk_size
 
         # process chunk overlaps.  Either an integer, or a list of integers
         if not hasattr(chunk_overlap, '__len__'):
-            chunk_overlap = [chunk_overlap for s in self.shape]
-        if len(chunk_overlap) != len(self.shape):
+            chunk_overlap = [chunk_overlap] * ndim
+        if len(chunk_overlap) != ndim:
             raise ValueError("length of chunk_overlap should match "
                              "number of dimensions")
         self.chunk_overlap = chunk_overlap
@@ -310,15 +327,16 @@ class SciDBDataShape(object):
             raise ValueError("no match for schema: {0}".format(schema))
 
         # split dshapes.  TODO: correctly handle '*' dimensions
-        #                       handle non-integer dimensions?
-        R = re.compile(r'(\S*?)=(\S*?):(\S*?),(\S*?),(\S*?),')
+        R = re.compile(r'(\S*?)=(\S*?):([\S\*]*?),(\S*?),(\S*?),')
         dshapes = R.findall(dshapes + ',')  # note added trailing comma
 
-        return cls(shape=[int(d[2]) - int(d[1]) + 1 for d in dshapes],
+        return cls(None,
                    typecode=schema,
                    dim_names=[d[0] for d in dshapes],
                    chunk_size=[int(d[3]) for d in dshapes],
-                   chunk_overlap=[int(d[4]) for d in dshapes])
+                   chunk_overlap=[int(d[4]) for d in dshapes],
+                   dim_low=[d[1] for d in dshapes],
+                   dim_high=[d[2] for d in dshapes])
 
     @classmethod
     def from_query(cls, interface, query):
@@ -337,6 +355,13 @@ class SciDBDataShape(object):
         schema = interface._show_array(query)
         schema = schema.split("'")[1]
         return cls.from_schema(schema)
+
+    @property
+    def shape(self):
+        if None in self.dim_low or None in self.dim_high:
+            return None
+
+        return tuple(h - l + 1 for l, h in zip(self.dim_low, self.dim_high))
 
     @property
     def schema(self):
@@ -786,7 +811,10 @@ class SciDBArray(object):
         else:
             if transfer_bytes:
                 # reshape bytes_array to the correct shape
-                arr = bytes_arr.reshape(shape)
+                try:
+                    arr = bytes_arr.reshape(shape)
+                except ValueError:
+                    arr = bytes_arr
             else:
                 # transfer via ASCII.  Here we don't need the indices, so we
                 # use 'csv' output.
@@ -957,6 +985,10 @@ class SciDBArray(object):
         # TODO: allow newaxis to be passed
 
         # slice can be either a tuple/iterable or a single integer/slice
+
+        if isinstance(indices, SciDBArray) and indices.shape == self.shape:
+            return self._boolean_filter(indices)
+
         try:
             indices = tuple(indices)
         except TypeError:
@@ -1068,16 +1100,42 @@ class SciDBArray(object):
         return self.interface._apply_func(self, 'abs')
 
     def _boolean_compare(self, operator, other):
+        """
+        Build a new column based on an inequality test
+        """
+
         if len(self.att_names) > 1:
             raise TypeError("Inequality comparison not supported for "
                             "multi-attribute arrays")
 
         f = self.afl
-        expr = 'iif({att} {op} {other}, 1, 0)'.format(att=self.att(0),
-                                                      other=other,
-                                                      op=operator)
-        att = _new_attribute_label('hit', self)
+
+        # wrap strings for convenience
+        if isinstance(other, string_type) and not other.startswith("'"):
+            other = "'%s'" % other
+
+        expr = '{att} {op} {other}'.format(att=self.att(0),
+                                           other=other,
+                                           op=operator)
+        att = _new_attribute_label('condition', self)
         return f.papply(self, att, expr)
+
+    def _boolean_filter(self, mask):
+        """
+        Extract flattened array of elements in self where mask is true.
+
+        Equivalent to numpy mask filtering: x[mask]
+        """
+        if len(self.att_names) != 1 or len(mask.att_names) != 1:
+            raise TypeError("Boolean indexing not supported for "
+                            "multi-attribute arrays")
+
+        f = self.afl
+        joined = f.join(self, mask)
+        expr = '%s=TRUE' % joined.att_names[-1]
+        idx = _new_attribute_label('__idx')
+        q = f.unpack(f.project(f.filter(joined, expr), joined.att_names[0]), idx)
+        return f.project(q, joined.att_names[0])
 
     def __lt__(self, other):
         return self._boolean_compare('<', other)

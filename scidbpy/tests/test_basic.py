@@ -648,6 +648,19 @@ def test_inequality_scalar():
         yield check, op
 
 
+def test_inequality_string():
+    x = np.array(['a', 'b', 'cdef'])
+    y = sdb.from_array(x)
+    assert_array_equal((y == 'b').toarray(), [False, True, False])
+    assert_array_equal((y == "'b'").toarray(), [False, True, False])
+
+
+def test_inequality_char():
+    x = np.array(['a', 'b', 'c'])
+    y = sdb.from_array(x)
+    assert_array_equal((y == 'b').toarray(), [False, True, False])
+
+
 def test_inequality_multiattribute():
 
     x = sdb.arange(5)
@@ -659,7 +672,10 @@ def test_inequality_multiattribute():
 
 def test_inequality_filter():
 
-    x = sdb.arange(15)
-    y = np.arange(15)
+    def check(y):
+        x = sdb.from_array(y)
+        assert_array_equal((x[x < 5]).toarray(), y[y < 5])
 
-    assert_array_equal(x[x < 5], y[y < 5])
+    yield check, np.arange(12)
+    yield check, np.arange(12).reshape(3, 4)
+    yield check, np.arange(12).astype(np.float)
