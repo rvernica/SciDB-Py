@@ -2,6 +2,7 @@
 
 # License: Simplified BSD, 2014
 # See LICENSE.txt for more information
+from operator import lt, le, eq, gt, ge, ne
 
 import pytest
 import numpy as np
@@ -635,47 +636,105 @@ def test_string_roundtrip():
     yield check, np.array([(0, u'a'), (1, u'aßc')], dtype='i4,U3')
 
 
-def test_inequality_scalar():
-    from operator import lt, le, eq, gt, ge, ne
+class TestInequality(object):
 
-    def check(op):
-        x = sdb.arange(10)
+    def test_scalar(self):
+
+        def check(op):
+            x = sdb.arange(10)
+            xnp = x.toarray()
+            assert_array_equal(op(x, 5).toarray(), op(xnp, 5))
+            assert_array_equal(op(5, x).toarray(), op(5, xnp))
+
+        for op in (lt, le, eq, gt, ge, ne):
+            yield check, op
+
+    def test_string(self):
+        x = np.array(['a', 'b', 'cdef'])
+        y = sdb.from_array(x)
+        assert_array_equal((y == 'b').toarray(), [False, True, False])
+        assert_array_equal((y == "'b'").toarray(), [False, True, False])
+
+    def test_char(self):
+        x = np.array(['a', 'b', 'c'])
+        y = sdb.from_array(x)
+        assert_array_equal((y == 'b').toarray(), [False, True, False])
+
+    def test_multiattribute(self):
+
+        x = sdb.arange(5)
+        x = sdb.afl.apply(x, 'y', 'f0+1')
+
+        with pytest.raises(TypeError):
+            x < 5
+
+    def test_array(self):
+
+        x = sdb.random(10)
+        y = sdb.random(10)
+
         xnp = x.toarray()
-        assert_array_equal(op(x, 5).toarray(), op(xnp, 5))
-        assert_array_equal(op(5, x).toarray(), op(5, xnp))
+        ynp = y.toarray()
 
-    for op in (lt, le, eq, gt, ge, ne):
-        yield check, op
+        for op in (lt, le, eq, gt, ge, ne):
+            yield assert_array_equal, op(xnp, ynp), op(x, y).toarray()
 
+    def test_numpy_array(self):
+        x = sdb.random(10)
+        y = np.random.random(10)
+        xnp = x.toarray()
 
-def test_inequality_string():
-    x = np.array(['a', 'b', 'cdef'])
-    y = sdb.from_array(x)
-    assert_array_equal((y == 'b').toarray(), [False, True, False])
-    assert_array_equal((y == "'b'").toarray(), [False, True, False])
-
-
-def test_inequality_char():
-    x = np.array(['a', 'b', 'c'])
-    y = sdb.from_array(x)
-    assert_array_equal((y == 'b').toarray(), [False, True, False])
+        for op in (lt, le, eq, gt, ge, ne):
+            yield assert_array_equal, op(x, y).toarray(), op(xnp, y)
 
 
-def test_inequality_multiattribute():
+class TestBooleanIndexing(object):
 
-    x = sdb.arange(5)
-    x = sdb.afl.apply(x, 'y', 'f0+1')
+    def test_inequality_filter(self):
 
-    with pytest.raises(TypeError):
-        x < 5
+        def check(y):
+            x = sdb.from_array(y)
+            assert_array_equal((x[x < 5]).toarray(), y[y < 5])
 
+        yield check, np.arange(12)
+        yield check, np.arange(12).reshape(3, 4)
+        yield check, np.arange(12).astype(np.float)
 
-def test_inequality_filter():
+    def test_size_mismatch(self):
 
-    def check(y):
-        x = sdb.from_array(y)
-        assert_array_equal((x[x < 5]).toarray(), y[y < 5])
+        with pytest.raises(ValueError) as exc:
+            x = sdb.arange(5)
+            y = sdb.from_array(np.array([True, False]))
+            x[y]
 
-    yield check, np.arange(12)
-    yield check, np.arange(12).reshape(3, 4)
-    yield check, np.arange(12).astype(np.float)
+        assert exc.value.args[0] == 'Shape of mask does not match array: (2,) vs (5,)'
+
+    def test_numpy_boolean_mask(self):
+
+        x = sdb.arange(10)
+        y = np.arange(10) > 8
+
+        assert_array_equal(x[y].toarray(), [9])
+
+    def test_multiattribute(self):
+
+        x = sdb.arange(5)
+        x = sdb.afl.apply(x, 'y', 'f0+1')
+
+        xnp = x.toarray()
+        mnp = np.arange(5) > 3
+
+        m = sdb.from_array(mnp)
+
+        assert_array_equal(xnp[mnp], x[m].toarray())
+
+    def test_name_collisions(self):
+        x = sdb.arange(5)
+        x = sdb.afl.apply(x, 'condition', 'f0+1', '__idx', 'f0+2')
+
+        xnp = x.toarray()
+        mnp = np.arange(5) > 3
+
+        m = sdb.from_array(mnp)
+
+        assert_array_equal(xnp[mnp], x[m].toarray())

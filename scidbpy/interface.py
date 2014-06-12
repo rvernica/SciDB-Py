@@ -174,8 +174,7 @@ class SciDBInterface(object):
                     array.reap()
                 except:
                     pass
-                finally:
-                    self._created.remove(array)
+        self._created = []
 
     def _db_array_name(self):
         """Return a unique array name for a new array on the database"""

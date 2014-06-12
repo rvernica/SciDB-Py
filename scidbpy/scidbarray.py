@@ -986,7 +986,11 @@ class SciDBArray(object):
 
         # slice can be either a tuple/iterable or a single integer/slice
 
-        if isinstance(indices, SciDBArray) and indices.shape == self.shape:
+        if isinstance(indices, SciDBArray):
+            return self._boolean_filter(indices)
+
+        if isinstance(indices, np.ndarray) and indices.dtype == np.bool:
+            indices = self.interface.from_array(indices)
             return self._boolean_filter(indices)
 
         try:
@@ -1103,6 +1107,11 @@ class SciDBArray(object):
         """
         Build a new column based on an inequality test
         """
+        if isinstance(other, np.ndarray):
+            other = self.interface.from_array(other)
+
+        if isinstance(other, SciDBArray):
+            return self._boolean_compare_array(operator, other)
 
         if len(self.att_names) > 1:
             raise TypeError("Inequality comparison not supported for "
@@ -1120,22 +1129,51 @@ class SciDBArray(object):
         att = _new_attribute_label('condition', self)
         return f.papply(self, att, expr)
 
+    def _boolean_compare_array(self, operator, other):
+        """
+        Test operator(self, other), where other is a SciDBArray
+        """
+        from .schema_utils import disambiguate
+
+        if len(self.att_names) > 1 or len(other.att_names) > 1:
+            raise TypeError("Inequality comparison not supported for "
+                            "multi-attribute arrays")
+
+        if self.shape != other.shape:
+            raise ValueError("Array shapes do not match")
+
+        self, other = disambiguate(self, other)
+
+        f = self.afl
+        joined = f.join(self, other)
+        att = _new_attribute_label('condition', joined)
+        expr = "{self} {op} {other}".format(self=self.att_names[0],
+                                            op=operator,
+                                            other=other.att_names[0])
+        return f.papply(joined, att, expr)
+
     def _boolean_filter(self, mask):
         """
         Extract flattened array of elements in self where mask is true.
 
         Equivalent to numpy mask filtering: x[mask]
         """
-        if len(self.att_names) != 1 or len(mask.att_names) != 1:
-            raise TypeError("Boolean indexing not supported for "
-                            "multi-attribute arrays")
+        from .schema_utils import disambiguate
+
+        if mask.shape != self.shape:
+            raise ValueError("Shape of mask does not match array: %s vs %s" %
+                             (mask.shape, self.shape))
+
+        if len(mask.att_names) != 1:
+            raise TypeError("Boolean mask must have a single attribute")
 
         f = self.afl
+        self, mask = disambiguate(self, mask)
         joined = f.join(self, mask)
-        expr = '%s=TRUE' % joined.att_names[-1]
-        idx = _new_attribute_label('__idx')
-        q = f.unpack(f.project(f.filter(joined, expr), joined.att_names[0]), idx)
-        return f.project(q, joined.att_names[0])
+        expr = '%s=TRUE' % mask.att_names[0]
+        idx = _new_attribute_label('__idx', self, mask)
+        return f.project(f.unpack(f.filter(joined, expr), idx),
+                         *self.att_names)
 
     def __lt__(self, other):
         return self._boolean_compare('<', other)
@@ -1590,7 +1628,6 @@ def _axis_filter(array, mask, axis):
         The axis of array along which to apply the mask. The shape
         of array along this axis must be the length of mask
     """
-    from .interface import _new_attribute_label
 
     f = array.afl
 
