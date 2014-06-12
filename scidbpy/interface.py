@@ -28,7 +28,7 @@ import re
 import numpy as np
 from .scidbarray import SciDBArray, SciDBDataShape, ArrayAlias, SDB_IND_TYPE
 from .errors import SHIM_ERROR_DICT
-from .utils import broadcastable, _is_query, iter_record
+from .utils import broadcastable, _is_query, iter_record, _new_attribute_label
 from .schema_utils import disambiguate
 
 __all__ = ['SciDBInterface', 'SciDBShimInterface', 'connect']
@@ -73,27 +73,6 @@ def _to_bytes(arr):
                 result.append(np.array(datum, dtype=dtype).tostring())
     result = b''.join(result)
     return result
-
-
-def _new_attribute_label(suggestion='val', *arrays):
-    """Return a new attribute label
-
-    The label will not clash with any attribute or dimension labels in the given arrays
-    """
-    label_list = sum([[dim[0] for dim in arr.sdbtype.full_rep]
-                      for arr in arrays], [])
-    label_list += sum([a.dim_names for a in arrays], [])
-
-    if suggestion not in label_list:
-        return suggestion
-    else:
-        # find all labels of the form val_0, val_1, val_2 ... etc.
-        # where `val` is replaced by suggestion
-        R = re.compile(r'^{0}_(\d+)$'.format(suggestion))
-        nums = sum([list(map(int, R.findall(label))) for label in label_list], [])
-
-        nums.append(-1)  # in case it's empty
-        return '{0}_{1}'.format(suggestion, max(nums) + 1)
 
 
 class SciDBInterface(object):
@@ -195,8 +174,7 @@ class SciDBInterface(object):
                     array.reap()
                 except:
                     pass
-                finally:
-                    self._created.remove(array)
+        self._created = []
 
     def _db_array_name(self):
         """Return a unique array name for a new array on the database"""
