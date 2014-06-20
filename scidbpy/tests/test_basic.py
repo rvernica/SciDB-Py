@@ -186,7 +186,7 @@ def test_reshape():
         Bnp = A.toarray().reshape(shape)
         assert_allclose(B.toarray(), Bnp)
 
-    for shape in [(3, 4), (2, 2, 3), (1, 3, 4), (1, 3, -1), (1, -1, 4)]:
+    for shape in [(3, 4), (2, 2, 3), (1, 3, 4), (1, 3, -1), (1, -1, 4), 12]:
         yield check_reshape, shape
 
 
@@ -634,6 +634,34 @@ def test_string_roundtrip():
     yield check, np.array([(0, 'a', 3.0), (1, 'bcd', 5.0)],
                           dtype='i4,S3,f4')
     yield check, np.array([(0, u'a'), (1, u'aßc')], dtype='i4,U3')
+
+
+def test_cumsum_cumprod():
+
+    def check(x, axis):
+        xnp = x.cumsum(axis)
+        xsdb = sdb.from_array(x).cumsum(axis).toarray()
+        assert_array_equal(xnp, xsdb)
+
+        xnp = x.cumprod(axis)
+        xsdb = sdb.from_array(x).cumprod(axis).toarray()
+        assert_array_equal(xnp, xsdb)
+
+    x = np.random.random((3, 4))
+    for axis in [None, 0, 1]:
+        yield check, x, axis
+
+
+def test_cumulate():
+    x = sdb.arange(4)
+    assert_array_equal(x.cumulate("sum(f0)").toarray(), [0, 1, 3, 6])
+
+    x = sdb.arange(4).reshape((2, 2))
+    expected = np.array([[0, 1], [2, 5]])
+    assert_array_equal(x.cumulate("sum(f0)", 1).toarray(), expected)
+
+    expected = np.array([[0, 1], [2, 4]])
+    assert_array_equal(x.cumulate("sum(f0)", 0).toarray(), expected)
 
 
 class TestInequality(object):
