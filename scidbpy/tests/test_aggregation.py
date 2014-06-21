@@ -9,6 +9,10 @@ import numpy as np
 sdb = connect()
 
 
+def teardown_function(function):
+    sdb.reap()
+
+
 class TestHistogram(object):
 
     def setup_method(self, method):

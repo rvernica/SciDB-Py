@@ -459,6 +459,20 @@ class SciDBArray(object):
         self.name = name
         self.persistent = persistent
 
+    @property
+    def persistent(self):
+        """ Controls whether the array is deleted when
+        the database is reaped
+        """
+        return self.name in self.interface._persistent
+
+    @persistent.setter
+    def persistent(self, value):
+        if value:
+            self.interface._persistent.add(self.name)
+        elif self.name in self.interface._persistent:
+            self.interface._persistent.remove(self.name)
+
     @classmethod
     def from_query(cls, interface, query):
         """
@@ -475,7 +489,8 @@ class SciDBArray(object):
         --------
         array : SciDBArray
         """
-        return cls(None, interface, query)
+        result = cls(None, interface, query)
+        return result
 
     @property
     def afl(self):
@@ -1249,7 +1264,6 @@ class SciDBArray(object):
                                            chunk_size=chunk_size,
                                            chunk_overlap=chunk_overlap,
                                            dim_names=dim_names)
-            arr.persistent = True
             self.afl.redimension_store(self, arr).eval(store=False)
         return arr
 

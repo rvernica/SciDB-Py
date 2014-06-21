@@ -2,8 +2,6 @@
 # See LICENSE.txt for more information
 
 import pytest
-
-from mock import MagicMock
 import numpy as np
 
 from scidbpy import connect
@@ -11,7 +9,10 @@ from scidbpy.afl import _format_operand
 
 sdb = connect()
 afl = sdb.afl
-ARR = sdb.ones((4))
+
+
+def teardown_function(function):
+    sdb.reap()
 
 # create_array doxygen is malformed in SciDB 14.
 
@@ -32,24 +33,28 @@ def test_name():
 class TestBasicUse(object):
 
     def test_query(self):
+        ARR = sdb.ones((4))
         assert afl.normalize(ARR).query == "normalize(%s)" % ARR.name
 
     def test_result(self):
+        ARR = sdb.ones((4))
         s = afl.normalize(ARR)
         expected = np.ones(4) / 2
         np.testing.assert_array_almost_equal(s.toarray(), expected)
 
     def test_results_cached(self):
+        ARR = sdb.ones((4))
         s = afl.normalize(ARR)
         s.eval() is s.eval()
 
     def test_eval_nostore(self):
+        ARR = sdb.ones((4))
         s = afl.normalize(ARR)
-        s.interface = MagicMock()
         s.eval(store=False)
-        s.interface._execute_query.assert_called_once_with(s.query)
+        assert s.name not in sdb.list_arrays()
 
     def test_eval_output(self):
+        ARR = sdb.ones((4))
         s = afl.normalize(ARR)
         out = sdb.new_array()
         result = s.eval(out=out)
@@ -72,12 +77,15 @@ class TestFormatOperands(object):
         assert _format_operand(3) == '3'
 
     def test_scidbarray_givnen_by_name(self):
+        ARR = sdb.ones((4))
         assert _format_operand(ARR) == ARR.name
 
     def test_expression_given_by_query(self):
+        ARR = sdb.ones((4))
         assert _format_operand(afl.normalize(ARR)) == "normalize(%s)" % ARR.name
 
     def test_expression_given_by_result_name_if_evaluated(self):
+        ARR = sdb.ones((4))
 
         exp = afl.normalize(ARR)
         exp.eval()
