@@ -1272,6 +1272,8 @@ class SciDBArray(object):
         arr : SciDBArray
             new array of the specified shape
         """
+        if isinstance(shape, int):
+            shape = (shape,)
 
         # handle -1s (see :meth:`numpy.reshape`)
         if any(s == -1 for s in shape):

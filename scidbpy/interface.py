@@ -924,6 +924,22 @@ class SciDBInterface(object):
         """Element-wise base-10 logarithm"""
         return self._apply_func(A, 'log10')
 
+    def sqrt(self, A):
+        """Element-wise square root"""
+        return self._apply_func(A, 'sqrt')
+
+    def ceil(self, A):
+        """Element-wise ceiling function"""
+        return self._apply_func(A, 'ceil')
+
+    def floor(self, A):
+        """Element-wise floor function"""
+        return self._apply_func(A, 'floor')
+
+    def isnan(self, A):
+        """Element-wise nan test function"""
+        return self._apply_func(A, 'is_nan')
+
     def min(self, A, index=None, scidb_syntax=False):
         """
         Array or axis minimum.

@@ -345,20 +345,19 @@ def test_abs():
     assert_allclose(B.toarray(), abs(A.toarray() - 1))
 
 
-def test_transcendentals():
+def test_elementwise():
     def np_op(op):
         D = dict(asin='arcsin', acos='arccos', atan='arctan')
         return D.get(op, op)
 
-    A = sdb.random((5, 5))
-
     def check_op(op):
+        A = sdb.random((5, 5))
         C = getattr(sdb, op)(A)
         C_np = getattr(np, np_op(op))(A.toarray())
         assert_allclose(C.toarray(), C_np, rtol=RTOL)
 
     for op in ['sin', 'cos', 'tan', 'asin', 'acos', 'atan',
-               'exp', 'log', 'log10']:
+               'exp', 'log', 'log10', 'sqrt', 'ceil', 'floor', 'isnan']:
         yield check_op, op
 
 
