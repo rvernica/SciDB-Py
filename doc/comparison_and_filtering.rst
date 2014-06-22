@@ -47,6 +47,28 @@ whose elements correspond to the True locations in the mask::
     array([ 0.84173237,  0.96347301,  0.94962912,  0.74852295,  0.88262646,
             0.93622554])
 
+Extracting values along a particular axis
+-----------------------------------------
+
+Use the :meth:`SciDBArray.compress` method to extract row or column subsets of an array. For example, to extract all rows where
+the sum across all columns exceeds a threshold::
+
+   In [3]: x = sdb.random((3,4))
+
+   In [4]: x.toarray()
+   Out[4]:
+   array([[ 0.10111977,  0.5511177 ,  0.49532397,  0.4213646 ],
+          [ 0.3812068 ,  0.97679566,  0.20473656,  0.40256096],
+          [ 0.2387294 ,  0.88714084,  0.01064819,  0.48275173]])
+
+   In [5]: x.mean(1).toarray()
+   Out[5]: array([ 0.39223151,  0.491325  ,  0.40481754])
+
+   In [6]: x.compress(x.mean(1) > 0.4, axis=0).toarray()
+   Out[6]:
+   array([[ 0.3812068 ,  0.97679566,  0.20473656,  0.40256096],
+          [ 0.2387294 ,  0.88714084,  0.01064819,  0.48275173]])
+
 
 Aggregation based on masked values
 ----------------------------------
@@ -61,4 +83,8 @@ two aggregate calls::
     mask = x < 0.5
     x[mask].sum()
     x[~mask].sum()
+
+Comparison with SciDB-R
+-----------------------
+See `this page <https://github.com/Paradigm4/SciDBR/wiki/Comparing-and-filtering-values>`_ for SciDB-R's syntax for comparing and filtering arrays.
 

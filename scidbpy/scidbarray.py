@@ -1714,64 +1714,62 @@ class SciDBArray(object):
         sums = ", ".join(sums)
         return self.afl.cumulate(self, sums, axis)
 
+    def compress(self, mask, axis=0):
+        """
+        Extract a subset of entries along a given axis,
+        where an input mask array is non-null
 
-def _axis_filter(array, mask, axis):
-    """
-    Extract a subset of entries along a given mask,
-    where an input mask array is non-null
+        Parameters
+        ----------
+        array : SciDBArray
+            The array to filter
+        mask : SciDBArray
+            A 1-dimensional SciDBArray, whose non-null values indicate
+            the entries to retain
+        axis : int
+            The axis of array along which to apply the mask. The shape
+            of array along this axis must be the length of mask
+        """
+        f = self.afl
 
-    Parameters
-    ----------
-    array : SciDBArray
-        The array to filter
-    mask : SciDBArray
-        A 1-dimensional SciDBArray, whose non-null values indicate
-        the entries to retain
-    axis : int
-        The axis of array along which to apply the mask. The shape
-        of array along this axis must be the length of mask
-    """
+        if mask.sdbtype.full_rep[0][1] == 'bool':
+            mask = f.filter(mask, "%s=TRUE" % mask.att_names[0])
 
-    f = array.afl
+        dim = self.dim_names[axis]
+        chunk = self.datashape.chunk_size[axis]
+        overlap = self.datashape.chunk_overlap[axis]
+        sz = self.shape[axis]
+        ct = int(f.aggregate(mask, 'count(*)').eval()[0])
+        if ct == 0:
+            raise ValueError("Cannot discard all elements of array")
 
-    # for now, force evaulation of AFL
-    # XXX remove this once we support deferred arrays
-    if hasattr(mask, 'eval'):
-        mask = mask.eval()
+        new_att = _new_attribute_label(dim, mask)
+        idx_att = _new_attribute_label(new_att + '_0', mask)
 
-    dim = array.dim_names[axis]
-    chunk = array.datashape.chunk_size[axis]
-    overlap = array.datashape.chunk_overlap[axis]
-    sz = array.shape[axis]
-    ct = int(f.aggregate(mask, 'count(*)').eval()[0])
+        # copy the dimension to a new attribute, sort moves nulls to end
+        q = f.papply(mask, new_att, mask.dim_names[0])
+        q = f.sort(q, '%s asc' % new_att)
 
-    new_att = _new_attribute_label(dim, mask)
-    idx_att = _new_attribute_label(new_att + '_0', mask)
+        # rename attributes, and swap sorted new_att to a dimension
+        # after this step, idx_att contains the final location for
+        # each original location
+        q = f.cast(q, '<%s:int64>[%s=0:*,1000,0]' % (new_att, idx_att))
+        q = f.redimension(q, '<{idx_att}:int64>[{new_att}=0:{stop},{chunk},{overlap}]'
+                          .format(new_att=new_att, stop=sz - 1,
+                                  chunk=chunk, overlap=overlap,
+                                  idx_att=idx_att))
 
-    # copy the dimension to a new attribute, sort moves nulls to end
-    q = f.papply(mask, new_att, mask.dim_names[0])
-    q = f.sort(q, '%s asc' % new_att)
+        # tack on new location for each element
+        q = f.cross_join(f.as_(self, 'xj1'),
+                         f.as_(q, 'xj2'),
+                         'xj1.%s' % dim, 'xj2.%s' % new_att)
 
-    # rename attributes, and swap sorted new_att to a dimension
-    # after this step, idx_att contains the final location for
-    # each original location
-    q = f.cast(q, '<%s:int64>[%s=0:*,1000,0]' % (new_att, idx_att))
-    q = f.redimension(q, '<{idx_att}:int64>[{new_att}=0:{stop},{chunk},{overlap}]'
-                      .format(new_att=new_att, stop=sz - 1,
-                              chunk=chunk, overlap=overlap,
-                              idx_att=idx_att))
-
-    # tack on new location for each element
-    q = f.cross_join(f.as_(array, 'xj1'),
-                     f.as_(q, 'xj2'),
-                     'xj1.%s' % dim, 'xj2.%s' % new_att)
-
-    # promote idx_att to a dimension, which rearranges + truncates
-    schema = array.sdbtype.schema
-    schema += change_axis_schema(array.datashape,
-                                 axis, name=idx_att, stop=ct - 1).dim_schema
-    q = f.redimension(q, schema)
-    return q
+        # promote idx_att to a dimension, which rearranges + truncates
+        schema = self.sdbtype.schema
+        schema += change_axis_schema(self.datashape,
+                                     axis, name=idx_att, stop=ct - 1).dim_schema
+        q = f.redimension(q, schema)
+        return q
 
 
 def _subarray(array, *masks):
@@ -1797,5 +1795,5 @@ def _subarray(array, *masks):
 
     result = array
     for i, mask in enumerate(masks):
-        result = _axis_filter(result, mask, i).eval()
+        result = result.compress(result, mask, i).eval()
     return result

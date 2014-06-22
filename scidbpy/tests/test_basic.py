@@ -677,6 +677,19 @@ def test_cumulate():
     assert_array_equal(x.cumulate("sum(f0)", 0).toarray(), expected)
 
 
+def test_compress():
+
+    def check(axis, thresh):
+        np.random.seed(42)
+        xnp = np.random.random((3, 4))
+        x = sdb.from_array(xnp)
+        assert_array_equal(xnp.compress(xnp.mean(axis) > thresh, 1 - axis),
+                           x.compress(x.mean(axis) > thresh, 1 - axis).toarray())
+    for thresh in [-1, .5]:
+        for axis in [0, 1]:
+            yield check, axis, thresh
+
+
 class TestInequality(TestBase):
 
     def test_scalar(self):
