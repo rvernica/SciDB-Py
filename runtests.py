@@ -3299,5 +3299,5 @@ if __name__ == "__main__":
     importer = DictImporter(sources)
     sys.meta_path.insert(0, importer)
 
-    entry = "import pytest; raise SystemExit(pytest.cmdline.main())"
+    entry = "import pytest; raise SystemExit(pytest.cmdline.main(['scidbpy']))"
     do_exec(entry, locals()) # noqa

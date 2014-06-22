@@ -27,7 +27,7 @@ from ._py3k_compat import (urlopen, quote, HTTPError,
 import re
 import numpy as np
 from .scidbarray import SciDBArray, SciDBDataShape, ArrayAlias, SDB_IND_TYPE
-from .errors import SHIM_ERROR_DICT
+from .errors import SHIM_ERROR_DICT, SciDBQueryError
 from .utils import broadcastable, _is_query, iter_record, _new_attribute_label
 from .schema_utils import disambiguate
 
@@ -79,6 +79,7 @@ class SciDBInterface(object):
 
     def __init__(self):
         self._created = []
+        self._persistent = set()
         atexit.register(self.reap)
 
     """SciDBInterface Abstract Base Class.
@@ -169,11 +170,13 @@ class SciDBInterface(object):
         Reap all arrays created via new_array
         """
         for array in list(self._created):
-            if (array.datashape is not None) and (not array.persistent):
-                try:
-                    array.reap()
-                except:
-                    pass
+            if array in self._persistent:
+                continue
+            try:
+                self.query("remove({0})", array)
+            except SciDBQueryError:  # array does not exist
+                pass
+
         self._created = []
 
     def _db_array_name(self):
@@ -189,7 +192,9 @@ class SciDBInterface(object):
             # on subsequent calls, increment the array count
             self.array_count += 1
 
-        return "{0}{1}_{2:05}".format(arr_key, self.uid, self.array_count)
+        result = "{0}{1}_{2:05}".format(arr_key, self.uid, self.array_count)
+        self._created.append(result)
+        return result
 
     def _scan_array(self, name, **kwargs):
         """Return the contents of the given array"""
@@ -288,7 +293,6 @@ class SciDBInterface(object):
         else:
             datashape = None
         result = SciDBArray(datashape, self, name, persistent=persistent)
-        self._created.append(result)
         return result
 
     def _format_query_string(self, query, *args, **kwargs):
@@ -923,6 +927,22 @@ class SciDBInterface(object):
     def log10(self, A):
         """Element-wise base-10 logarithm"""
         return self._apply_func(A, 'log10')
+
+    def sqrt(self, A):
+        """Element-wise square root"""
+        return self._apply_func(A, 'sqrt')
+
+    def ceil(self, A):
+        """Element-wise ceiling function"""
+        return self._apply_func(A, 'ceil')
+
+    def floor(self, A):
+        """Element-wise floor function"""
+        return self._apply_func(A, 'floor')
+
+    def isnan(self, A):
+        """Element-wise nan test function"""
+        return self._apply_func(A, 'is_nan')
 
     def min(self, A, index=None, scidb_syntax=False):
         """

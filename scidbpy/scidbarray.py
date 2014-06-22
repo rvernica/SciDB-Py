@@ -459,6 +459,20 @@ class SciDBArray(object):
         self.name = name
         self.persistent = persistent
 
+    @property
+    def persistent(self):
+        """ Controls whether the array is deleted when
+        the database is reaped
+        """
+        return self.name in self.interface._persistent
+
+    @persistent.setter
+    def persistent(self, value):
+        if value:
+            self.interface._persistent.add(self.name)
+        elif self.name in self.interface._persistent:
+            self.interface._persistent.remove(self.name)
+
     @classmethod
     def from_query(cls, interface, query):
         """
@@ -475,7 +489,8 @@ class SciDBArray(object):
         --------
         array : SciDBArray
         """
-        return cls(None, interface, query)
+        result = cls(None, interface, query)
+        return result
 
     @property
     def afl(self):
@@ -483,6 +498,11 @@ class SciDBArray(object):
         An alias to the AFL namespace
         """
         return self.interface.afl
+
+    @property
+    def schema(self):
+        """Return the array schema"""
+        return self.datashape.schema
 
     def rename(self, new_name, persistent=False):
         """Rename the array in the database, optionally making the new
@@ -1244,7 +1264,6 @@ class SciDBArray(object):
                                            chunk_size=chunk_size,
                                            chunk_overlap=chunk_overlap,
                                            dim_names=dim_names)
-            arr.persistent = True
             self.afl.redimension_store(self, arr).eval(store=False)
         return arr
 
@@ -1267,6 +1286,8 @@ class SciDBArray(object):
         arr : SciDBArray
             new array of the specified shape
         """
+        if isinstance(shape, int):
+            shape = (shape,)
 
         # handle -1s (see :meth:`numpy.reshape`)
         if any(s == -1 for s in shape):
@@ -1610,6 +1631,78 @@ class SciDBArray(object):
         agg = "{agg}({att})".format(agg=aggregate, att=self.att(0))
         args = list(map(str, sizes)) + [agg]
         return self.afl.regrid(self, *args)
+
+    def cumulate(self, expression, dimension=0):
+        """
+        Compute running operations along data (e.g., cumulative sums)
+
+        Parameters
+        ----------
+        expression: str
+            A valid SciDB expression
+        dimension : int or str (optional, default=0)
+           Which dimension to accumulate over
+
+        Returns
+        -------
+        A new array of the same shape.
+
+        Examples
+        --------
+        >>> x = sdb.arange(12).reshape((3, 4))
+        >>> x.cumulate('sum(f0)').toarray()
+        array([[ 0,  1,  2,  3],
+              [ 4,  6,  8, 10],
+              [12, 15, 18, 21]])
+        """
+        if isinstance(dimension, int):
+            dimension = self.dim_names[dimension]
+
+        return self.afl.cumulate(self, expression, dimension)
+
+    def cumsum(self, axis=None):
+        """
+        Return the cumulative sum over the array.
+
+        Parameters
+        ----------
+        axis : int, optional
+           The axis to sum over. The default sums over the
+           flattened array
+
+        Returns
+        -------
+        A new array, with the same shape (but flattened if axis=None)
+        """
+        return self._agg_ufunc('sum', axis)
+
+    def cumprod(self, axis=None):
+        """
+        Return the cumulative product over the array.
+
+        Parameters
+        ----------
+        axis : int, optional
+           The axis to multiply over. The default multiplies over the
+           flattened array
+
+        Returns
+        -------
+        A new array, with the same shape (but flattened if axis=None)
+        """
+        return self._agg_ufunc('prod', axis)
+
+    def _agg_ufunc(self, func, axis):
+        if axis is None:
+            self = self.reshape((self.size,))
+            axis = self.dim_names[0]
+        if isinstance(axis, int):
+            axis = self.dim_names[axis]
+
+        sums = ["%s(%s) as %s" % (func, att, att)
+                for att in self.att_names]
+        sums = ", ".join(sums)
+        return self.afl.cumulate(self, sums, axis)
 
 
 def _axis_filter(array, mask, axis):

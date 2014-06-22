@@ -28,8 +28,17 @@ from scidbpy import SciDBArray, SciDBShimInterface, connect, SciDBDataShape
 from scidbpy.schema_utils import disambiguate
 
 sdb = connect()
-
 RTOL = 1E-6
+
+
+def teardown_function(function):
+    sdb.reap()
+
+
+class TestBase(object):
+
+    def teardown_method(self, method):
+        teardown_function(method)
 
 
 def test_copy_rename():
@@ -59,9 +68,8 @@ def test_to_array():
     """Test export to a numpy array"""
     X = np.random.random((10, 6))
 
-    Xsdb = sdb.from_array(X)
-
     def check_toarray(transfer_bytes):
+        Xsdb = sdb.from_array(X)
         Xnp = Xsdb.toarray(transfer_bytes=transfer_bytes)
         # set ATOL high because we're translating text
         assert_allclose(Xnp, X, atol=1E-5)
@@ -160,6 +168,15 @@ def test_constant_creation():
         yield check, 'ones', shp
 
 
+def test_lazyarray_reap():
+    x = sdb.ones(3)
+    y = sdb.afl.apply(x, 'f1', 'f0+1').eval()
+    name = y.name
+    sdb.reap()
+
+    assert name not in sdb.list_arrays()
+
+
 def test_arange():
     def check_arange(args):
         A = sdb.arange(*args)
@@ -179,14 +196,13 @@ def test_linspace():
 
 
 def test_reshape():
-    A = sdb.random(12)
-
     def check_reshape(shape):
+        A = sdb.random(12)
         B = A.reshape(shape)
         Bnp = A.toarray().reshape(shape)
         assert_allclose(B.toarray(), Bnp)
 
-    for shape in [(3, 4), (2, 2, 3), (1, 3, 4), (1, 3, -1), (1, -1, 4)]:
+    for shape in [(3, 4), (2, 2, 3), (1, 3, 4), (1, 3, -1), (1, -1, 4), 12]:
         yield check_reshape, shape
 
 
@@ -255,9 +271,9 @@ def test_svd():
 
 def test_slicing():
     # note that slices must be a divisor of chunk size
-    A = sdb.random((10, 10), chunk_size=12)
 
     def check_subarray(slc):
+        A = sdb.random((10, 10), chunk_size=12)
         Aslc = A[slc]
         if isinstance(Aslc, SciDBArray):
             Aslc = Aslc.toarray()
@@ -275,10 +291,10 @@ def test_slicing():
 
 def test_ops():
     from operator import add, sub, mul, truediv, mod, pow
-    A = sdb.random((5, 5))
-    B = 1.2
 
     def check_join_op(op):
+        A = sdb.random((5, 5))
+        B = 1.2
         C = op(A, B)
         assert_allclose(C.toarray(), op(A.toarray(), B), rtol=RTOL)
 
@@ -288,10 +304,10 @@ def test_ops():
 
 def test_reverse_ops():
     from operator import add, sub, mul, truediv, mod, pow
-    A = 1.2
-    B = sdb.random((5, 5))
 
     def check_join_op(op):
+        A = 1.2
+        B = sdb.random((5, 5))
         C = op(A, B)
         assert_allclose(C.toarray(), op(A, B.toarray()), rtol=RTOL)
 
@@ -301,10 +317,10 @@ def test_reverse_ops():
 
 def test_join_ops():
     from operator import add, sub, mul, truediv, mod, pow
-    A = sdb.random((5, 5))
-    B = sdb.random((5, 5))
 
     def check_join_op(op):
+        A = sdb.random((5, 5))
+        B = sdb.random((5, 5))
         C = op(A, B)
         assert_allclose(C.toarray(), op(A.toarray(), B.toarray()), rtol=RTOL)
 
@@ -314,9 +330,9 @@ def test_join_ops():
 
 def test_join_ops_same_array():
     from operator import add, sub, mul, truediv, mod, pow
-    A = sdb.random((5, 5))
 
     def check_join_op(op):
+        A = sdb.random((5, 5))
         C = op(A, A)
         assert_allclose(C.toarray(), op(A.toarray(), A.toarray()), rtol=RTOL)
 
@@ -345,20 +361,19 @@ def test_abs():
     assert_allclose(B.toarray(), abs(A.toarray() - 1))
 
 
-def test_transcendentals():
+def test_elementwise():
     def np_op(op):
         D = dict(asin='arcsin', acos='arccos', atan='arctan')
         return D.get(op, op)
 
-    A = sdb.random((5, 5))
-
     def check_op(op):
+        A = sdb.random((5, 5))
         C = getattr(sdb, op)(A)
         C_np = getattr(np, np_op(op))(A.toarray())
         assert_allclose(C.toarray(), C_np, rtol=RTOL)
 
     for op in ['sin', 'cos', 'tan', 'asin', 'acos', 'atan',
-               'exp', 'log', 'log10']:
+               'exp', 'log', 'log10', 'sqrt', 'ceil', 'floor', 'isnan']:
         yield check_op, op
 
 
@@ -370,10 +385,10 @@ def test_substitute():
 
 
 def test_scidb_aggregates():
-    A = sdb.random((5, 5))
     ind_dict = {1: 0, 0: 1, (0, 1): (), (): (0, 1), None: None}
 
     def check_op(op, ind):
+        A = sdb.random((5, 5))
         C = getattr(sdb, op)(A, ind, scidb_syntax=True)
         if op in ['var', 'std']:
             C_np = getattr(np, op)(A.toarray(), ind_dict[ind], ddof=1)
@@ -390,9 +405,9 @@ def test_scidb_aggregates():
 
 
 def test_numpy_aggregates():
-    A = sdb.random((5, 5))
 
     def check_op(op, ind):
+        A = sdb.random((5, 5))
         C = getattr(sdb, op)(A, ind)
         if op in ['var', 'std']:
             C_np = getattr(np, op)(A.toarray(), ind, ddof=1)
@@ -482,8 +497,6 @@ def test_reap():
     name = A.name
     A.reap()
     assert name not in sdb.list_arrays()
-    assert A.interface is None
-    assert A.name == '__DELETED__'
 
 
 def test_reap_ignored_if_persistent():
@@ -515,8 +528,6 @@ def test_interface_reap():
 
     assert aname not in sdb.list_arrays()
     assert bname not in sdb.list_arrays()
-    assert A.interface is None
-    assert A.name == "__DELETED__"
 
 
 @pytest.mark.parametrize('shp', ((15,), (10, 10), (3, 3, 3)))
@@ -554,7 +565,6 @@ def test_reap_called_on_context_manager():
         name = X.name
         assert X.name in sdb.list_arrays()
 
-    assert X.name == "__DELETED__"
     assert name not in sdb.list_arrays()
 
 
@@ -622,7 +632,10 @@ def test_dismbiguate_ignores_uniques():
 
 def test_string_roundtrip():
     def check(x):
-        x2 = sdb.wrap_array(sdb.from_array(x).name).toarray().astype(x.dtype)
+        # the wrap array prevents the possibility of
+        # the toarray() using any special data stored during from_array
+        x2 = sdb.wrap_array(sdb.from_array(x).name,
+                            persistent=False).toarray().astype(x.dtype)
         assert_array_equal(x, x2)
 
     for string_type in 'SU':
@@ -636,7 +649,35 @@ def test_string_roundtrip():
     yield check, np.array([(0, u'a'), (1, u'aßc')], dtype='i4,U3')
 
 
-class TestInequality(object):
+def test_cumsum_cumprod():
+
+    def check(x, axis):
+        xnp = x.cumsum(axis)
+        xsdb = sdb.from_array(x).cumsum(axis).toarray()
+        assert_array_equal(xnp, xsdb)
+
+        xnp = x.cumprod(axis)
+        xsdb = sdb.from_array(x).cumprod(axis).toarray()
+        assert_array_equal(xnp, xsdb)
+
+    x = np.random.random((3, 4))
+    for axis in [None, 0, 1]:
+        yield check, x, axis
+
+
+def test_cumulate():
+    x = sdb.arange(4)
+    assert_array_equal(x.cumulate("sum(f0)").toarray(), [0, 1, 3, 6])
+
+    x = sdb.arange(4).reshape((2, 2))
+    expected = np.array([[0, 1], [2, 5]])
+    assert_array_equal(x.cumulate("sum(f0)", 1).toarray(), expected)
+
+    expected = np.array([[0, 1], [2, 4]])
+    assert_array_equal(x.cumulate("sum(f0)", 0).toarray(), expected)
+
+
+class TestInequality(TestBase):
 
     def test_scalar(self):
 
@@ -670,25 +711,32 @@ class TestInequality(object):
 
     def test_array(self):
 
-        x = sdb.random(10)
-        y = sdb.random(10)
+        def check(op):
 
-        xnp = x.toarray()
-        ynp = y.toarray()
+            x = sdb.random(10)
+            y = sdb.random(10)
+
+            xnp = x.toarray()
+            ynp = y.toarray()
+
+            assert_array_equal(op(xnp, ynp), op(x, y).toarray())
 
         for op in (lt, le, eq, gt, ge, ne):
-            yield assert_array_equal, op(xnp, ynp), op(x, y).toarray()
+            yield check, op
 
     def test_numpy_array(self):
-        x = sdb.random(10)
-        y = np.random.random(10)
-        xnp = x.toarray()
+
+        def check(op):
+            x = sdb.random(10)
+            y = np.random.random(10)
+            xnp = x.toarray()
+            assert_array_equal(op(x, y).toarray(), op(xnp, y))
 
         for op in (lt, le, eq, gt, ge, ne):
-            yield assert_array_equal, op(x, y).toarray(), op(xnp, y)
+            yield check, op
 
 
-class TestBooleanIndexing(object):
+class TestBooleanIndexing(TestBase):
 
     def test_inequality_filter(self):
 
