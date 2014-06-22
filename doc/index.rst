@@ -12,11 +12,11 @@ scientific computing from the comfort of their Python interpreter.
 
 
 .. toctree::
-   :numbered:
    :maxdepth: 1
 
    install
    tutorial
+   comparison_and_filtering
    Class Reference <classes.rst>
    AFL Operator Reference <afl.rst>
 

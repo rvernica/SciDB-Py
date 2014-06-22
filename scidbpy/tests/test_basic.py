@@ -677,6 +677,19 @@ def test_cumulate():
     assert_array_equal(x.cumulate("sum(f0)", 0).toarray(), expected)
 
 
+def test_compress():
+
+    def check(axis, thresh):
+        np.random.seed(42)
+        xnp = np.random.random((3, 4))
+        x = sdb.from_array(xnp)
+        assert_array_equal(xnp.compress(xnp.mean(axis) > thresh, 1 - axis),
+                           x.compress(x.mean(axis) > thresh, 1 - axis).toarray())
+    for thresh in [-1, .5]:
+        for axis in [0, 1]:
+            yield check, axis, thresh
+
+
 class TestInequality(TestBase):
 
     def test_scalar(self):
@@ -734,6 +747,24 @@ class TestInequality(TestBase):
 
         for op in (lt, le, eq, gt, ge, ne):
             yield check, op
+
+    def test_invert(self):
+        x = sdb.random(10) > 0.5
+        xnp = x.toarray()
+        assert_array_equal((~x).toarray(), ~xnp)
+
+    def test_invert_bad_array(self):
+        x = sdb.random(10)
+        with pytest.raises(TypeError) as exc:
+            ~x
+        assert exc.value.args[0] == 'Can only invert boolean arrays'
+
+        y = x > .5
+        y = sdb.afl.apply(y, 'g', 'condition')
+
+        with pytest.raises(TypeError) as exc:
+            ~y
+        assert exc.value.args[0] == 'Can only invert single-attribute arrays'
 
 
 class TestBooleanIndexing(TestBase):
