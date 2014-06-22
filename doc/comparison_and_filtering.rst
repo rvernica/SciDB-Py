@@ -1,5 +1,7 @@
-Comparison and Filtering
-========================
+.. _comparison_and_filtering:
+
+Comparing and Filtering Arrays
+==============================
 
 SciDB-Py provides support for comparing and filtering
 SciDB arrays, using NumPy-like syntax.
