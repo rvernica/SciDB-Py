@@ -735,6 +735,24 @@ class TestInequality(TestBase):
         for op in (lt, le, eq, gt, ge, ne):
             yield check, op
 
+    def test_invert(self):
+        x = sdb.random(10) > 0.5
+        xnp = x.toarray()
+        assert_array_equal((~x).toarray(), ~xnp)
+
+    def test_invert_bad_array(self):
+        x = sdb.random(10)
+        with pytest.raises(TypeError) as exc:
+            ~x
+        assert exc.value.args[0] == 'Can only invert boolean arrays'
+
+        y = x > .5
+        y = sdb.afl.apply(y, 'g', 'condition')
+
+        with pytest.raises(TypeError) as exc:
+            ~y
+        assert exc.value.args[0] == 'Can only invert single-attribute arrays'
+
 
 class TestBooleanIndexing(TestBase):
 

@@ -1213,6 +1213,16 @@ class SciDBArray(object):
     def __gt__(self, other):
         return self._boolean_compare('>', other)
 
+    def __invert__(self):
+        if len(self.att_names) != 1:
+            raise TypeError("Can only invert single-attribute arrays")
+        if self.sdbtype.full_rep[0][1] != 'bool':
+            raise TypeError("Can only invert boolean arrays")
+
+        newatt = _new_attribute_label('condition', self)
+        att = self.att_names[0]
+        return self.afl.papply(self, newatt, "not(%s)" % att)
+
     def transpose(self, *axes):
         """Permute the dimensions of an array.
 
