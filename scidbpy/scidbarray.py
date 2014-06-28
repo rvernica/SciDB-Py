@@ -6,6 +6,7 @@
 from __future__ import print_function, division
 import warnings
 import re
+from itertools import chain
 
 import numpy as np
 
@@ -1009,14 +1010,22 @@ class SciDBArray(object):
         if isinstance(indices, SciDBArray):
             return self._boolean_filter(indices)
 
+        # passing a boolean mask
         if isinstance(indices, np.ndarray) and indices.dtype == np.bool:
             indices = self.interface.from_array(indices)
             return self._boolean_filter(indices)
+
+        if isinstance(indices, string_type):
+            indices = (indices,)
 
         try:
             indices = tuple(indices)
         except TypeError:
             indices = (indices,)
+
+        # accessing attributes by name
+        if all(isinstance(i, string_type) for i in indices):
+            return self.afl.project(self, *indices)
 
         if len(indices) > self.ndim:
             raise ValueError("too many indices")
@@ -1068,6 +1077,18 @@ class SciDBArray(object):
             arr3 = arr2
 
         return arr3
+
+    def __setitem__(self, key, value):
+        if isinstance(key, string_type):
+            key = [key]
+            value = [value]
+        if len(key) != len(value):
+            raise ValueError("Number of expressions does not match number "
+                             "of new attributes")
+        args = chain(*zip(key, value))
+        result = self.afl.apply(self, *args)
+        self.name = result.name
+        self._datashape = None  # refresh schema
 
     @slice_syntax
     def sdbslice(self, slices):
