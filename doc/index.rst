@@ -16,6 +16,7 @@ scientific computing from the comfort of their Python interpreter.
 
    install
    tutorial
+   access
    comparison_and_filtering
    Class Reference <classes.rst>
    AFL Operator Reference <afl.rst>
