@@ -285,8 +285,12 @@ def test_slicing():
                 slice(2, 6),
                 (slice(None), 2),
                 (slice(2, 8), slice(3, 7)),
-                (slice(2, 8, 2), slice(None, None, 3))]:
+                (slice(2, 8, 2), slice(None, None, 3)),
+                (slice(2, -2), slice(3, -2))]:
         yield check_subarray, slc
+
+    # non-supported case
+    #(slice(8, 2, -1), slice(7, 3, -1))
 
 
 def test_ops():

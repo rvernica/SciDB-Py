@@ -52,6 +52,8 @@ whose elements correspond to the True locations in the mask::
 Extracting values along a particular axis
 -----------------------------------------
 
+.. currentmodule:: scidbpy.scidbarray
+
 Use the :meth:`SciDBArray.compress` method to extract row or column subsets of an array. For example, to extract all rows where
 the sum across all columns exceeds a threshold::
 

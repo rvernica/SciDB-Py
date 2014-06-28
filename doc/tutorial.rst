@@ -242,63 +242,7 @@ arrays are reaped at the end of the context block::
 
     >>> with SciDBShimInterface(url) as sdb:
     >>>     X = sdb.random(10)
-    >>> print X.name
-    "__DELETED__"
-
-
-Retrieving data from SciDB array objects
-----------------------------------------
-
-A central idea of the package is to program operations on SciDB arrays in a
-natural Python dialect, computing those operations in SciDB while minimizing
-data traffic between SciDB and Python. However, it is useful to materialize
-SciDB array data to Python, for example to obtain and plot results.
-
-:class:`SciDBArray` objects provide several functions that materialize array
-data to Python:
-
-:meth:`~SciDBArray.toarray`
-    can be used to populate a ``numpy`` array from an
-    `N`-dimensional array with any number of attributes::
-
-        >>> A = sdb.linspace(0, 10, 5)
-        >>> A.toarray()
-	array([  0. ,   2.5,   5. ,   7.5,  10. ])
-
-	>>> B = sdb.join(sdb.linspace(0, 8, 5), sdb.arange(5, dtype=int))
-	>>> B.toarray()
-	array([(0.0, 0), (2.0, 1), (4.0, 2), (6.0, 3), (8.0, 4)],
-              dtype=[('f0', '<f8'), ('f0_2', '<i8')])
-
-:meth:`~SciDBArray.tosparse`
-    can be used to populate a `SciPy sparse matrix`_ from a 2-dimensional
-    array with a single attribute::
-
-        >>> I = sdb.identity(5, sparse=True)
-	>>> I.tosparse(sparse_fmt='dia')
-        <5x5 sparse matrix of type '<type 'numpy.float64'>'
-	        with 5 stored elements (1 diagonals) in DIAgonal format>
-
-    :meth:`~SciDBArray.tosparse` will also work with 1-dimensional arrays
-    or multi-dimensional arrays; in this case the result cannot be exported
-    to a SciPy sparse format, but will be returned as a
-    `Numpy record array`_ listing the indices and values.
-
-
-:meth:`~SciDBArray.todataframe`
-    can be used to populate a `Pandas dataframe`_ from a 1-dimensional
-    array with any number of attributes::
-
-	>>> B = sdb.join(sdb.linspace(0, 8, 5, dtype='<A:double>'),
-	...              sdb.arange(1, 6, dtype='<B:int32>'),
-	...              sdb.ones(5, dtype='<C:float>'))
-	>>> B.todataframe()
-	   A  B  C
-        0  0  1  1
-	1  2  2  1
-	2  4  3  1
-	3  6  4  1
-	4  8  5  1
+    # X deleted here
 
 Tridiagonal Example
 ^^^^^^^^^^^^^^^^^^^
@@ -390,26 +334,6 @@ value.  Here we'll use the ``tridiag`` array created above::
 
 Note that element assignment (e.g. ``tridiag[0, 0] = 4``)is not supported.
 
-
-Subarrays
-^^^^^^^^^
-
-Rectilinear subarrays are also selected with standard numpy syntax. Subarrays
-of :class:`SciDBArray` objects are new :class:`SciDBArray` objects. Consider
-the example sparse tridiagonal array used previously::
-
-    >>> # Define a 3x10 subarray (returned as a new SciDBArray object)
-    >>> X = tridiag[2:5,:]
-    >>> X.toarray()
-    array([[ 0., -1.,  2.,  1.,  0.,  0.,  0.,  0.,  0.,  0.],
-           [ 0.,  0., -1.,  2.,  1.,  0.,  0.,  0.,  0.,  0.],
-           [ 0.,  0.,  0., -1.,  2.,  1.,  0.,  0.,  0.,  0.]])
-
-Tuple-based indexing (also known as `fancy indexing`) is not yet supported.
-
-Note that subarray indexing of :class:`SciDBArray` objects follows numpy
-convention. SciDB arrays with negative-valued coordinate indices should be
-translated to a coordinate system with a nonnegative origin.
 
 Scalar functions of SciDBArray objects (aggregations)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -847,8 +771,3 @@ Working with AFL has a few advantages:
 
 .. _`String Formatting`: http://docs.python.org/2/whatsnew/2.6.html#pep-3101-advanced-string-formatting
 
-.. _`SciPy sparse matrix`: http://docs.scipy.org/doc/scipy/reference/sparse.html
-
-.. _`Pandas dataframe`: http://pandas.pydata.org/pandas-docs/dev/dsintro.html#dataframe
-
-.. _`Numpy record array`: http://docs.scipy.org/doc/numpy/reference/generated/numpy.recarray.html

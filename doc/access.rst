@@ -1,31 +1,67 @@
 .. _access::
-.. currentmodule:: scidbpy.scidbarray
 
-Accessing elements in a SciDBArray
-==================================
+Accessing array data
+====================
 
-SciDBArrays are containers for arrays in a SciDB database. To download an entire array for local access, use the :meth:`SciDBArray.toarray` or :meth:`SciDBArray.todataframe` methods. These convert the data into a NumPy array and Pandas DataFrame, respectively::
+Converting arrays to other data structures
+------------------------------------------
 
-    >>> sdb = connect()
-    >>> x = sdb.arange(5)
-    >>> x_np = x.toarray()
-    >>> x_df = x.todataframe()
+.. currentmodule:: scidbpy
 
-    >>> print (x_np)
-    [0, 1, 2, 3, 4]
-    (array([0, 1, 2, 3, 4]), <type 'numpy.ndarray'>)
-    >>> print(x_df)
-          0
-       0  0
-       1  1
-       2  2
-       3  3
-       4  4
+SciDBpy is designed to perform operations on SciDB arrays in a
+natural Python dialect, computing those operations in SciDB while minimizing data traffic between the database and Python. However, it is useful to materialize SciDB array data to Python, for example to obtain and plot results.
 
-Slice Syntax
-------------
+:class:`SciDBArray` objects provide several functions that materialize array
+data to Python:
 
-SciDBArrays support NumPy's slice syntax to extracting subregions::
+:meth:`~SciDBArray.toarray`
+    can be used to populate a ``numpy`` array from an
+    `N`-dimensional array with any number of attributes::
+
+        >>> A = sdb.linspace(0, 10, 5)
+        >>> A.toarray()
+        array([  0. ,   2.5,   5. ,   7.5,  10. ])
+
+        >>> B = sdb.join(sdb.linspace(0, 8, 5), sdb.arange(5, dtype=int))
+        >>> B.toarray()
+        array([(0.0, 0), (2.0, 1), (4.0, 2), (6.0, 3), (8.0, 4)],
+                  dtype=[('f0', '<f8'), ('f0_2', '<i8')])
+
+:meth:`~SciDBArray.tosparse`
+    can be used to populate a `SciPy sparse matrix`_ from a 2-dimensional
+    array with a single attribute::
+
+        >>> I = sdb.identity(5, sparse=True)
+    >>> I.tosparse(sparse_fmt='dia')
+        <5x5 sparse matrix of type '<type 'numpy.float64'>'
+            with 5 stored elements (1 diagonals) in DIAgonal format>
+
+    :meth:`~SciDBArray.tosparse` will also work with 1-dimensional arrays
+    or multi-dimensional arrays; in this case the result cannot be exported
+    to a SciPy sparse format, but will be returned as a
+    `Numpy record array`_ listing the indices and values.
+
+
+:meth:`~SciDBArray.todataframe`
+    can be used to populate a `Pandas dataframe`_ from a 1-dimensional
+    array with any number of attributes::
+
+        >>> B = sdb.join(sdb.linspace(0, 8, 5, dtype='<A:double>'),
+                         sdb.arange(1, 6, dtype='<B:int32>'),
+                         sdb.ones(5, dtype='<C:float>'))
+        >>> B.todataframe()
+           A  B  C
+        0  0  1  1
+        1  2  2  1
+        2  4  3  1
+        3  6  4  1
+        4  8  5  1
+
+
+Subarrays and Slice Syntax
+--------------------------
+
+SciDBArrays support NumPy's slice syntax for extracting subregions::
 
     >>> x = sdb.arange(30).reshape((6, 5))
     >>> x.toarray()
@@ -50,6 +86,8 @@ SciDBArrays support NumPy's slice syntax to extracting subregions::
            [10, 11, 12, 13, 14],
            [20, 21, 22, 23, 24]])
 
+Some of NumPy's "Fancy Indexing" operations, like indexing
+with a boolean array, are also supported; see :ref:`comparison_and_filtering`
 
 Attribute access
 ----------------
@@ -69,4 +107,11 @@ to the data by providing a SciDB expression as a string::
     array([(0.0, 0), (0.1411200080598672, 1), (-0.27941549819892586, 2),
           (0.4121184852417566, 3)],
          dtype=[('y', '<f8'), ('f0', '<i8')])
+
+
+.. _`SciPy sparse matrix`: http://docs.scipy.org/doc/scipy/reference/sparse.html
+
+.. _`Pandas dataframe`: http://pandas.pydata.org/pandas-docs/dev/dsintro.html#dataframe
+
+.. _`Numpy record array`: http://docs.scipy.org/doc/numpy/reference/generated/numpy.recarray.html
 
