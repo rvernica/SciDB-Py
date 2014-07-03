@@ -113,6 +113,8 @@ and sparse formats::
     <10x10 sparse matrix of type '<type 'numpy.float64'>'
             with 28 stored elements in Compressed Sparse Row format>
 
+.. _using_afl:
+
 Working with the Array Functional Language
 ------------------------------------------
 
