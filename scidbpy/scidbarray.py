@@ -7,6 +7,7 @@ from __future__ import print_function, division
 import warnings
 import re
 from itertools import chain
+from functools import partial
 
 import numpy as np
 
@@ -1092,7 +1093,12 @@ class SciDBArray(object):
 
     @slice_syntax
     def sdbslice(self, slices):
-        args = [s.start for s in slices] + [s.stop for s in slices]
+        try:
+            slices = tuple(slices)
+        except TypeError:
+            slices = (slices,)
+
+        args = [s.start for s in slices] + [s.stop - 1 for s in slices]
         return self.afl.subarray(self, *args)
 
     # join operations: note that these ignore all but the first attribute
@@ -1143,6 +1149,21 @@ class SciDBArray(object):
 
     def __abs__(self):
         return self.interface._apply_func(self, 'abs')
+
+    def __getattr__(self, attr):
+        """
+        Fallback getattribute
+
+        If attr is the name of an AFL operator,
+        we apply self to that operator and return the partial result
+
+        Examples:
+        ---------
+        x.filter('f0 > 3') # -> afl.filter(x, 'f0>3')
+        """
+        if hasattr(self.afl, attr):
+            return partial(getattr(self.afl, attr), self)
+        raise AttributeError(attr)
 
     def _boolean_compare(self, operator, other):
         """
