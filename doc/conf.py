@@ -33,7 +33,7 @@ extensions = ['sphinx.ext.autodoc', 'sphinx.ext.autosummary',
               'numpydoc']
 
 autosummary_generate = True
-numpydoc_show_class_members = False
+#numpydoc_show_class_members = False
 
 autodoc_default_flags = ['members', 'inherited-members']
 
