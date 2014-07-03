@@ -1,6 +1,7 @@
-==============
-Code Reference
-==============
+=============
+API Reference
+=============
+
 This is the list of classes and functions available in SciDB-py.
 
 .. automodule:: scidbpy
@@ -20,7 +21,9 @@ SciDB Array Class
 SciDB Interface
 ===============
 
-.. currentmodule:: scidbpy
+.. currentmodule:: scidbpy.interface
+
+.. autofunction:: connect
 
 Base Class
 ----------
@@ -36,5 +39,7 @@ Shim Interface
 
 Visualization and Analysis
 ==========================
+.. currentmodule:: scidbpy.aggregation
+
 .. autofunction:: histogram
 

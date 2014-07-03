@@ -69,6 +69,13 @@ class TestBasicUse(object):
         assert sdb.afl is sdb.afl
         assert sdb.afl.normalize is sdb.afl.normalize
 
+    def test_operator_chaining_syntax(self):
+        a = afl
+        x = sdb.random(10)
+        y = x.apply('y', 'f0+1').project('y').filter('y > 3')
+        z = a.filter(a.project(a.apply(x, 'y', 'f0+1'), 'y'), 'y>3')
+        assert y.query == z.query
+
 
 class TestFormatOperands(object):
 

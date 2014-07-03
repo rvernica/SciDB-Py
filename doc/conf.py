@@ -33,6 +33,7 @@ extensions = ['sphinx.ext.autodoc', 'sphinx.ext.autosummary',
               'numpydoc']
 
 autosummary_generate = True
+numpydoc_show_class_members = False
 
 autodoc_default_flags = ['members', 'inherited-members']
 
@@ -101,6 +102,13 @@ pygments_style = 'sphinx'
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 html_theme = 'default'
+
+try:  # use ReadTheDocs theme, if installed
+    import sphinx_rtd_theme
+    html_theme = 'sphinx_rtd_theme'
+    html_theme_path = [sphinx_rtd_theme.get_html_theme_path(), ]
+except ImportError:
+    pass
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the

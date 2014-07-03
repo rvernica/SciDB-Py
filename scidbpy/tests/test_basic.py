@@ -285,8 +285,12 @@ def test_slicing():
                 slice(2, 6),
                 (slice(None), 2),
                 (slice(2, 8), slice(3, 7)),
-                (slice(2, 8, 2), slice(None, None, 3))]:
+                (slice(2, 8, 2), slice(None, None, 3)),
+                (slice(2, -2), slice(3, -2))]:
         yield check_subarray, slc
+
+    # non-supported case
+    #(slice(8, 2, -1), slice(7, 3, -1))
 
 
 def test_ops():
@@ -688,6 +692,41 @@ def test_compress():
     for thresh in [-1, .5]:
         for axis in [0, 1]:
             yield check, axis, thresh
+
+
+class TestAttributeAccess(object):
+
+    def test_single(self):
+        x = sdb.arange(5)
+        assert_array_equal(x['f0'].toarray(), [0, 1, 2, 3, 4])
+
+    def test_multi(self):
+        x = sdb.arange(5)
+        x = sdb.afl.apply(x, 'f1', 'f0+1')
+        x = sdb.afl.apply(x, 'f2', 'f0+2')
+
+        result = x[['f0', 'f1']].todataframe()
+        assert_array_equal(result['f0'], [0, 1, 2, 3, 4])
+        assert_array_equal(result['f1'], [1, 2, 3, 4, 5])
+
+    def test_add_column(self):
+
+        x = sdb.arange(5)
+        x['f1'] = 'f0+1'
+        assert_array_equal(x['f1'].toarray(), [1, 2, 3, 4, 5])
+
+    def test_schema_updates_with_add_column(self):
+        x = sdb.arange(5)
+        x['f1'] = 'f0+1'
+        assert x.att_names == ['f0', 'f1']
+
+    def test_add_multi_columns(self):
+        x = sdb.arange(5)
+        x[['f1', 'f2']] = 'f0+1', 'f0+2'
+        assert x.att_names == ['f0', 'f1', 'f2']
+
+        assert_array_equal(x['f1'].toarray(), [1, 2, 3, 4, 5])
+        assert_array_equal(x['f2'].toarray(), [2, 3, 4, 5, 6])
 
 
 class TestInequality(TestBase):

@@ -6,6 +6,8 @@
 from __future__ import print_function, division
 import warnings
 import re
+from itertools import chain
+from functools import partial
 
 import numpy as np
 
@@ -1009,14 +1011,22 @@ class SciDBArray(object):
         if isinstance(indices, SciDBArray):
             return self._boolean_filter(indices)
 
+        # passing a boolean mask
         if isinstance(indices, np.ndarray) and indices.dtype == np.bool:
             indices = self.interface.from_array(indices)
             return self._boolean_filter(indices)
+
+        if isinstance(indices, string_type):
+            indices = (indices,)
 
         try:
             indices = tuple(indices)
         except TypeError:
             indices = (indices,)
+
+        # accessing attributes by name
+        if all(isinstance(i, string_type) for i in indices):
+            return self.afl.project(self, *indices)
 
         if len(indices) > self.ndim:
             raise ValueError("too many indices")
@@ -1069,9 +1079,26 @@ class SciDBArray(object):
 
         return arr3
 
+    def __setitem__(self, key, value):
+        if isinstance(key, string_type):
+            key = [key]
+            value = [value]
+        if len(key) != len(value):
+            raise ValueError("Number of expressions does not match number "
+                             "of new attributes")
+        args = chain(*zip(key, value))
+        result = self.afl.apply(self, *args)
+        self.name = result.name
+        self._datashape = None  # refresh schema
+
     @slice_syntax
     def sdbslice(self, slices):
-        args = [s.start for s in slices] + [s.stop for s in slices]
+        try:
+            slices = tuple(slices)
+        except TypeError:
+            slices = (slices,)
+
+        args = [s.start for s in slices] + [s.stop - 1 for s in slices]
         return self.afl.subarray(self, *args)
 
     # join operations: note that these ignore all but the first attribute
@@ -1122,6 +1149,21 @@ class SciDBArray(object):
 
     def __abs__(self):
         return self.interface._apply_func(self, 'abs')
+
+    def __getattr__(self, attr):
+        """
+        Fallback getattribute
+
+        If attr is the name of an AFL operator,
+        we apply self to that operator and return the partial result
+
+        Examples:
+        ---------
+        x.filter('f0 > 3') # -> afl.filter(x, 'f0>3')
+        """
+        if hasattr(self.afl, attr):
+            return partial(getattr(self.afl, attr), self)
+        raise AttributeError(attr)
 
     def _boolean_compare(self, operator, other):
         """

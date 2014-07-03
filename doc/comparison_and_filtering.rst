@@ -1,7 +1,10 @@
 .. _comparison_and_filtering:
 
+
 Comparing and Filtering Arrays
 ==============================
+
+.. currentmodule:: scidbpy
 
 SciDB-Py provides support for comparing and filtering
 SciDB arrays, using NumPy-like syntax.
