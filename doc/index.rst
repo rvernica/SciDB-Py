@@ -6,20 +6,27 @@
 SciDB-Py documentation
 ======================
 SciDB-Py is a Python interface to the SciDB_, the massively scalable
-array-oriented database.  It provides an intuitive NumPy-like interface
+array-oriented database.  SciDB features include ACID transactions, parallel processing, distributed storage, efficient sparse array storage, and native parallel linear algebra operations.
+
+The SciDB-Py package provides an intuitive NumPy-like interface
 to SciDB, so that users can leverage powerful distributed, data-parallel
-scientific computing from the comfort of their Python interpreter.
+scientific computing from the comfort of their Python interpreter::
+
+    from scidbpy import connect
+    sdb = connect()              # connect to the database
+    x = sdb.random((1000, 1000)) # 2D array of random numbers
+    y = (x ** 2 + 3).sum()       # NumPy syntax, computed in the database
 
 
+Contents
+========
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
 
    install
    tutorial
-   access
-   comparison_and_filtering
-   Class Reference <classes.rst>
-   AFL Operator Reference <afl.rst>
+   demos
+   api
 
 
 Indices and tables

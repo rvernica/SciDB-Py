@@ -1,7 +1,10 @@
 .. _comparison_and_filtering:
 
+
 Comparing and Filtering Arrays
 ==============================
+
+.. currentmodule:: scidbpy
 
 SciDB-Py provides support for comparing and filtering
 SciDB arrays, using NumPy-like syntax.
@@ -51,8 +54,6 @@ whose elements correspond to the True locations in the mask::
 
 Extracting values along a particular axis
 -----------------------------------------
-
-.. currentmodule:: scidbpy.scidbarray
 
 Use the :meth:`SciDBArray.compress` method to extract row or column subsets of an array. For example, to extract all rows where
 the sum across all columns exceeds a threshold::
