@@ -2,21 +2,21 @@
 # See LICENSE.txt for more information
 
 import pytest
-
-from .. import connect, histogram
+from numpy.testing import assert_allclose
 import numpy as np
 
+from .. import connect, histogram
+
 sdb = connect()
-
-
-def teardown_function(function):
-    sdb.reap()
 
 
 class TestHistogram(object):
 
     def setup_method(self, method):
         np.random.seed(42)
+
+    def teardown_method(self, method):
+        sdb.reap()
 
     def test_bad_input(self):
         with pytest.raises(TypeError):

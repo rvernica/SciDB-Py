@@ -12,7 +12,7 @@ from functools import partial
 import numpy as np
 
 from copy import copy
-from .errors import SciDBError, SciDBForbidden
+from .errors import SciDBError, SciDBForbidden, SciDBQueryError
 
 # Numpy 1.7 meshgrid backport
 from .utils import meshgrid, slice_syntax, _is_query, _new_attribute_label
@@ -295,6 +295,10 @@ class SciDBDataShape(object):
         if len(self.sdbtype.names) != len(set(self.sdbtype.names)):
             warnings.warn("Duplicate attribute names: %s" % self.sdbtype.names)
 
+    @property
+    def ndim(self):
+        return len(self.dim_names)
+
     @classmethod
     def from_schema(cls, schema):
         """Create a DataShape object from a SciDB Schema.
@@ -374,11 +378,14 @@ class SciDBDataShape(object):
         """
         The dimension part of the schema
         """
-        result = ','.join(['{0}=0:{1},{2},{3}'.format(d, s - 1, cs, co)
-                           for (d, s, cs, co) in zip(self.dim_names,
-                                                     self.shape,
-                                                     self.chunk_size,
-                                                     self.chunk_overlap)])
+        result = ','.join(['{0}={1}:{2},{3},{4}'.format(d, l,
+                                                        h if h is not None else '*',
+                                                        cs, co)
+                           for (d, l, h, cs, co) in zip(self.dim_names,
+                                                        self.dim_low,
+                                                        self.dim_high,
+                                                        self.chunk_size,
+                                                        self.chunk_overlap)])
         return '[%s]' % result
 
     @property
@@ -597,6 +604,8 @@ class SciDBArray(object):
             try:
                 schema = self.interface._show_array(self.name, fmt='csv')
                 self._datashape = SciDBDataShape.from_schema(schema)
+            except SciDBQueryError as exc:
+                raise SciDBQueryError("Invalid query:\n\n%s\n\n%s" % (self.name, exc))
             except SciDBError:
                 self._datashape = None
         return self._datashape
@@ -623,7 +632,7 @@ class SciDBArray(object):
 
     @property
     def ndim(self):
-        return len(self.datashape.shape)
+        return self.datashape.ndim
 
     @property
     def size(self):
@@ -918,7 +927,8 @@ class SciDBArray(object):
     def todataframe(self, transfer_bytes=True):
         """Transfer array from database and store in a local Pandas dataframe
 
-        This is valid only for a one-dimensional array.
+        For multidimensional arrays, the dimension values are added
+        as additional columns in the dataframe.
 
         Parameters
         ----------
@@ -931,10 +941,12 @@ class SciDBArray(object):
         arr : pd.DataFrame
             The dataframe object containing the data in the array.
         """
-        if self.ndim != 1:
-            raise ValueError("Dataframe export is valid only for 1D arrays")
         from pandas import DataFrame
-        return DataFrame(self.toarray())
+        if self.ndim == 1:
+            return DataFrame(self.toarray())
+
+        idx = _new_attribute_label('row', self)
+        return self.afl.unpack(self, idx).todataframe()
 
     def tosparse(self, sparse_fmt='recarray', transfer_bytes=True):
         """Transfer array from database and store in a local sparse array.
@@ -1222,7 +1234,7 @@ class SciDBArray(object):
         """
         from .schema_utils import disambiguate
 
-        if mask.shape != self.shape:
+        if mask.shape and self.shape and mask.shape != self.shape:
             raise ValueError("Shape of mask does not match array: %s vs %s" %
                              (mask.shape, self.shape))
 

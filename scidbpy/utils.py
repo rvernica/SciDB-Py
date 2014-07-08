@@ -233,3 +233,9 @@ def _new_attribute_label(suggestion='val', *arrays):
 
         nums.append(-1)  # in case it's empty
         return '{0}_{1}'.format(suggestion, max(nums) + 1)
+
+
+def as_list(x):
+    if isinstance(x, string_type):
+        return [x]
+    return list(x)

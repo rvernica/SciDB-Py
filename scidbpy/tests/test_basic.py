@@ -126,6 +126,17 @@ def test_to_dataframe():
         assert_allclose(Xnp[col], Xpd[col])
 
 
+@needs_pandas
+def test_to_dataframe_multidim():
+    x = sdb.afl.build('<a:float>[i=0:2,10,0, j=0:1,10,0]', 'i+j')
+
+    df = x.todataframe()
+
+    assert_array_equal(df['i'], [0, 0, 1, 1, 2, 2])
+    assert_array_equal(df['j'], [0, 1, 0, 1, 0, 1])
+    assert_array_equal(df['a'], [0, 1, 1, 2, 2, 3])
+
+
 def test_nonzero_nonnull():
     # create a matrix with empty, null, and non-null entries
     N = 4
