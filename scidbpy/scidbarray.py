@@ -41,6 +41,9 @@ SDB_NP_TYPE_MAP = {'bool': _np_typename('bool'),
 NP_SDB_TYPE_MAP = dict((val, key)
                        for key, val in iteritems(SDB_NP_TYPE_MAP))
 
+INTEGER_TYPES = ('int8', 'int16', 'int32', 'int64',
+                 'uint8', 'uint16', 'uint32', 'uint64')
+
 
 def _sdb_type(np_type):
     if np.issubdtype(np_type, np.character):
@@ -1385,6 +1388,25 @@ class SciDBArray(object):
         b = self.afl.build('%s[i=0:0,1,0]' % self.sdbtype, value)
         q = self.afl.substitute(self, b)
         return q
+
+    def groupby(self, by):
+        """
+        Build a groupby object from this array
+
+        Parameters
+        ----------
+        by : string or list of strings
+            Names of attributes and dimensions to group by
+
+        Returns
+        -------
+        groups : :class:`scidbpy.aggregation.GroupBy` instance
+            An object that can be used, e.g., to perform
+            aggregations over each group. See :class:`scidbpy.aggregation.GroupBy`
+            documentation for more information.
+        """
+        from .aggregation import GroupBy
+        return GroupBy(self, by)
 
     def _aggregate_operation(self, agg, index=None, scidb_syntax=True):
         """Perform an aggregation query

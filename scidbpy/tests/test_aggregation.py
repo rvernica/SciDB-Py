@@ -79,3 +79,53 @@ class TestHistogram(object):
         x['b'] = np.random.random((3, 4))
         self.check_multi(x, 'a')
         self.check_multi(x, 'b')
+
+
+class TestGroupBy(object):
+
+    def setup_method(self, method):
+        self.a = sdb.afl.build('<val:int32>[i=0:5,10,0, j=0:3,10,0]', 2)
+        self.b = sdb.afl.build('<k:float>[i=0:5,10,0, j=0:3,10,0]', 1)
+        self.c = sdb.join(self.a, self.b)
+
+    def teardown_method(self, method):
+        sdb.reap()
+
+    def test_global_groupby(self):
+
+        x = self.a.groupby('i').aggregate('sum(val)').toarray()
+        assert_allclose(x['val_sum'], [8, 8, 8, 8, 8, 8])
+
+        x = self.a.groupby('j').aggregate('count(*)').toarray()
+        assert_allclose(x['count'], [6, 6, 6, 6])
+
+    def test_groupby_on_multi_dims(self):
+
+        x = self.a.groupby(['i', 'j']).aggregate('count(*)').toarray()
+        assert_allclose(x['count'], np.ones(24))
+
+    def test_groupby_mapping(self):
+
+        x = self.a.groupby(['i', 'j']).aggregate({'c': 'count(*)'}).toarray()
+        assert_allclose(x['c'], np.ones(24))
+
+    def test_multimapping(self):
+        x = self.a.groupby('j').aggregate({'c': 'count(*)', 's': 'sum(val)'}).toarray()
+        assert_allclose(x['c'], np.ones(4) * 6)
+        assert_allclose(x['s'], np.ones(4) * 12)
+
+    def test_group_on_attriute(self):
+        x = self.c.groupby('val').aggregate('sum(k)').toarray()
+        assert_allclose(x['val'], [2])
+        assert_allclose(x['k_sum'], [24])
+
+    def test_float_forbidden(self):
+        with pytest.raises(TypeError) as exc:
+            self.b.groupby('k')
+        assert exc.value.args[0] == 'Grouping by non-integer attributes not yet supported'
+
+    def test_group_over_all_attributes(self):
+        x = self.a.groupby('val').aggregate('count(*)').toarray()
+        assert_allclose(x['count'], [24])
+
+    # other tests: handle aggregation over a dimension?

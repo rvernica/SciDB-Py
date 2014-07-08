@@ -5,9 +5,12 @@ import numpy as np
 
 from . import SciDBArray
 from .interface import _new_attribute_label
-from .scidbarray import NP_SDB_TYPE_MAP
+from .scidbarray import NP_SDB_TYPE_MAP, INTEGER_TYPES
+from ._py3k_compat import string_type
+from .schema_utils import as_dimensions
+from .utils import as_list
 
-__all__ = ['histogram']
+__all__ = ['histogram', 'GroupBy']
 
 
 def histogram(X, bins=10, att=None, range=None, plot=False, **kwargs):
@@ -113,3 +116,64 @@ def _plot_hist(result, **kwargs):
         return plt.fill(x, y, **kwargs)
 
     return plt.step(x, y, where='post', **kwargs)
+
+
+class GroupBy(object):
+
+    def __init__(self, array, by):
+        """
+        Perform a GroupBy operation on an array
+
+        The interface of this class mimics a subset of the functionality
+        of Pandas' groupby.
+
+        Notes
+        -----
+        GroupBy operations are currently restricted in the following ways:
+        - GroupBy items must be names of attributes or dimensions
+        - Non-integer attributes cannot be used as a groupby item
+        - Dimensions cannot be used in aggregate calls
+
+        These limitations will be addressed in the 14.9 release of SciDB-Py
+
+        Parameters
+        ----------
+        array : SciDBArray
+           The array to group over
+
+        by : List of strings
+            The names of attributes and dimensions to group by
+
+        Examples
+        --------
+        >>> x = sdb.afl.build('<a:int32>[i=0:100,1000,0]', 'iif(i > 50, 1, 0)')
+        >>> y = sdb.afl.build('<b:int32>[i=0:100,1000,0]', 'i % 30')
+        >>> z = sdb.join(x, y)
+        >>> grp = z.groupby('a')
+        >>> grp.aggregate('sum(b)').todataframe()
+           a  b_sum
+        0  0    645
+        1  1    715
+
+        Multiple aggregation functions can be provided with a dict
+        >>> grp.aggregate({'s':'sum(b)', 'm':'max(b)'}).todataframe()
+           a    s   m
+        0  0  645  29
+        1  1  715  29
+        """
+        self.by = as_list(by)
+        for name, typ, _ in array.sdbtype.full_rep:
+            if name in self.by and typ not in INTEGER_TYPES:
+                raise TypeError("Grouping by non-integer attributes not yet supported")
+
+        self.array = as_dimensions(array, *self.by)
+
+    def aggregate(self, mappings):
+        if isinstance(mappings, string_type):
+            result = self.array.aggregate(mappings, *self.by)
+        else:
+            args = ['%s as %s' % (v, k) for k, v in mappings.items()] + self.by
+            result = self.array.aggregate(*args)
+
+        attr = _new_attribute_label('_idx', result)
+        return result.unpack(attr)

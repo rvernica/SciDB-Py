@@ -1,6 +1,7 @@
 __all__ = ['change_axis_schema']
 
 import numpy as np
+from .utils import _new_attribute_label
 
 
 def change_axis_schema(datashape, axis, start=None, stop=None,
@@ -125,3 +126,81 @@ def disambiguate(*arrays):
         else:
             result.append(afl.cast(a, ds.schema))
     return tuple(result)
+
+
+def _att_schema_item(rep):
+    name, typ, nullable = rep
+    result = '{0}:{1}'.format(name, typ)
+    if nullable:
+        result = result + ' NULL DEFAULT null'
+    return result
+
+
+def _dim_schema_item(name, limit):
+    return '{0}={1}:{2},1000,0'.format(name, limit[0], limit[1])
+
+
+def limits(array, names):
+    """
+    Compute the lower/upper bounds for a set of attributes
+
+    Parameters
+    ----------
+    array : SciDBArray
+        The array to consider
+    names : list of strings
+        Names of attributes to consider
+
+    Returns
+    -------
+    limits : dict mapping name->(lo, hi)
+        Contains the minimum and maximum value for each attribute
+
+    Notes
+    -----
+    This performs a full scan of the array
+    """
+
+    args = ['%s(%s)' % (f, n)
+            for n in names
+            for f in ['min', 'max']]
+    result = array.afl.aggregate(array, *args).toarray()
+    return dict((n, (int(result['%s_min' % n][0]), int(result['%s_max' % n][0])))
+                for n in names)
+
+
+def as_dimensions(array, *dims):
+    """
+    Redimension an array as needed, ensuring that the arguments
+    are dimensions of the result
+
+    Parameters
+    ----------
+    array: SciDBArray
+        The array to redimension
+    dims : One or more strings
+        The names of attributes or dimensions in ``array`` which
+        *must* be stored as dimensions in the output
+
+    Returns
+    -------
+    result : SciDBArray
+       A possibly-redimensioned version of ``array``.
+    """
+    if set(array.att_names) == set(dims):
+        dummy = _new_attribute_label('__dummy', array)
+        array = array.apply(dummy, 0)
+
+    to_promote = set(dims) & set(array.att_names)
+    if not to_promote:
+        return array
+    lim = limits(array, to_promote)
+    atts = ','.join([_att_schema_item(r)
+                    for r in array.sdbtype.full_rep
+                    if r[0] not in to_promote])
+    dims = [array.datashape.dim_schema[1:-1]]
+    dims.extend(_dim_schema_item(k, v)
+                for k, v in lim.items())
+    dims = ','.join(dims)
+    schema = '<{0}> [{1}]'.format(atts, dims)
+    return array.redimension(schema)

@@ -4,8 +4,9 @@ import re
 
 import numpy as np
 
+from ._py3k_compat import string_type
 
-__all__ = ['meshgrid', 'broadcastable', 'iter_record']
+__all__ = ['meshgrid', 'broadcastable', 'iter_record', 'as_list']
 
 
 # This is back-ported from numpy version 1.7
