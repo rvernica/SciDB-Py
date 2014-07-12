@@ -169,38 +169,65 @@ def limits(array, names):
                 for n in names)
 
 
-def as_dimensions(array, *dims):
+def redimension(array, dimensions, attributes):
     """
-    Redimension an array as needed, ensuring that the arguments
-    are dimensions of the result
+    Redimension an array as needed, swapping and dropping
+    attributes as needed
 
     Parameters
     ----------
     array: SciDBArray
         The array to redimension
-    dims : One or more strings
-        The names of attributes or dimensions in ``array`` which
-        *must* be stored as dimensions in the output
+    dimensions : list of strings
+        The dimensions or attributes in array that should be dimensions
+    attributes : list of strings
+        The dimensions or attributes in array that should be attributes
+
+    Notes
+    -----
+    - Only integer attributes can be listed as dimensions
+    - If an attribute or dimension in the original array is not explicitly
+      provided as an input, it is dropped
+    - If all attributes are marked for conversion to dimensions
+      a new dummy attribute is added to ensure a valid schema.
 
     Returns
     -------
     result : SciDBArray
-       A possibly-redimensioned version of ``array``.
+       A new version of array, redimensioned as needed to
+       ensure proper dimension/attribute schema.
     """
-    if set(array.att_names) == set(dims):
+
+    to_promote = set(dimensions) & set(array.att_names)  # att->dim
+    to_demote = set(attributes) & set(array.dim_names)  # dim->att
+
+    if not to_promote and not to_demote:
+        return array
+
+    # need a dummy attribute, otherwise result has no attributes
+    if (to_promote == set(array.att_names)) and (not to_demote):
         dummy = _new_attribute_label('__dummy', array)
         array = array.apply(dummy, 0)
+        attributes = list(attributes) + [dummy]
 
-    to_promote = set(dims) & set(array.att_names)
-    if not to_promote:
-        return array
-    lim = limits(array, to_promote)
-    atts = ','.join([_att_schema_item(r)
-                    for r in array.sdbtype.full_rep
-                    if r[0] not in to_promote])
-    dims = [array.datashape.dim_schema[1:-1]]
+    # build the attribute schema
+    atts = [_att_schema_item(r)
+            for r in array.sdbtype.full_rep
+            if r[0] in attributes]
+    atts.extend('%s:int' % d
+                for d in to_demote)
+    atts = ','.join(atts)
+
+    # build the dimension schema
+    ds = array.datashape
+    dims = ['{0}={1}:{2},{3},{4}'.format(n, l, h, ch, co)
+            for n, l, h, ch, co in
+            zip(ds.dim_names, ds.dim_low, ds.dim_high,
+                ds.chunk_size, ds.chunk_overlap)
+            if n in dimensions]
     dims.extend(_dim_schema_item(k, v)
-                for k, v in lim.items())
+                for k, v in limits(array, to_promote).items())
     dims = ','.join(dims)
+
     schema = '<{0}> [{1}]'.format(atts, dims)
     return array.redimension(schema)

@@ -1,5 +1,6 @@
 # License: Simplified BSD, 2014
 # See LICENSE.txt for more information
+import re
 
 import numpy as np
 
@@ -7,7 +8,7 @@ from . import SciDBArray
 from .interface import _new_attribute_label
 from .scidbarray import NP_SDB_TYPE_MAP, INTEGER_TYPES
 from ._py3k_compat import string_type
-from .schema_utils import as_dimensions
+from .schema_utils import redimension
 from .utils import as_list
 
 __all__ = ['histogram', 'GroupBy']
@@ -118,6 +119,18 @@ def _plot_hist(result, **kwargs):
     return plt.step(x, y, where='post', **kwargs)
 
 
+def _expression_attributes(expr):
+    """Extract the possible array attributes referenced in an expression
+
+    Examples
+    --------
+    _expression_attributes('sum(val) as v, count(*)') -> ['val']
+    """
+    result = re.findall('\(([^\*]*?)\)', expr)
+    result = [r.strip() for item in result for r in item.split(',')]
+    return result
+
+
 class GroupBy(object):
 
     def __init__(self, array, by):
@@ -165,15 +178,24 @@ class GroupBy(object):
         for name, typ, _ in array.sdbtype.full_rep:
             if name in self.by and typ not in INTEGER_TYPES:
                 raise TypeError("Grouping by non-integer attributes not yet supported")
-
-        self.array = as_dimensions(array, *self.by)
+        self.array = array
 
     def aggregate(self, mappings):
+
+        dims = list(self.by)
+
         if isinstance(mappings, string_type):
-            result = self.array.aggregate(mappings, *self.by)
+            atts = _expression_attributes(mappings)
+            dims.extend(d for d in self.array.dim_names if d not in atts)
+            array = redimension(self.array, dims, atts)
+            result = array.aggregate(mappings, *self.by)
+            print result.query
         else:
+            atts = sum((_expression_attributes(v) for v in mappings.values()), [])
+            dims.extend(d for d in self.array.dim_names if d not in atts)
+            array = redimension(self.array, dims, atts)
             args = ['%s as %s' % (v, k) for k, v in mappings.items()] + self.by
-            result = self.array.aggregate(*args)
+            result = array.aggregate(*args)
 
         attr = _new_attribute_label('_idx', result)
         return result.unpack(attr)
