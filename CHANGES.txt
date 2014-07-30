@@ -1,3 +1,18 @@
+Version 14.7.0
+--------------
+** Released 2014 July 30**
+
+- Added support for downloading many additional datatypes (strings, datetimes, nullable attributes, empty cells)
+- Schema introspection and lazy evaluation of AFL expressions. Arrays can be constructed and examined before database storage is actually allocated to them.
+- Along with this, the AFL binding functions now return SciDBArrays, making it easier to mix AFL calls with SciDB-Py-specific methods
+- Shortcut AFL syntax: x.operator(a, ...) maps to sdb.afl.operator(x, a, ...)
+  if `operator` isn't a pre-existing method name. Allows for chaining
+  of afl calls (x.apply().project().redimension(), e.g.)
+- Inequality syntax and filtering (x['a'] > 5, x[x['a'] < 5])
+- Additional element-wise operators: sqrt, floor, ceil, isnan
+- Cumulative aggregation
+- Groupby aggregation
+
 Version 14.3.0
 --------------
 **Released 2014 April 25**
