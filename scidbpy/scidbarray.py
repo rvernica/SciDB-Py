@@ -3,7 +3,7 @@
 # License: Simplified BSD, 2014
 # See LICENSE.txt for more information
 
-from __future__ import print_function, division
+from __future__ import print_function, division, unicode_literals
 import warnings
 import re
 from itertools import chain
@@ -15,6 +15,7 @@ from copy import copy
 from .errors import SciDBError, SciDBForbidden, SciDBQueryError
 
 # Numpy 1.7 meshgrid backport
+from . import parse
 from .utils import meshgrid, slice_syntax, _is_query, _new_attribute_label
 from ._py3k_compat import genfromstr, iteritems, csv_reader, string_type
 from .schema_utils import change_axis_schema
@@ -23,6 +24,8 @@ __all__ = ["sdbtype", "SciDBArray", "SciDBDataShape"]
 
 
 # Create mappings between scidb and numpy string representations
+# XXX these are partially deprecated, now that nulls/missing values
+# are handled
 _np_typename = lambda s: np.dtype(s).descr[0][1]
 SDB_NP_TYPE_MAP = {'bool': _np_typename('bool'),
                    'float': _np_typename('float32'),
@@ -36,6 +39,8 @@ SDB_NP_TYPE_MAP = {'bool': _np_typename('bool'),
                    'uint32': _np_typename('uint32'),
                    'uint64': _np_typename('uint64'),
                    'char': _np_typename('c'),
+                   'datetime': '<M8[s]',
+                   'datetimetz': '<M8[s]',
                    'string': '|U100'}
 
 NP_SDB_TYPE_MAP = dict((val, key)
@@ -137,7 +142,8 @@ class sdbtype(object):
     @property
     def bytes_fmt(self):
         """The format used for transfering raw bytes to and from scidb"""
-        return '({0})'.format(','.join(rep[1] for rep in self.full_rep))
+        return "(%s)" % ','.join(f if not n else "%s NULL" % f
+                                 for (_, f, n) in self.full_rep)
 
     @classmethod
     def _regularize(cls, schema):
@@ -171,11 +177,11 @@ class sdbtype(object):
         # assume that now we just have the dtypes themselves
         # TODO: support default values?
         sdbL = schema.split(',')
-        sdbL = [list(map(str.strip, s.split(':'))) for s in sdbL]
+        sdbL = [list(map(lambda x: x.strip(), s.split(':'))) for s in sdbL]
 
-        names = [s[0] for s in sdbL]
+        names = [str(s[0]) for s in sdbL]
         dtypes = [s[1].split()[0] for s in sdbL]
-        nullable = ['null' in str.lower(''.join(s[1].split()[1:]))
+        nullable = ['null' in (''.join(s[1].split()[1:])).lower()
                     for s in sdbL]
         return list(zip(names, dtypes, nullable))
 
@@ -195,7 +201,6 @@ class sdbtype(object):
             The corresponding numpy dtype descriptor
         """
         sdbL = cls._schema_to_list(schema)
-
         if len(sdbL) == 1:
             return np.dtype(SDB_NP_TYPE_MAP[sdbL[0][1]])
         else:
@@ -515,6 +520,27 @@ class SciDBArray(object):
     def schema(self):
         """Return the array schema"""
         return self.datashape.schema
+
+    def head(self, n=5):
+        if self.shape is not None:
+            n = min(n, self.size)
+
+        args = zip([0] * (self.ndim - 1), [1] * (self.ndim - 1))
+        result = self.subarray(0, n - 1, *args)
+        try:
+            return result.todataframe()
+        except ImportError:
+            return result.toarray()
+
+    def tail(self, n=5):
+        hi = self.size - 1
+        lo = max(hi - n + 1, 0)
+        args = zip([0] * (self.ndim - 1), [1] * (self.ndim - 1))
+        result = self.subarray(lo, hi, *args)
+        try:
+            return result.todataframe()
+        except ImportError:
+            return result.toarray()
 
     def rename(self, new_name, persistent=False):
         """Rename the array in the database, optionally making the new
@@ -870,14 +896,13 @@ class SciDBArray(object):
 
         return arr
 
-    def toarray(self, transfer_bytes=True):
+    def toarray(self, transfer_bytes=False):
         """Transfer data from database and store in a numpy array.
 
         Parameters
         ----------
-        transfer_bytes : boolean
-            if True (default), then transfer data as bytes rather than as
-            ASCII.
+        transfer_bytes : DEPRECATED
+           Unused
 
         Returns
         -------
@@ -889,9 +914,12 @@ class SciDBArray(object):
         If the array is backed by a query, the query is evaluated and stored
         in the database
         """
+        if transfer_bytes:
+            warnings.warn(DeprecationWarning("transfer_bytes is deprecated, "
+                          "and will be removed in a future version"))
+
         self.eval()  # evaluate if needed, for speed
-        return self._download_data(transfer_bytes=transfer_bytes,
-                                   output='dense')
+        return parse.toarray(self)
 
     def eval(self, out=None, store=True, **kwargs):
         """
@@ -1384,6 +1412,11 @@ class SciDBArray(object):
         -------
         arr : SciDBArray
             new non-nullable array
+
+        Notes
+        -----
+        This is currently limited to single-attribute arrays.
+        Use the raw AFL substutute operator for multi-attribute arrays
         """
         b = self.afl.build('%s[i=0:0,1,0]' % self.sdbtype, value)
         q = self.afl.substitute(self, b)

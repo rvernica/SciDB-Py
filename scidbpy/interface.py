@@ -13,13 +13,14 @@ The following interfaces are currently available:
 # License: Simplified BSD, 2013
 # See LICENSE.txt for more information
 
-from __future__ import print_function
+from __future__ import print_function, unicode_literals
 import warnings
 import abc
 import os
 import atexit
 import logging
 import csv
+from time import time
 
 from ._py3k_compat import (urlopen, quote, HTTPError,
                            iteritems, string_type, reduce)
@@ -1306,7 +1307,7 @@ class SciDBShimInterface(SciDBInterface):
     def _shim_execute_query(self, session_id, query, save=None, release=False):
         url = self._shim_url('execute_query',
                              id=session_id,
-                             query=quote(query),
+                             query=quote(query.encode('utf-8')),
                              release=int(bool(release)))
         if save is not None:
             url += "&save={0}".format(quote(save))

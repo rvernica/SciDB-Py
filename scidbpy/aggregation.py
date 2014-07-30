@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 # License: Simplified BSD, 2014
 # See LICENSE.txt for more information
 import re
@@ -189,7 +191,6 @@ class GroupBy(object):
             dims.extend(d for d in self.array.dim_names if d not in atts)
             array = redimension(self.array, dims, atts)
             result = array.aggregate(mappings, *self.by)
-            print result.query
         else:
             atts = sum((_expression_attributes(v) for v in mappings.values()), [])
             dims.extend(d for d in self.array.dim_names if d not in atts)

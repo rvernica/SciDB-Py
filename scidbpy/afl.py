@@ -1,9 +1,9 @@
 # License: Simplified BSD, 2014
 # See LICENSE.txt for more information
+from __future__ import print_function, unicode_literals
 
 import sys
 import threading
-
 
 from . import SciDBArray
 from .afldb import operators
@@ -118,8 +118,8 @@ def register_infix(name, op):
     """
     def call(*args):
         return infix_call(op, *args)
-    call.__doc__ = "The operator %s" % op
-    call.__name__ = name
+    call.__doc__ = str("The operator %s" % op)
+    call.__name__ = str(name)
 
     return call
 

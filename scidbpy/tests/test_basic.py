@@ -705,6 +705,14 @@ def test_compress():
             yield check, axis, thresh
 
 
+def test_toarray_smallchunk():
+    # for >1D arrays where chunk size < shape, make sure result is correct
+    x = sdb.afl.build('<i:float>[j=0:5,2,0, k=0:5,2,0]', 'j+k')
+    j, i = np.indices((6, 6))
+    expected = j + i
+    assert_allclose(x.toarray(), expected)
+
+
 class TestAttributeAccess(object):
 
     def test_single(self):

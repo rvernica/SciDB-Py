@@ -24,5 +24,6 @@ compising SciDB queries more explicitly.
    operations
    comparison_and_filtering
    query
+   conversion.rst
 
 
