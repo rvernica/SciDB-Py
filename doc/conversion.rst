@@ -101,7 +101,7 @@ non-nullable array::
     >>> from scidbpy import connect
     >>> sdb = connect()
 
-    >>> x = sdb.afl.build('<a:int8 NULL>[i=0:5,10,0]', 'iif(i>0, i, null)'
+    >>> x = sdb.afl.build('<a:int8 NULL>[i=0:5,10,0]', 'iif(i>0, i, null)')
     >>> x.toarray()
     array([ nan,   1.,   2.,   3.,   4.,   5.])
 
