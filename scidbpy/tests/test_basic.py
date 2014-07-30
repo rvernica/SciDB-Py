@@ -139,17 +139,12 @@ def test_to_dataframe_multidim():
 
 def test_nonzero_nonnull():
     # create a matrix with empty, null, and non-null entries
-    N = 4
-    tridiag = sdb.new_array((N, N), dtype='<v:double null>')
-    sdb.query('store(build_sparse({A}, '
-              '    iif({A.d0}={A.d1}, 1, null), '
-              '    {A.d0} <= {A.d1}+1 and {A.d0} >= {A.d1}-1), '
-              '  {A})',
-              A=tridiag)
+    x = sdb.afl.build('<v:double null>[i=0:3,10,0]', 'iif(i>1, 1, null)')
+    x = x.redimension('<v:double null>[i=0:5,10,0]')
 
-    assert tridiag.contains_nulls()
-    assert_array_equal(tridiag.nonempty(), N + 2 * (N - 1))
-    assert_array_equal(tridiag.nonnull(), N)
+    assert x.contains_nulls()
+    assert_array_equal(x.nonempty(), 4)
+    assert_array_equal(x.nonnull(), 2)
 
 
 def test_array_creation():

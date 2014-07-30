@@ -29,7 +29,7 @@ import re
 import numpy as np
 from .scidbarray import SciDBArray, SciDBDataShape, ArrayAlias, SDB_IND_TYPE
 from .errors import SHIM_ERROR_DICT, SciDBQueryError, SciDBConnectionError
-from .utils import broadcastable, _is_query, iter_record, _new_attribute_label
+from .utils import broadcastable, _is_query, iter_record, _new_attribute_label, as_list
 from .schema_utils import disambiguate
 
 __all__ = ['SciDBInterface', 'SciDBShimInterface', 'connect']
@@ -649,15 +649,18 @@ class SciDBInterface(object):
         arr : SciDBArray
             A SciDBArray containint an [n x n] identity matrix
         """
-        arr = self.new_array((n, n), dtype, **kwargs)
-        d0, d1 = arr.dim_names
-        diag = "{0}={1}".format(d0, d1)
+        if len(as_list(dtype)) > 1:
+            raise NotImplementedError("Identity matrices must have 1 attribute")
+        dtype = as_list(dtype)[0]
+
+        query = self.afl.build('<x:%s>[i0=0:%i,1000,0,i1=0:%i,1000,0]' % (dtype, n - 1, n - 1),
+                               'iif(i0=i1,1,0)')
+
         if sparse:
-            query = self.afl.build_sparse(arr, 1, diag)
-        else:
-            query = self.afl.build(arr, 'iif(%s,1,0)' % diag)
-        query.eval(out=arr)
-        return arr
+            # redimension converts NULL to empty
+            query = query.apply('i', 'iif(x=1, i0, NULL)', 'j', 'iif(x=1, i1, NULL)')
+            query = query.redimension('<x:%s>[i=0:%i,1000,0,j=0:%i,1000,0]' % (dtype, n - 1, n - 1))
+        return query.eval()
 
     def dot(self, A, B):
         """Compute the matrix product of A and B
