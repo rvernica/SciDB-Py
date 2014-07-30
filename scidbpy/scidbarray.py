@@ -406,7 +406,7 @@ class SciDBDataShape(object):
         dct = dict(f[:2] for f in self.sdbtype.full_rep)
         types = [SDB_NP_TYPE_MAP[dct.get(key, SDB_IND_TYPE)]
                  for key in keys]
-        return np.dtype(list(zip(keys, types)))
+        return np.dtype(list(zip(map(str, keys), types)))
 
 
 class ArrayAlias(object):
@@ -522,6 +522,20 @@ class SciDBArray(object):
         return self.datashape.schema
 
     def head(self, n=5):
+        """
+        Extract and download the first few elements in the array
+
+        Parameters
+        ----------
+        n : int (optional, default=5)
+           The number of elements to retrieve
+
+        Returns
+        -------
+        The first N elements in the array, downloaded
+        as a Pandas dataframe (if pandas is installed) or a Numpy array
+
+        """
         if self.shape is not None:
             n = min(n, self.size)
 

@@ -850,12 +850,13 @@ class SciDBInterface(object):
         # first flatten the array & indices
         # We'll treat the general case where A.data can be a record array,
         # though this will be very uncommon.
-        flat_dtype = [(d1, SDB_IND_TYPE),
-                      (d2, SDB_IND_TYPE)]
+        flat_dtype = [(str(d1), SDB_IND_TYPE),
+                      (str(d2), SDB_IND_TYPE)]
         if A.dtype.names is None:
-            flat_dtype += [('f0', A.dtype)]
+            flat_dtype += [(str('f0'), A.dtype)]
         else:
             flat_dtype += A.descr
+
         M = np.empty(len(A.data), dtype=flat_dtype)
         M[d1] = A.row
         M[d2] = A.col
