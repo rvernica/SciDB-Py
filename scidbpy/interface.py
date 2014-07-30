@@ -20,7 +20,7 @@ import os
 import atexit
 import logging
 import csv
-from time import time
+from time import time, sleep
 
 from ._py3k_compat import (urlopen, quote, HTTPError,
                            iteritems, string_type, reduce)
@@ -28,7 +28,7 @@ from ._py3k_compat import (urlopen, quote, HTTPError,
 import re
 import numpy as np
 from .scidbarray import SciDBArray, SciDBDataShape, ArrayAlias, SDB_IND_TYPE
-from .errors import SHIM_ERROR_DICT, SciDBQueryError
+from .errors import SHIM_ERROR_DICT, SciDBQueryError, SciDBConnectionError
 from .utils import broadcastable, _is_query, iter_record, _new_attribute_label
 from .schema_utils import disambiguate
 
@@ -1288,11 +1288,19 @@ class SciDBShimInterface(SciDBInterface):
         return url
 
     def _shim_urlopen(self, url):
-        try:
-            return urlopen(url)
-        except HTTPError as e:
-            Error = SHIM_ERROR_DICT[e.code]
-            raise Error("[HTTP {0}] {1}".format(e.code, e.read()))
+        # shim can freeze up if hit with many connections.
+        # problem often goes away by waiting and retrying
+        for wait_retry in [2, 5, 10, 20]:
+            try:
+                return urlopen(url)
+            except HTTPError as e:
+                Error = SHIM_ERROR_DICT[e.code]
+                if Error is SciDBConnectionError:
+                    sleep(wait_retry)
+                    continue
+                raise Error("[HTTP {0}] {1}".format(e.code, e.read()))
+        else:
+            raise SciDBConnectionError("Shim timeout (max retries exceeded)")
 
     def _shim_new_session(self):
         """Request a new HTTP session from the service"""
@@ -1328,17 +1336,29 @@ class SciDBShimInterface(SciDBInterface):
 
     def _shim_read_lines(self, session_id, n):
         url = self._shim_url('read_lines', id=session_id, n=n)
+        t0 = time()
         result = self._shim_urlopen(url)
         text_result = result.read()
+        dt = time() - t0
+        pl = len(text_result) / 1048576
+        logging.getLogger(__name__).debug("Transfer time: %0.1f sec", dt)
+        logging.getLogger(__name__).debug("Payload:       %0.2f MB", pl)
+
         # the following check is for Py3K compatibility
         if not isinstance(text_result, string_type):
             text_result = text_result.decode('UTF-8')
         return text_result
 
     def _shim_read_bytes(self, session_id, n):
-        url = self._shim_url('read_lines', id=session_id, n=n)
+        url = self._shim_url('read_bytes', id=session_id, n=n)
+        t0 = time()
         result = self._shim_urlopen(url)
         bytes_result = result.read()
+        dt = time() - t0
+        pl = len(bytes_result) / 1048576
+        logging.getLogger(__name__).debug("Transfer time: %0.1f sec", dt)
+        logging.getLogger(__name__).debug("Payload:       %0.2f MB", pl)
+
         return bytes_result
 
     def _shim_upload_file(self, session_id, data):

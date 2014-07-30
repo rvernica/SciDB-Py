@@ -10,7 +10,7 @@ It is often advantageous to convert small arrays into
 "normal" python data structures, for further analysis in python.
 SciDB-Py provides several conversion routines:
 
- * :meth:`SciDBArray.toarray` converts the array to a numpy array
+ * :meth:`SciDBArray.toarray` converts the array to a NumPy array
  * :meth:`SciDBArray.todataframe` converts the array to a Pandas DataFrame
  * :meth:`SciDBArray.tosparse` converts the array to a SciPy sparse array
 
@@ -29,10 +29,10 @@ we outline the various possibilities, starting with the easiest cases.
 Single attribute, non-sparse, non-nullable array
 -------------------------------------------------
 An array with a single non-nullable attribute is converted
-into a numpy array of equivalent datatype:
+into a NumPy array of equivalent datatype:
 
     ============== =========================
-    SciDB datatype Numpy datatype (typecode)
+    SciDB datatype NumPy datatype (typecode)
     ============== =========================
     bool           bool ('<b1')
     int8           int8 ('<b')
@@ -52,7 +52,7 @@ into a numpy array of equivalent datatype:
     ============== =========================
 
 Note that strings are converted into python object arrays, since
-numpy string arrrays are otherwise required to have the same string
+NumPy string arrrays are otherwise required to have the same string
 length in each element
 
 Single attribute, nullable array
@@ -82,11 +82,11 @@ datetimetz     datetime64 ('<M8[s]')
 string         object
 ============== =========================
 
-In the numpy array, each masked element is assigned the default null
+In the NumPy array, each masked element is assigned the default null
 value for its datatype:
 
 ==============  ====================
-Numpy Datatype  Default masked value
+NumPy Datatype  Default masked value
 ==============  ====================
 float, double   NaN
 char            ``'\0'``
@@ -116,7 +116,7 @@ Arrays with empty cells
 -----------------------
 In addition to masked values, SciDBArrays can have empty cells.
 These cells are treated as zero-valued when converting to a NumPy array.
-The zero-value for non-numeric datatypes is determined from the numpy.zeros function::
+The zero-value for non-numeric datatypes is determined from the NumPy.zeros function::
 
     >>> x = sdb.afl.build('<a:int8>[i=0:3,10,0]', 10)
     >>> x = x.redimension('<a:int8>[i=0:5,10,0]')
@@ -145,11 +145,11 @@ The original array indices can be extracted using the unpack operator::
 
 Unbound Arrays
 --------------
-When a SciDBArray is unbound, the resulting Numpy array is truncated
+When a SciDBArray is unbound, the resulting NumPy array is truncated
 to the region containing data.
 
 Multiattribute arrays
 ---------------------
-Arrays with multiple attributes are handled analagously to single-attribute
-arrays as discussed above. However, the output is returned as a numpy
+Arrays with multiple attributes are handled analogously to single-attribute
+arrays as discussed above. However, the output is returned as a NumPy
 record array, with record labels matching the SciDB attribute labels.
