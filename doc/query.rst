@@ -53,15 +53,11 @@ Here the substitutions ``{A.d0}`` and ``{A.d1}`` are replaced by the first
 and second dimension names of the array referenced by ``A``.
 
 Things can become even more complicated. The following example creates a
-5x5 sparse tridiagonal array, similar to the one used in the above examples::
+5x5 tridiagonal array, similar to the one used in the above examples::
 
     >>> tridiag = sdb.new_array((5, 5))
-    >>> sdb.query('store( \
-    ...              build_sparse({A}, \
-    ...                iif({A.d0}={A.d1}, 2, -1), \
-    ...                {A.d0} <= {A.d1}+1 and {A.d0} >= {A.d1}-1), \
-    ...              {A})',
-    ...           A=tridiag)
+    >>> sdb.query('store(build({A}, \
+    ...               iif({A.d0}={A.d1}, 2, iif({A.d0} <= {A.d1}+1 and {A.d0} >= {A.d1}-1, -1, 0))), {A})', A=tridiag)
     >>> tridiag.toarray()
     array([[ 2., -1.,  0.,  0.,  0.],
            [-1.,  2., -1.,  0.,  0.],
@@ -69,7 +65,7 @@ Things can become even more complicated. The following example creates a
            [ 0.,  0., -1.,  2., -1.],
            [ 0.,  0.,  0., -1.,  2.]])
 
-The query builds a sparse tridiagonal array with 2 on the diagonal and -1 on
+The query builds a tridiagonal array with 2 on the diagonal and -1 on
 the sub- and super-diagonals. This shows how the query-formatting syntax
 provided by the scidbpy package can be used to generate extremely powerful
 AFL queries.
@@ -79,39 +75,6 @@ The full replacement syntax is outlined in the documentation of the
 streamline the process of writing SciDB queries if and when it becomes
 necessary.
 
-Tridiagonal Example
--------------------
-
-Let's consider a more complicated example.  Here
-we'll use the advanced query syntax to efficiently
-create a 10x10 tridiagonal array, and import its data in both dense
-and sparse formats::
-
-    >>> tridiag = sdb.new_array((10, 10))
-    >>> sdb.query('store( \
-    ...              build_sparse({A}, \
-    ...                iif({A.d0}={A.d1}, 2, -1), \
-    ...                {A.d0} <= {A.d1}+1 and {A.d0} >= {A.d1}-1), \
-    ...              {A})',
-    ...           A=tridiag)
-
-    >>> # Materialize SciDB array to Python as a numpy array:
-    >>> tridiag.toarray()
-    array([[ 2.,  1.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.],
-           [-1.,  2.,  1.,  0.,  0.,  0.,  0.,  0.,  0.,  0.],
-           [ 0., -1.,  2.,  1.,  0.,  0.,  0.,  0.,  0.,  0.],
-           [ 0.,  0., -1.,  2.,  1.,  0.,  0.,  0.,  0.,  0.],
-           [ 0.,  0.,  0., -1.,  2.,  1.,  0.,  0.,  0.,  0.],
-           [ 0.,  0.,  0.,  0., -1.,  2.,  1.,  0.,  0.,  0.],
-           [ 0.,  0.,  0.,  0.,  0., -1.,  2.,  1.,  0.,  0.],
-           [ 0.,  0.,  0.,  0.,  0.,  0., -1.,  2.,  1.,  0.],
-           [ 0.,  0.,  0.,  0.,  0.,  0.,  0., -1.,  2.,  1.],
-           [ 0.,  0.,  0.,  0.,  0.,  0.,  0.,  0., -1.,  2.]])
-
-    >>> # Materialize SciDB array to Python as a scipy.sparse array:
-    >>> tridiag.tosparse('csr')
-    <10x10 sparse matrix of type '<type 'numpy.float64'>'
-            with 28 stored elements in Compressed Sparse Row format>
 
 .. _using_afl:
 
