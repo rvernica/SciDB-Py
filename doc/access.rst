@@ -8,7 +8,7 @@ Converting arrays to other data structures
 
 .. currentmodule:: scidbpy
 
-SciDB-Ppy is designed to perform operations on SciDB arrays in a
+SciDB-Py is designed to perform operations on SciDB arrays in a
 natural Python dialect, computing those operations in SciDB while minimizing data traffic between the database and Python. However, it is useful to materialize SciDB array data to Python, for example to obtain and plot results.
 
 :class:`SciDBArray` objects provide several functions that materialize array
@@ -57,6 +57,7 @@ data to Python:
         3  6  4  1
         4  8  5  1
 
+These methods are discussed in greater detail in :ref:`downloading`.
 Element Access
 --------------
 
