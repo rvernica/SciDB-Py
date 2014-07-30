@@ -2,7 +2,6 @@
 Demos and Other Topics
 ======================
 
-.. toctree::
-   :maxdepth: 2
+*  :ref:`correlation`
+*  `Airline groupby demo <http://nbviewer.ipython.org/github/Paradigm4/SciDB-py/blob/master/examples/airline_groupby.ipynb>`_
 
-   correlation.rst

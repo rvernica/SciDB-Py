@@ -1,3 +1,5 @@
+.. _correlation:
+
 Covariance and correlation matrices
 ===================================
 
