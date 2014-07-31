@@ -28,7 +28,7 @@ from ._py3k_compat import (urlopen, quote, HTTPError,
 import re
 import numpy as np
 from .scidbarray import SciDBArray, SciDBDataShape, ArrayAlias, SDB_IND_TYPE
-from .errors import SHIM_ERROR_DICT, SciDBQueryError, SciDBConnectionError
+from .errors import SHIM_ERROR_DICT, SciDBQueryError, SciDBConnectionError, SciDBInvalidSession
 from .utils import broadcastable, _is_query, iter_record, _new_attribute_label, as_list
 from .schema_utils import disambiguate
 
@@ -94,6 +94,7 @@ class SciDBInterface(object):
 
     - ``_execute_query``
     - ``_upload_bytes``
+    - ``_release_session``
     """
     __metaclass__ = abc.ABCMeta
 
@@ -156,14 +157,29 @@ class SciDBInterface(object):
             The raw byte data to upload to a file on the SciDB server.
         Returns
         -------
+        (filename, session_id)
+
         filename : string
             The name of the resulting file on the SciDB server.
+        session : object
+            The session ID associated with the file
+
+        It is the responsibility of the caller of _upload_bytes
+        to call _free_session with the returned session object
+        once finished with the uploaded file.
         """
         pass
 
     @abc.abstractmethod
     def _get_uid(self):
         """Get a unique query ID from the database"""
+        pass
+
+    @abc.abstractmethod
+    def _release_session(self, session):
+        """
+        Close a session with the database.
+        """
         pass
 
     def reap(self):
@@ -778,10 +794,12 @@ class SciDBInterface(object):
         q = self.afl.quote
         A = np.asarray(A)
         instance_id = int(instance_id)
-        filename = q(self._upload_bytes(_to_bytes(A)))
+        filename, session_id = self._upload_bytes(_to_bytes(A))
+        filename = q(filename)
         arr = self.new_array(A.shape, A.dtype, **kwargs)
         self.afl.load(arr, filename, instance_id,
                       q(arr.sdbtype.bytes_fmt)).eval(store=False)
+        self._release_session(session_id)
         return arr
 
     def from_dataframe(self, A, instance_id=0, **kwargs):
@@ -1281,7 +1299,10 @@ class SciDBShimInterface(SciDBInterface):
 
     def _upload_bytes(self, data):
         session_id = self._shim_new_session()
-        return self._shim_upload_file(session_id, data)
+        return self._shim_upload_file(session_id, data), session_id
+
+    def _release_session(self, session):
+        self._shim_release_session(session)
 
     def _shim_url(self, keyword, **kwargs):
         url = self.hostname + '/' + keyword
@@ -1293,17 +1314,11 @@ class SciDBShimInterface(SciDBInterface):
     def _shim_urlopen(self, url):
         # shim can freeze up if hit with many connections.
         # problem often goes away by waiting and retrying
-        for wait_retry in [2, 5, 10, 20]:
-            try:
-                return urlopen(url)
-            except HTTPError as e:
-                Error = SHIM_ERROR_DICT[e.code]
-                if Error is SciDBConnectionError:
-                    sleep(wait_retry)
-                    continue
-                raise Error("[HTTP {0}] {1}".format(e.code, e.read()))
-        else:
-            raise SciDBConnectionError("Shim timeout (max retries exceeded)")
+        try:
+            return urlopen(url)
+        except HTTPError as e:
+            Error = SHIM_ERROR_DICT[e.code]
+            raise Error("[HTTP {0}] {1}".format(e.code, e.read()))
 
     def _shim_new_session(self):
         """Request a new HTTP session from the service"""
@@ -1312,9 +1327,15 @@ class SciDBShimInterface(SciDBInterface):
         session_id = int(result.read())
         return session_id
 
-    def _shim_release_session(self, session_id):
+    def _shim_release_session(self, session_id, ignore_invalid=False):
         url = self._shim_url('release_session', id=session_id)
-        self._shim_urlopen(url)
+        if ignore_invalid:
+            try:
+                self._shim_urlopen(url)
+            except SciDBInvalidSession:
+                pass
+        else:
+            self._shim_urlopen(url)
 
     def _shim_execute_query(self, session_id, query, save=None, release=False):
         url = self._shim_url('execute_query',
@@ -1329,6 +1350,7 @@ class SciDBShimInterface(SciDBInterface):
             query_id = result.read()
         except KeyboardInterrupt:
             self._shim_cancel(session_id)
+            self._shim_release_session(session_id, ignore_invalid=True)
             raise KeyboardInterrupt("Query cancelled")
 
         return query_id.decode('UTF-8')
