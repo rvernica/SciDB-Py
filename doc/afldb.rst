@@ -95,18 +95,29 @@
         
     
     :parameters:
-         cumulate(input, sum(v) as sum_v, count(*) as cnt, I) +-I-> J| 00
-           01 02 03 00 01 02 03 V +----+----+----+----+
-           +--------+--------+--------+--------+ 00 | 01 | | 02 | | 00 | (1, 1) |
-           | (3, 2) | | +----+----+----+----+
-           +--------+--------+--------+--------+ 01 | | 03 | | 04 | 01 | | (3, 1)
-           | | (7, 2) | +----+----+----+----+
-           +--------+--------+--------+--------+ 02 | 05 | | 06 | | 02 | (5, 1) |
-           | (11, 2)| | +----+----+----+----+
-           +--------+--------+--------+--------+ 03 | | 07 | | 08 | 03 | | (7, 1)
-           | | (15, 2)| +----+----+----+----+
-           +--------+--------+--------+--------+
+        
+           - inputArray: an input array
+           - 1 or more aggregate calls.
+           - aggrDim: the name of a dimension along with aggregates are computed.
+             Default is the first dimension.
     
+    
+    :examples:
+    
+    ::
+        
+          input:         cumulate(input, sum(v) as sum_v, count(*) as cnt, I)
+         +-I->
+        J|     00   01   02   03       00       01       02       03
+         V   +----+----+----+----+        +--------+--------+--------+--------+
+         00  | 01 |    | 02 |    |   00   | (1, 1) |        | (3, 2) |        |
+             +----+----+----+----+        +--------+--------+--------+--------+
+         01  |    | 03 |    | 04 |   01   |        | (3, 1) |        | (7, 2) |
+             +----+----+----+----+        +--------+--------+--------+--------+
+         02  | 05 |    | 06 |    |   02   | (5, 1) |        | (11, 2)|        |
+             +----+----+----+----+        +--------+--------+--------+--------+
+         03  |    | 07 |    | 08 |   03   |        | (7, 1) |        | (15, 2)|
+             +----+----+----+----+        +--------+--------+--------+--------+
     
     :notes:
         
@@ -507,49 +518,6 @@
         - The build operator can only take as input bounded dimensions.
     
 
-.. function:: build_sparse    
-    
-    Produces a sparse array and assigns values to its non-empty cells. The schema must have a single attribute.
-    
-    ::
-            
-        build_sparse( srcArray | schema, expression, expressionIsNonEmpty )
-        
-    
-    :parameters:
-        
-        - schemaArray | schema: an array or a schema, from which attrs and
-          dims will be used by the output array.
-        - expression: the expression which is used to compute values for
-          the non-empty cells.
-        - expressionIsNonEmpty: the expression which is used to compute
-          whether a cell is not empty.
-    
-    
-    :examples:
-    
-    ::
-        
-        - Given array A <quantity: uint64> [year, item] =
-           year, item, quantity
-           2011, 2, 7
-           2011, 3, 6
-           2012, 1, 5
-           2012, 2, 9
-           2012, 3, 8
-        - build_sparse(A, 0, item!=2) <quantity: uint64> [year, item] =
-           year, item, quantity
-           2011, 1, 0
-           2011, 3, 0
-           2012, 1, 0
-           2012, 3, 0
-    
-    :notes:
-        
-        - The build_sparse operator can only take as input bounded
-          dimensions.
-    
-
 .. function:: cancel    
     
     Cancels a query by ID.
@@ -654,7 +622,7 @@
 
 .. function:: consume    
     
-    Causes array parameter to be materialized if not already. numAttrsToScanAtOnce determines the number of attributes to scan as a group. Setting this value to '1' will result in a 'vertical' scan---all chunks of the current attribute will be scanned before moving on to the next attribute. Setting this value to the number of attributes will result in a 'horizontal' scan---chunk i of every attribute will be scanned before moving on to chunk i+1
+    Accesses each cell of an input array, if possible, by extracting tiles and iterating over tiles. numAttrsToScanAtOnce determines the number of attributes to scan as a group. Setting this value to '1' will result in a 'vertical' scan---all chunks of the current attribute will be scanned before moving on to the next attribute. Setting this value to the number of attributes will result in a 'horizontal' scan---chunk i of every attribute will be scanned before moving on to chunk i+1
     
     ::
             
@@ -673,6 +641,27 @@
     
 
 .. function:: create_array    
+    
+    Creates an array with the given name and schema and adds it to the database.
+    
+    ::
+            
+        *      create_array ( array_name, array_schema )
+       *
+
+        or
+
+       *      CREATE ARRAY   array_name  array_schema
+       *
+        
+    
+    :parameters:
+        
+        - array_name: an identifier that names the new array.
+        - array_schema: a multidimensional array schema that describes the
+          rank and shape of the array to be created, as well as the types
+          of each its attributes.
+    
 
 .. function:: cross_join    
     
@@ -863,7 +852,7 @@
     
     The input_array may have any attributes or dimensions. The index_array must have a single dimension and a single non-nullable attribute. The index array data must be sorted, unique values with no empty cells between them (though it does not necessarily need to be populated to the upper bound). The third argument must correctly refer to one of the attributes of the input array - the looked-up attribute. This attribute must have the same datatype as the only attribute of the index array. The comparison '<' function must be registered in SciDB for this datatype.
  The operator will create a new attribute, named input_attribute_name_index by default, or using the provided name, which will be the new last non-empty-tag attribute in the output array. The output attribute will be of type int64 nullable and will contain the respective coordinate of the corresponding input_attribute in index_array. If the corresponding input_attribute is null, or if no value for input_attribute exists in the index_array, the output attribute at that position shall be set to null. The output attribute shall be returned along all the input attributes in a fashion similar to the apply() operator.
- The operator uses some memory to cache a part of the index_array for fast lookup of values. By default, the size of this cache is limited to MEM_ARRAY_THRESHOLD. Note this is in addition to the memory already consumed by cached MemArrays as the operator is running. If a larger or smaller limit is desired, the 'memory_limit' parameter may be used. It is provided in units of megabytes and must be at least 1.
+ The operator uses some memory to cache a part of the index_array for fast lookup of values. By default, the size of this cache is limited to MEM_ARRAY_THRESHOLD. Note this is in addition to the memory already consumed by cached MemArrays as the operator is running. If a larger or smaller limit is desired, the 'memory_limit' parameter may be used. It is provided in units of mebibytes and must be at least 1.
  The operator may be further optimized to reduce memory footprint, optimized with a more clever data distribution pattern and/or extended to use multiple index arrays at the same time.
     
     ::
@@ -1291,6 +1280,22 @@
         - arrayToRemove: the array to drop.
     
 
+.. function:: remove_versions    
+    
+    Removes all versions of targetArray that are older than oldestVersionToSave
+    
+    ::
+            
+        remove_versions( targetArray, oldestVersionToSave )
+        
+    
+    :parameters:
+        
+        - targetArray: the array which is targeted.
+        - oldestVersionToSave: the version, prior to which all versions
+          will be removed.
+    
+
 .. function:: rename    
     
     Changes the name of an array.
@@ -1353,23 +1358,6 @@
         - srcArray: the source array with srcAttrs and srcDims.
     
 
-.. function:: sample    
-    
-    Produces a result array containing randomly sampled chunks from srcArray.
-    
-    ::
-            
-        sample( srcArray, probability [, seed] )
-        
-    
-    :parameters:
-        
-        - srcArray: the source array with srcAttrs and srcDims.
-        - probability: a double value from 0 to 1, as the probability that
-          a chunk is selected.
-        - seed: an int64 value as the seed to the random number generator.
-    
-
 .. function:: save    
     
     Saves the data in an array to a file.
@@ -1386,9 +1374,7 @@
         - instanceId: positive number means an instance ID on which file
           will be saved. -1 means to save file on every instance. -2 - on
           coordinator.
-        - format: format in which file will be stored. Possible values are
-          'store', 'lcsv+', 'lsparse', 'dcsv', 'opaque', '(<custom
-          plugin>=''>)'
+        - format: ArrayWriter format in which file will be stored
     
     
     :notes:
@@ -1652,6 +1638,26 @@
         
         - srcArray: a source array with srcAttrs and srcDims.
     
+
+.. function:: unfold    
+    
+    Complicated input data are often loaded into table-like 1-d multi- attribute arrays. Sometimes we want to assemble uniformly-typed subsets of the array attributes into a matrix, for example to compute correlations or regressions. unfold will transform the input array into a 2-d matrix whose columns correspond to the input array attributes. The output matrix row dimension will have a chunk size equal to the input array, and column chunk size equal to the number of columns.
+    
+    ::
+            
+        unfold( array )
+        
+    
+    :parameters:
+        
+        - array: the array to consume
+    
+    
+    :examples:
+    
+    ::
+        
+        unfold(apply(build(<v:double>[i=0:9,3,0],i),w,i+0.5))
 
 .. function:: uniq    
     
