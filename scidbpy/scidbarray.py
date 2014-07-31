@@ -532,8 +532,9 @@ class SciDBArray(object):
 
         Returns
         -------
-        The first N elements in the array, downloaded
-        as a Pandas dataframe (if pandas is installed) or a Numpy array
+        head : SciDBArray
+            The first N elements in the array, downloaded
+            as a Pandas dataframe (if pandas is installed) or a Numpy array
 
         """
         if self.shape is not None:
@@ -1778,7 +1779,8 @@ class SciDBArray(object):
 
         Returns
         -------
-        A new array of the same shape.
+        arr : SciDBArray
+            A new array of the same shape.
 
         Examples
         --------
@@ -1787,6 +1789,10 @@ class SciDBArray(object):
         array([[ 0,  1,  2,  3],
               [ 4,  6,  8, 10],
               [12, 15, 18, 21]])
+
+        See Also
+        --------
+        cumsum(), cumprod()
         """
         if isinstance(dimension, int):
             dimension = self.dim_names[dimension]
@@ -1805,7 +1811,12 @@ class SciDBArray(object):
 
         Returns
         -------
-        A new array, with the same shape (but flattened if axis=None)
+        sums : SciDBArray
+            A new array, with the same shape (but flattened if axis=None)
+
+        See Also
+        --------
+        cumprod(), cumulate()
         """
         return self._agg_ufunc('sum', axis)
 
@@ -1821,7 +1832,12 @@ class SciDBArray(object):
 
         Returns
         -------
-        A new array, with the same shape (but flattened if axis=None)
+        prods : SciDBArray
+            A new array, with the same shape (but flattened if axis=None)
+
+        See Also
+        --------
+        cumsum(), cumulate()
         """
         return self._agg_ufunc('prod', axis)
 

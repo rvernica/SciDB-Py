@@ -41,5 +41,8 @@ Visualization and Analysis
 ==========================
 .. currentmodule:: scidbpy.aggregation
 
+.. autoclass:: GroupBy
+   :members:
+
 .. autofunction:: histogram
 

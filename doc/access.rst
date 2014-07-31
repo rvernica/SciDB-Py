@@ -104,6 +104,8 @@ with a boolean array, are also supported; see :ref:`comparison_and_filtering`
 
 Attribute access
 ----------------
+.. _attribute_access:
+
 You can access specific attributes of an array by
 passing their names in the brackets. You can also add new attributes
 by providing a SciDB expression::

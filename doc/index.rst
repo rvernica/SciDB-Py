@@ -17,12 +17,12 @@ scientific computing from the comfort of their Python interpreter::
     x = sdb.random((1000, 1000)) # 2D array of random numbers
     y = (x ** 2 + 3).sum()       # NumPy syntax, computed in the database
 
-
 Contents
 ========
 .. toctree::
    :maxdepth: 2
 
+   whats_new.rst
    install
    tutorial
    demos

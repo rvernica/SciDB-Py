@@ -135,22 +135,45 @@ def _expression_attributes(expr):
 
 class GroupBy(object):
 
+    """
+    Perform a GroupBy operation on an array
+
+    The interface of this class mimics a subset of the functionality
+    of Pandas' groupby.
+
+    Notes
+    -----
+
+    GroupBy operations are currently restricted in the following ways:
+
+    - GroupBy items must be names of attributes or dimensions
+    - Non-integer attributes cannot be used as a groupby item
+    - Dimensions cannot be used in aggregate calls
+
+    These limitations will be addressed in the 14.9 release of SciDB-Py
+
+    Examples
+    --------
+
+    >>> x = sdb.afl.build('<a:int32>[i=0:100,1000,0]', 'iif(i > 50, 1, 0)')
+    >>> y = sdb.afl.build('<b:int32>[i=0:100,1000,0]', 'i % 30')
+    >>> z = sdb.join(x, y)
+    >>> grp = z.groupby('a')
+    >>> grp.aggregate('sum(b)').todataframe()
+       a  b_sum
+    0  0    645
+    1  1    715
+
+    Multiple aggregation functions can be provided with a dict::
+
+        >>> grp.aggregate({'s':'sum(b)', 'm':'max(b)'}).todataframe()
+               a    s   m
+            0  0  645  29
+            1  1  715  29
+    """
+
     def __init__(self, array, by):
         """
-        Perform a GroupBy operation on an array
-
-        The interface of this class mimics a subset of the functionality
-        of Pandas' groupby.
-
-        Notes
-        -----
-        GroupBy operations are currently restricted in the following ways:
-        - GroupBy items must be names of attributes or dimensions
-        - Non-integer attributes cannot be used as a groupby item
-        - Dimensions cannot be used in aggregate calls
-
-        These limitations will be addressed in the 14.9 release of SciDB-Py
-
         Parameters
         ----------
         array : SciDBArray
@@ -159,22 +182,6 @@ class GroupBy(object):
         by : List of strings
             The names of attributes and dimensions to group by
 
-        Examples
-        --------
-        >>> x = sdb.afl.build('<a:int32>[i=0:100,1000,0]', 'iif(i > 50, 1, 0)')
-        >>> y = sdb.afl.build('<b:int32>[i=0:100,1000,0]', 'i % 30')
-        >>> z = sdb.join(x, y)
-        >>> grp = z.groupby('a')
-        >>> grp.aggregate('sum(b)').todataframe()
-           a  b_sum
-        0  0    645
-        1  1    715
-
-        Multiple aggregation functions can be provided with a dict
-        >>> grp.aggregate({'s':'sum(b)', 'm':'max(b)'}).todataframe()
-           a    s   m
-        0  0  645  29
-        1  1  715  29
         """
         self.by = as_list(by)
         for name, typ, _ in array.sdbtype.full_rep:
@@ -183,7 +190,21 @@ class GroupBy(object):
         self.array = array
 
     def aggregate(self, mappings):
+        """
+        Peform an aggregation over each group
 
+        Parameters
+        ----------
+        mappings : string or dictionary
+           If a string, a single SciDB expression to apply to each group
+           If a dict, mapping several attribute names to expression strings
+
+        Returns
+        -------
+        agg : SciDBArray
+            A new SciDBArray, obtained by applying the aggregations to the
+            groups of the input array.
+        """
         dims = list(self.by)
 
         if isinstance(mappings, string_type):

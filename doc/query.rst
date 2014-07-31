@@ -135,6 +135,7 @@ SciDB manual::
 
 Chaining AFL Operators
 ^^^^^^^^^^^^^^^^^^^^^^
+.. _afl_chain:
 
 Many SciDB queries involve nesting several AFL calls, with
 the result of an inner call included as the first argument of an outer call.

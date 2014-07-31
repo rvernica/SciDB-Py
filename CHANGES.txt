@@ -1,6 +1,6 @@
 Version 14.7.0
 --------------
-** Released 2014 July 30**
+** Released 2014 August 1**
 
 - Added support for downloading many additional datatypes (strings, datetimes, nullable attributes, empty cells)
 - Schema introspection and lazy evaluation of AFL expressions. Arrays can be constructed and examined before database storage is actually allocated to them.
