@@ -1,3 +1,7 @@
+Version 14.7.1
+--------------
+- 2014-08-06 Add support for authenticated and encrypted Shim communication
+
 Version 14.7.0
 --------------
 ** Released 2014 August 1**
