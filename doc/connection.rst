@@ -48,6 +48,20 @@ host name as required if SciDB is on a different computer::
 Throughout this documentation, the ``sdb`` variable is used to refer
 to the connection to a SciDB instance, as above.
 
+Authenticated and Encrypted Connections
+---------------------------------------
+
+Shim supports two modes of user authentication (PAM and Digest Authentication)
+and one form of encryption (SSL over HTTPS -- see the `Shim API documentation <http://htmlpreview.github.io/?https://raw.github.com/Paradigm4/shim/master/wwwroot/api.html>`_ page for more details). The :func:`~interface.connect` function will apply sensible defaults if you provide a username and password:
+
+ * Digest Authentication is used if the host URL begins with ``http://``
+ * PAM authentication and SSL are used if the host URL begins with ``https://``
+
+Under normal circumnstances you shouldn't need to worry about the details
+of authentication. However, note that the ``sdb`` object returned form ``connect``
+includes :meth:`~interface.SciDBShimInterface.login` and :meth:`~interface.SciDBShimInterface.logout` methods for manually managing PAM-authenticated sessions (Digest authentication
+is applied for every request, and doesn't require a separate login step).
+
 .. _Shim: http://github.com/paradigm4/shim
 
 

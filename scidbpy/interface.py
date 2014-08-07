@@ -20,15 +20,17 @@ import os
 import atexit
 import logging
 import csv
-from time import time, sleep
+from time import time
 
-from ._py3k_compat import (urlopen, quote, HTTPError,
+import requests
+
+from ._py3k_compat import (quote,
                            iteritems, string_type, reduce)
 
 import re
 import numpy as np
 from .scidbarray import SciDBArray, SciDBDataShape, ArrayAlias, SDB_IND_TYPE
-from .errors import SHIM_ERROR_DICT, SciDBQueryError, SciDBConnectionError, SciDBInvalidSession
+from .errors import SHIM_ERROR_DICT, SciDBQueryError, SciDBInvalidSession
 from .utils import broadcastable, _is_query, iter_record, _new_attribute_label, as_list
 from .schema_utils import disambiguate
 
@@ -1256,18 +1258,76 @@ class SciDBShimInterface(SciDBInterface):
     ----------
     hostname : string
         A URL pointing to a running shim/SciDB session
+    user : string (optional)
+        A username, for authentication
+    password : string (optional)
+        A password, for authentication
+    pam : bool (optional)
+        Whether to use PAM authentication. If  `True`,
+        then user and password are required. If `None`,
+        will be guessed based on hostname and password values
+    digest : bool (optional)
+        Whether to use Digest authentication. If `True`,
+        then user and password are required. If `None`,
+        will be guessed based on hostname and password values.
 
     [1] https://github.com/Paradigm4/shim
     """
 
-    def __init__(self, hostname):
+    def __init__(self, hostname, user=None, password=None,
+                 pam=None, digest=None):
         super(SciDBShimInterface, self).__init__()
         self.hostname = hostname.rstrip('/')
+
+        https = self.hostname.startswith('https')
+        authenticate = password is not None
+
+        if pam is None:
+            pam = https and authenticate
+
+        if digest is None:
+            digest = (not https) and authenticate
+
+        if not authenticate and (pam or digest):
+            raise ValueError("Must provide username and password "
+                             "if using authentication")
+
+        self._pam_auth = None
+
+        # SHIM + digest authentication seems to need
+        # the ability to retry, otherwise it throws connection errors
+        s = requests.Session()
+        a = requests.adapters.HTTPAdapter(max_retries=3)
+        s.mount('http://', a)
+        self._session = s
+
+        if digest:
+            s.auth = requests.auth.HTTPDigestAuth(user, password)
+
+        if pam:
+            self.login(user, password)
+
         try:
             self._get_uid()
-        except:
-            raise ValueError("Could not connect to a SciDB instance at {0}"
-                             .format(self.hostname))
+        except Exception as e:
+            raise ValueError("Could not connect to a SciDB instance at {0}. {1}"
+                             .format(self.hostname, e))
+
+    def login(self, user, password):
+        """
+        Login using PAM authentication (e.g., over HTTPS)
+        """
+        url = self._shim_url('login', username=user, password=password)
+        result = self._shim_urlopen(url)
+        self._pam_auth = result.read()
+
+    def logout(self):
+        """
+        Logout from PAM authentication (e.g., over HTTPS)
+        """
+        url = self._shim_url('logout')
+        self._pam_auth = None
+        self._shim_urlopen(url)
 
     def _get_uid(self):
         # load a library to get a query id
@@ -1305,6 +1365,11 @@ class SciDBShimInterface(SciDBInterface):
         self._shim_release_session(session)
 
     def _shim_url(self, keyword, **kwargs):
+
+        # add authentication token if needed
+        if self._pam_auth is not None:
+            kwargs['auth'] = self._pam_auth
+
         url = self.hostname + '/' + keyword
         if kwargs:
             url += '?' + '&'.join(['{0}={1}'.format(key, val)
@@ -1312,13 +1377,18 @@ class SciDBShimInterface(SciDBInterface):
         return url
 
     def _shim_urlopen(self, url):
-        # shim can freeze up if hit with many connections.
-        # problem often goes away by waiting and retrying
         try:
-            return urlopen(url)
-        except HTTPError as e:
-            Error = SHIM_ERROR_DICT[e.code]
-            raise Error("[HTTP {0}] {1}".format(e.code, e.read()))
+            r = self._session.get(url, verify=False)
+            r.raise_for_status()
+        except requests.HTTPError as e:
+            Error = SHIM_ERROR_DICT[r.status_code]
+            raise Error(e.message)
+
+        def read():
+            return r.content
+
+        r.read = read
+        return r
 
     def _shim_new_session(self):
         """Request a new HTTP session from the service"""
@@ -1388,23 +1458,44 @@ class SciDBShimInterface(SciDBInterface):
 
     def _shim_upload_file(self, session_id, data):
         # TODO: can this be implemented in urllib to remove dependency?
-        import requests
         url = self._shim_url('upload_file', id=session_id)
-        result = requests.post(url, files=dict(fileupload=data))
+        result = self._session.post(url, files=dict(fileupload=data), verify=False)
         scidb_filename = result.text.strip()
         return scidb_filename
 
 
-def connect(url=None):
+def connect(url=None, username=None, password=None):
     """
-    Connect to a SciDB instance
+    Connect to a SciDB instance.
 
     Parameters
     ----------
     url : str (optional)
         Connection URL. If not provided, will fall back to
         the SCIDB_URL environment variable (if present),
-        or http://127.0.0.1:8080
+        or http://127.0.0.1:8080. MUST begin with http or
+        https. Username and password are mandatory with https.
+
+    username : str (optional)
+        SciDB username, for authenticated communication. Defaults to the value
+        of the SCIDB_USER environment variable. If that doesn't exist,
+        unauthetnicated communication is used.
+
+    password : str (optional)
+        SciDB password, for authenticated communication. Defaults to the value
+        of the SCIDB_PASSWORD environment variable. If that doesn't exist,
+        unauthetnicated communication is used
+
+    Returns
+    -------
+    A SciDBShimInterface connection to the database.
     """
     url = url or os.environ.get('SCIDB_URL', 'http://127.0.0.1:8080')
-    return SciDBShimInterface(url)
+
+    if username is None:
+        username = os.environ.get('SCIDB_USER', None)
+
+    if password is None:
+        password = os.environ.get('SCIDB_PASSWORD', None)
+
+    return SciDBShimInterface(url, user=username, password=password)
