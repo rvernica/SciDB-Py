@@ -4,19 +4,13 @@
 import pytest
 import numpy as np
 
-from scidbpy import connect
 from scidbpy.afl import _format_operand
+from . import sdb, TestBase, teardown_function
 
-sdb = connect()
 afl = sdb.afl
 
 
-def teardown_function(function):
-    sdb.reap()
-
 # create_array doxygen is malformed in SciDB 14.
-
-
 @pytest.mark.xfail(reason="SciDB14 has a malformed docstring")
 def test_docstring():
     """Regression test against unintentional docstring changes"""
@@ -30,7 +24,7 @@ def test_name():
     assert expression.name == "transpose(transpose(%s))" % x.name
 
 
-class TestBasicUse(object):
+class TestBasicUse(TestBase):
 
     def test_query(self):
         ARR = sdb.ones((4))
@@ -77,7 +71,7 @@ class TestBasicUse(object):
         assert y.query == z.query
 
 
-class TestFormatOperands(object):
+class TestFormatOperands(TestBase):
 
     def test_scalar(self):
         assert _format_operand('x') == 'x'

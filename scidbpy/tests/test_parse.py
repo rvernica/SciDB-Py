@@ -5,19 +5,10 @@ import numpy as np
 from numpy.testing import assert_allclose, assert_array_equal
 
 from ..parse import toarray, NULLS
-
-from scidbpy import connect
-sdb = connect()
+from . import sdb, TestBase, teardown_function
 
 
-def teardown_function(function):
-    sdb.reap()
-
-
-class TestScalar(object):
-
-    def teardown_method(self, method):
-        sdb.reap()
+class TestScalar(TestBase):
 
     def check(self, array, expected):
         result = toarray(array)

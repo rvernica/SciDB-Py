@@ -27,18 +27,8 @@ needs_scipy = pytest.mark.skipif(MISSING_SP, reason='Test requires SciPy')
 from scidbpy import SciDBArray, SciDBShimInterface, connect, SciDBDataShape
 from scidbpy.schema_utils import disambiguate
 
-sdb = connect()
+from . import sdb, TestBase, teardown_function
 RTOL = 1E-6
-
-
-def teardown_function(function):
-    sdb.reap()
-
-
-class TestBase(object):
-
-    def teardown_method(self, method):
-        teardown_function(method)
 
 
 def test_copy_rename():
@@ -706,7 +696,7 @@ def test_toarray_smallchunk():
     assert_allclose(x.toarray(), expected)
 
 
-class TestAttributeAccess(object):
+class TestAttributeAccess(TestBase):
 
     def test_single(self):
         x = sdb.arange(5)
