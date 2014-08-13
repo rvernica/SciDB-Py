@@ -131,6 +131,9 @@ class sdbtype(object):
     def __str__(self):
         return self.schema
 
+    def __eq__(self, other):
+        return str(self) == str(other)
+
     @property
     def names(self):
         return [f[0] for f in self.full_rep]
@@ -155,6 +158,13 @@ class sdbtype(object):
         except AttributeError:
             pass
         return '<{0}>'.format(schema)
+
+    @classmethod
+    def from_full_rep(cls, rep):
+        schema = '<%s>' % (','.join('%s: %s %s' %
+                          (nm, typ, 'NULL' if null else '')
+            for nm, typ, null in rep))
+        return cls(schema)
 
     @classmethod
     def _schema_to_list(cls, schema):

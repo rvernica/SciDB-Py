@@ -33,6 +33,7 @@ from .scidbarray import SciDBArray, SciDBDataShape, ArrayAlias, SDB_IND_TYPE
 from .errors import SHIM_ERROR_DICT, SciDBQueryError, SciDBInvalidSession
 from .utils import broadcastable, _is_query, iter_record, _new_attribute_label, as_list
 from .schema_utils import disambiguate
+from .arithmetic import sparse_join
 
 __all__ = ['SciDBInterface', 'SciDBShimInterface', 'connect']
 
@@ -1103,6 +1104,7 @@ class SciDBInterface(object):
             right_is_sdb = False
 
         # some common names needed below
+        _op = op
         op = op(left_fmt, right_fmt)
 
         aL = aR = None
@@ -1125,6 +1127,8 @@ class SciDBInterface(object):
                     # same array: we can do this without a join
                     return f.papply(left, attr, op)
                 else:
+                    if left.issparse() or right.issparse():
+                        return sparse_join(left, right, _op)
                     return f.papply(f.join(left, right), attr, op)
 
             # array shapes are broadcastable: use a cross_join
