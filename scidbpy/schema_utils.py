@@ -31,22 +31,25 @@ def change_axis_schema(datashape, axis, start=None, stop=None,
     """
     from .scidbarray import SciDBDataShape
 
-    if start is not None:
-        raise NotImplementedError("start is not supported")
     names = list(datashape.dim_names)
-    stops = list(datashape.shape)
+    starts = list(datashape.dim_low)
+    stops = list(datashape.dim_high)
     chunks = list(datashape.chunk_size)
     overlaps = list(datashape.chunk_overlap)
     if stop is not None:
-        stops[axis] = stop + 1
+        stops[axis] = stop
     if chunk is not None:
         chunks[axis] = chunk
     if overlap is not None:
         overlaps[axis] = overlap
     if name is not None:
         names[axis] = name
-    return SciDBDataShape(stops, datashape.dtype, dim_names=names,
-                          chunk_size=chunks, chunk_overlap=overlaps)
+    if start is not None:
+        starts[axis] = start
+    shp = [stp - strt + 1 for strt, stp in zip(starts, stops)]
+    return SciDBDataShape(shp, datashape.sdbtype, dim_names=names,
+                          chunk_size=chunks, chunk_overlap=overlaps,
+                          dim_low=starts, dim_high=stops)
 
 
 def _unique(val, taken):

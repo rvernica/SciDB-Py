@@ -33,7 +33,8 @@ from .scidbarray import SciDBArray, SciDBDataShape, ArrayAlias, SDB_IND_TYPE
 from .errors import SHIM_ERROR_DICT, SciDBQueryError, SciDBInvalidSession
 from .utils import broadcastable, _is_query, iter_record, _new_attribute_label, as_list
 from .schema_utils import disambiguate
-from .arithmetic import sparse_join
+from .robust import join, assert_single_attribute
+import arithmetic
 
 __all__ = ['SciDBInterface', 'SciDBShimInterface', 'connect']
 
@@ -1080,6 +1081,9 @@ class SciDBInterface(object):
 
         See e.g. SciDBArray.__add__ for an example usage.
         """
+        assert_single_attribute(left)
+        assert_single_attribute(right)
+
         f = self.afl
         left, right = disambiguate(left, right)
 
@@ -1088,20 +1092,24 @@ class SciDBInterface(object):
             left_name = left.name
             left_fmt = _af(left, 0)
             left_is_sdb = True
+            left_is_sparse = left.issparse()
         else:
             left_name = None
             left_fmt = left
             left_is_sdb = False
+            left_is_sparse = False
 
         if isinstance(right, SciDBArray):
             right = right.eval()
             right_name = right.name
             right_fmt = _af(right, 0)
             right_is_sdb = True
+            right_is_sparse = right.issparse()
         else:
             right_name = None
             right_fmt = right
             right_is_sdb = False
+            right_is_sparse = False
 
         # some common names needed below
         _op = op
@@ -1118,18 +1126,15 @@ class SciDBInterface(object):
         elif (left_is_sdb and right_is_sdb):
             # array shapes match: use a join
             if left.shape == right.shape:
-                if (left.chunk_size != right.chunk_size or
-                    left.chunk_overlap != right.chunk_overlap):
-                    raise ValueError("join operations require chunk_size/"
-                                     "chunk_overlap to match.")
                 attr = _new_attribute_label('x', left, right)
                 if left_name == right_name:
                     # same array: we can do this without a join
                     return f.papply(left, attr, op)
                 else:
-                    if left.issparse() or right.issparse():
-                        return sparse_join(left, right, _op)
-                    return f.papply(f.join(left, right), attr, op)
+                    if left_is_sparse or right_is_sparse:
+                        return arithmetic.sparse_join(left, right, _op)
+                    result = join(left, right)
+                    return result.papply(attr, _op(result.att_names[0], result.att_names[1]))
 
             # array shapes are broadcastable: use a cross_join
             elif broadcastable(left.shape, right.shape):
@@ -1236,6 +1241,9 @@ class SciDBInterface(object):
                 float(right)
             except:
                 raise ValueError("rhs must be a scalar or SciDBArray")
+            if left_is_sparse:
+                return arithmetic.sparse_scalar_join(left, right, _op)
+
             attr = _new_attribute_label('x', left)
             return f.papply(left, attr, op)
 
@@ -1245,6 +1253,9 @@ class SciDBInterface(object):
                 float(left)
             except:
                 raise ValueError("lhs must be a scalar or SciDBArray")
+            if right_is_sparse:
+                return arithmetic.scalar_sparse_join(left, right, _op)
+
             attr = _new_attribute_label('x', right)
             return f.papply(right, attr, op)
 
@@ -1386,7 +1397,7 @@ class SciDBShimInterface(SciDBInterface):
             r.raise_for_status()
         except requests.HTTPError as e:
             Error = SHIM_ERROR_DICT[r.status_code]
-            raise Error(e.message)
+            raise Error(r.text)
 
         def read():
             return r.content

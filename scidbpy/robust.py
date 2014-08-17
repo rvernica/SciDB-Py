@@ -11,6 +11,15 @@ start index. The merge() function performs this preprocessing as needed.
 # License: Simplified BSD, 2014
 # See LICENSE.txt for more information
 
+__all__ = ['join', 'merge']
+
+from .schema_utils import change_axis_schema
+
+
+def assert_single_attribute(array):
+    if len(array.att_names) > 1:
+        raise ValueError("Array must have a single attribute: %s" % array.name)
+
 
 def as_same_dimension(*arrays):
     """
@@ -105,12 +114,24 @@ def match_attribute_names(*arrays):
     return result
 
 
-def align_start_index(*arrays):
-    return arrays
+def match_chunks(*arrays):
+    """
+    Redimension arrays so they have identical chunk sizes and overlaps
 
+    It is assumed that all input arrays have the same dimensionality.
+    """
+    target = arrays[0].datashape
+    result = []
+    for a in arrays:
+        ds = a.datashape
+        for i in range(len(ds.dim_names)):
+            ds = change_axis_schema(ds, i, chunk=target.chunk_size[i],
+                                    overlap=target.chunk_overlap[i])
+        if a.datashape.schema != ds.schema:
+            a = a.redimension(ds.schema)
+        result.append(a)
 
-def match_chunks(arrays, size=False, overlap=False):
-    return arrays
+    return result
 
 
 def merge(a, b):
@@ -137,9 +158,14 @@ def merge(a, b):
     result : SciDBArray
        merge(a, b)
     """
+
+    # From AFL docs:
+    # The two arrays should have the same attribute list, number of
+    # dimensions, and dimension start index. If the dimensions are not
+    # the same size, the output array uses the larger of the two.
+
     a, b = as_same_dimension(a, b)
-    a, b = match_attribute_names(a, b)
-    a, b = align_start_index(a, b)
+    a, b = match_chunks(a, b)
     return a.afl.merge(a, b)
 
 
@@ -167,7 +193,12 @@ def join(a, b):
     result : SciDBArray
        join(a, b)
     """
+
+    # From AFL docs:
+    # The two arrays must have the same dimension start coordinates,
+    # the same chunk size, and the same chunk overlap
+
+    # XXX match start coordinates here
     a, b = as_same_dimension(a, b)
-    a, b = align_start_index(a, b)
-    a, b = match_chunks((a, b), size=True, overlap=True)
+    a, b = match_chunks(a, b)
     return a.afl.join(a, b)

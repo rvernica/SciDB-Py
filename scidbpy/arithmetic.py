@@ -19,8 +19,8 @@ def zero_fill(a, b):
     return merge(a, zeros)
 
 
-def nan_fill(a):
-    """Fill all empty cells in a with NaNs
+def dense_fill(a, value):
+    """Fill all empty cells in a with a value
 
     Parameters
     ----------
@@ -31,10 +31,12 @@ def nan_fill(a):
     -------
     b : SciDBArray
         The nan-filled verion of a
+    value : string
+        fill value
     """
 
     # assumption: a is a single attribute array
-    b = a.afl.build(a.datashape.schema, 'nan')
+    b = a.afl.build(a.datashape.schema, value)
     return merge(a, b)
 
 
@@ -110,6 +112,37 @@ def sparse_join(a, b, op):
     op = op(a.att_names[0], b.att_names[0])
     result = f.papply(join(a, b), attr, op)
     if fill_with_nans:
-        result = nan_fill(result)
+        result = dense_fill(result, 'nan')
+
+    return result
+
+
+def sparse_scalar_join(a, b, op):
+    assert_single_attribute(a)
+
+    if op.__name__ not in ['div', 'mul', 'mod']:
+        a = dense_fill(a, 0)
+
+    attr = _new_attribute_label('x', a)
+    result = a.papply(attr, op(a.att_names[0], b))
+
+    if op.__name__ in ['div', 'mod'] and b == 0:
+        result = dense_fill(result, 'nan')
+
+    return result
+
+
+def scalar_sparse_join(a, b, op):
+    assert_single_attribute(b)
+
+    if op.__name__ not in ['div', 'mul', 'mod']:
+        b = dense_fill(b, 0)
+
+    attr = _new_attribute_label('x', b)
+    result = b.papply(attr, op(a, b.att_names[0]))
+
+    if op.__name__ in ['div', 'mod']:
+        fill = 'nan' if (a == 0 or op.__name__ == 'mod') else 'inf'
+        result = dense_fill(result, fill)
 
     return result
