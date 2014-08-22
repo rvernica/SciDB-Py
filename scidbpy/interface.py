@@ -33,7 +33,7 @@ from .scidbarray import SciDBArray, SciDBDataShape, ArrayAlias, SDB_IND_TYPE
 from .errors import SHIM_ERROR_DICT, SciDBQueryError, SciDBInvalidSession
 from .utils import broadcastable, _is_query, iter_record, _new_attribute_label, as_list
 from .schema_utils import disambiguate
-from .robust import join, assert_single_attribute
+from .robust import join, merge, assert_single_attribute
 import arithmetic
 
 __all__ = ['SciDBInterface', 'SciDBShimInterface', 'connect']
@@ -800,6 +800,13 @@ class SciDBInterface(object):
         instance_id = int(instance_id)
         filename, session_id = self._upload_bytes(_to_bytes(A))
         filename = q(filename)
+
+        # the array gets scrambled if spread across >1 chunk
+        # follow SciDBR and size array to 1 chunk
+        if 'chunk_size' in kwargs:
+            warnings.warn("Ignoring chunk_size. Use redimension instead")
+        kwargs['chunk_size'] = A.shape
+
         arr = self.new_array(A.shape, A.dtype, **kwargs)
         self.afl.load(arr, filename, instance_id,
                       q(arr.sdbtype.bytes_fmt)).eval(store=False)
@@ -1051,15 +1058,14 @@ class SciDBInterface(object):
 
     def merge(self, A, B):
         """Merge two arrays"""
-        # TODO: pre-check for non-matching arrays?
-        return self.afl.merge(A, B)
+        return merge(A, B)
 
     def join(self, *args):
         """
         Perform a series of array joins on the arguments
         and return the result.
         """
-        return reduce(self.afl.join, args)
+        return reduce(join, args)
 
     def cross_join(self, A, B, *dims):
         """Perform a cross-join on arrays A and B.
@@ -1081,13 +1087,12 @@ class SciDBInterface(object):
 
         See e.g. SciDBArray.__add__ for an example usage.
         """
-        assert_single_attribute(left)
-        assert_single_attribute(right)
 
         f = self.afl
         left, right = disambiguate(left, right)
 
         if isinstance(left, SciDBArray):
+            assert_single_attribute(left)
             left = left.eval()
             left_name = left.name
             left_fmt = _af(left, 0)
@@ -1100,6 +1105,7 @@ class SciDBInterface(object):
             left_is_sparse = False
 
         if isinstance(right, SciDBArray):
+            assert_single_attribute(right)
             right = right.eval()
             right_name = right.name
             right_fmt = _af(right, 0)

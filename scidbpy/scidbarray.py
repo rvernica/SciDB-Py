@@ -19,6 +19,7 @@ from . import parse
 from .utils import meshgrid, slice_syntax, _is_query, _new_attribute_label
 from ._py3k_compat import genfromstr, iteritems, csv_reader, string_type
 from .schema_utils import change_axis_schema
+from .robust import join
 
 __all__ = ["sdbtype", "SciDBArray", "SciDBDataShape"]
 
@@ -1275,7 +1276,7 @@ class SciDBArray(object):
         self, other = disambiguate(self, other)
 
         f = self.afl
-        joined = f.join(self, other)
+        joined = join(self, other)
         att = _new_attribute_label('condition', joined)
         expr = "{self} {op} {other}".format(self=self.att_names[0],
                                             op=operator,
@@ -1299,7 +1300,7 @@ class SciDBArray(object):
 
         f = self.afl
         self, mask = disambiguate(self, mask)
-        joined = f.join(self, mask)
+        joined = join(self, mask)
         expr = '%s=TRUE' % mask.att_names[0]
         idx = _new_attribute_label('__idx', self, mask)
         return f.project(f.unpack(f.filter(joined, expr), idx),
