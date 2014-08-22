@@ -50,6 +50,7 @@ to the connection to a SciDB instance, as above.
 
 Authenticated and Encrypted Connections
 ---------------------------------------
+.. _authentication:
 
 Shim supports two modes of user authentication (PAM and Digest Authentication)
 and one form of encryption (SSL over HTTPS -- see the `Shim API documentation <http://htmlpreview.github.io/?https://raw.github.com/Paradigm4/shim/master/wwwroot/api.html>`_ page for more details). The :func:`~interface.connect` function will apply sensible defaults if you provide a username and password:

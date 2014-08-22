@@ -6,6 +6,19 @@
 Whats New
 =========
 
+14.8 (Released August 22, 2014)
+-------------------------------
+
+Highlights
+^^^^^^^^^^
+
+- Support for :ref:`authenticated and encrypted <authentication>`
+  connections to ScIDB
+
+- Fixed a bug where uploading large arrays using `from_data` resulted
+  in scrambled cell locations in the database
+
+- Proper treatment of elementwise arithmetic on sparse arrays
 
 14.7 (Released August 1, 2014)
 ------------------------------
