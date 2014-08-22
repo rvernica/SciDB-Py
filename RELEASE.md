@@ -31,3 +31,4 @@ Releasing a new version
     git clean -fxd
     python setup.py sdist --format=gztar upload
 13. Fast-forward the ``stable`` branch, and push to GitHub.
+14. Add the new version to the build-list on readthedocs.

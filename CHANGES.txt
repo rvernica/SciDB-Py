@@ -1,6 +1,10 @@
-Version 14.7.1
+Version 14.8.0
 --------------
+** Released 2014 August 22 **
+
 - 2014-08-06 Add support for authenticated and encrypted Shim communication
+- Proper treatment of sparse elementwise arithmetic
+- Fix a bug where toarray() scrambles the cells with large arrays
 
 Version 14.7.0
 --------------
