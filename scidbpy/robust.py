@@ -11,7 +11,7 @@ start index. The merge() function performs this preprocessing as needed.
 # License: Simplified BSD, 2014
 # See LICENSE.txt for more information
 
-__all__ = ['join', 'merge']
+__all__ = ['join', 'merge', 'gemm']
 
 from .schema_utils import change_axis_schema
 
@@ -202,3 +202,29 @@ def join(a, b):
     a, b = as_same_dimension(a, b)
     a, b = match_chunks(a, b)
     return a.afl.join(a, b)
+
+
+def gemm(a, b, c):
+    """
+    Robust AFL gemm operation
+
+    Performs a * b + c
+
+    Redimensions inputs if necessary
+
+    Parameters
+    ----------
+    a : SciDBArray
+        First array
+    b : SciDBArray
+        Second array
+    c : SciDBArray
+        Third array
+
+    Returns
+    -------
+    result : SciDBArray
+        a * b + c
+    """
+    a, b, c = match_chunks(a, b, c)
+    return a.afl.gemm(a, b, c)

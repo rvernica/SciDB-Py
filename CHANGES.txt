@@ -1,3 +1,8 @@
+Version 14.9.0
+--------------
+
+- 2014-08-24 dot() method works for non-default array chunk sizes
+
 Version 14.8.0
 --------------
 ** Released 2014 August 22 **

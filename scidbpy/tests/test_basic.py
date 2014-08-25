@@ -242,6 +242,15 @@ def test_dot():
             yield check_dot, Ashape, Bshape
 
 
+def test_dot_chunks():
+    A = sdb.random((4, 5), chunk_size=300)
+    B = sdb.random((5, 6), chunk_size=550)
+    C = sdb.dot(A, B).toarray()
+
+    Cnp = np.dot(A.toarray(), B.toarray())
+    assert_allclose(Cnp, C, rtol=RTOL)
+
+
 def test_dot_nullable():
     """Test the dot product of arrays with nullable attributes"""
     X = sdb.random((5, 5), dtype='<f0:double null>')

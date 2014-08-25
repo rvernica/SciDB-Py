@@ -33,7 +33,7 @@ from .scidbarray import SciDBArray, SciDBDataShape, ArrayAlias, SDB_IND_TYPE
 from .errors import SHIM_ERROR_DICT, SciDBQueryError, SciDBInvalidSession
 from .utils import broadcastable, _is_query, iter_record, _new_attribute_label, as_list
 from .schema_utils import disambiguate
-from .robust import join, merge, assert_single_attribute
+from .robust import join, merge, gemm, assert_single_attribute
 import arithmetic
 
 __all__ = ['SciDBInterface', 'SciDBShimInterface', 'connect']
@@ -735,7 +735,7 @@ class SciDBInterface(object):
         #       an array of zeros?
         # TODO: use spgemm() when the matrices are sparse
         C = self.zeros((A.shape[0], B.shape[1]), dtype=A.dtype)
-        self.afl.gemm(A, B, C).eval(out=C)
+        C = gemm(A, B, C).eval()
 
         if C.shape == output_shape:
             return C
