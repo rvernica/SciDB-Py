@@ -251,6 +251,25 @@ def test_dot_chunks():
     assert_allclose(Cnp, C, rtol=RTOL)
 
 
+def test_dot_nonsquare_chunks():
+    A = sdb.random((4, 5), chunk_size=300)
+    B = sdb.random((5, 6), chunk_size=550)
+    A = A.redimension('<f0:double>[i0=0:3,300,0,i1=0:4,301,0]').eval()
+    C = sdb.dot(A, B).toarray()
+
+    Cnp = np.dot(A.toarray(), B.toarray())
+    assert_allclose(Cnp, C, rtol=RTOL)
+
+
+def test_dot_overlapped_chunks():
+    A = sdb.random((4, 5), chunk_overlap=3)
+    B = sdb.random((5, 6), chunk_overlap=3)
+    C = sdb.dot(A, B).toarray()
+
+    Cnp = np.dot(A.toarray(), B.toarray())
+    assert_allclose(Cnp, C, rtol=RTOL)
+
+
 def test_dot_nullable():
     """Test the dot product of arrays with nullable attributes"""
     X = sdb.random((5, 5), dtype='<f0:double null>')
@@ -261,6 +280,25 @@ def test_dot_nullable():
 
     Z = sdb.dot(X, Y)
     assert_allclose(Z.toarray(), np.dot(X.toarray(), Y.toarray()))
+
+
+@needs_scipy
+def test_dot_sparse():
+    from scipy.sparse import rand
+    A = rand(4, 5, density=0.5)
+    B = rand(5, 4, density=0.5)
+
+    C = sdb.dot(sdb.from_sparse(A), sdb.from_sparse(B)).toarray()
+
+    exp = np.dot(A.toarray(), B.toarray())
+
+    assert_allclose(C, exp)
+
+
+def test_dot_unbound():
+    A = sdb.random((4, 5)).redimension('<f0:double>[i0=0:*,100,0,i1=0:*,100,0]').eval()
+    B = sdb.random((5, 6))
+    C = sdb.dot(A, B).toarray()
 
 
 def test_svd():
@@ -345,6 +383,16 @@ def test_scidb_aggregates():
             if ind == (0, 1) and op in ['var', 'std', 'mean']:
                 continue
             yield check_op, op, ind
+
+
+def test_multiattribute_aggregates():
+
+    x = sdb.random(5)
+    y = sdb.random(5)
+    z = sdb.join(x, y).eval()
+    m = z.max()
+    assert x.toarray().max() == m[m.att_names[0]][0]
+    assert y.toarray().max() == m[m.att_names[1]][0]
 
 
 def test_numpy_aggregates():

@@ -14,6 +14,7 @@ start index. The merge() function performs this preprocessing as needed.
 __all__ = ['join', 'merge', 'gemm']
 
 from .schema_utils import change_axis_schema
+from .utils import _new_attribute_label
 
 
 def assert_single_attribute(array):
@@ -134,6 +135,66 @@ def match_chunks(*arrays):
     return result
 
 
+def rechunk(array, chunk_size=None, chunk_overlap=None):
+    """
+    Change the chunk size and/or overlap
+
+    Parameters
+    ----------
+    array : SciDBArray
+        The array to sanitize
+    chunk_size : int or list of ints (optional)
+       The new chunk_size. Defaults to old chunk_size
+    chunk_overlap: int or list of ints (optional)
+       The new chunk overlap. Defaults to old chunk overlap
+
+    Returns
+    -------
+    Either array (if unmodified) or a redimensioned version of array
+    """
+
+    # deal with chunk sizes
+    ds = array.datashape.copy()
+    if chunk_size is None:
+        chunk_size = ds.chunk_size
+    if isinstance(chunk_size, int):
+        chunk_size = [chunk_size] * ds.ndim
+    ds.chunk_size = chunk_size
+
+    if chunk_overlap is None:
+        chunk_overlap = ds.chunk_overlap
+    if isinstance(chunk_overlap, int):
+        chunk_overlap = [chunk_overlap] * ds.ndim
+    ds.chunk_overlap = chunk_overlap
+
+    if ds != array.datashape:
+        array = array.redimension(ds.schema)
+    return array
+
+
+def boundify(array):
+    """
+    Redimension an array as needed so that no dimension
+    is unbound (ie ending with *)
+    """
+    if not any(d is None for d in array.datashape.dim_high):
+        return array
+
+    ds = array.datashape.copy()
+    idx = _new_attribute_label('_', array)
+    bounds = array.unpack(idx).max().toarray()
+    ds.dim_high = list(ds.dim_high)
+    for i in range(array.ndim):
+        if ds.dim_high[i] is not None:
+            continue
+        ds.dim_high[i] = int(bounds['%s_max' % ds.dim_names[i]][0])
+
+    if ds != array.datashape:
+        array = array.redimension(ds.schema)
+
+    return array
+
+
 def merge(a, b):
     """
     Robust AFL merge operation
@@ -226,5 +287,25 @@ def gemm(a, b, c):
     result : SciDBArray
         a * b + c
     """
-    a, b, c = match_chunks(a, b, c)
+
+    """ From docs
+
+    The first attribute of all three arrays must be of type double. All other attributes are ignored.
+    The chunks of the input matrices must be square, and must have a chunk interval between 32 and 1024.
+    Each dimension of each matrix must have the following characteristics:
+    Currently, the starting index must be zero.
+    The ending index cannot be '*'.
+    Currently, the chunk overlap must be zero.
+    """
+    for x in [a, b, c]:
+        if x.sdbtype.full_rep[0][1] != 'double':
+            raise TypeError("Matrix multiply requires a type double for first attribute.")
+
+    chunk_size = min(max(a.datashape.chunk_size[0], 32), 1024)
+    a = rechunk(a, chunk_size=chunk_size, chunk_overlap=0)
+    b = rechunk(b, chunk_size=chunk_size, chunk_overlap=0)
+    c = rechunk(c, chunk_size=chunk_size, chunk_overlap=0)
+    a = boundify(a)
+    b = boundify(b)
+    c = boundify(c)
     return a.afl.gemm(a, b, c)

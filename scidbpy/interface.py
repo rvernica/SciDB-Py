@@ -33,7 +33,7 @@ from .scidbarray import SciDBArray, SciDBDataShape, ArrayAlias, SDB_IND_TYPE
 from .errors import SHIM_ERROR_DICT, SciDBQueryError, SciDBInvalidSession
 from .utils import broadcastable, _is_query, iter_record, _new_attribute_label, as_list
 from .schema_utils import disambiguate
-from .robust import join, merge, gemm, assert_single_attribute
+from .robust import join, merge, gemm, assert_single_attribute, boundify
 import arithmetic
 
 __all__ = ['SciDBInterface', 'SciDBShimInterface', 'connect']
@@ -706,6 +706,8 @@ class SciDBInterface(object):
         # TODO: make matrix-vector and vector-vector cases more efficient.
         #       Currently they involve creating copies of the arrays, but this
         #       is just a place-holder for a more efficient implementation.
+        A = boundify(A)
+        B = boundify(B)
 
         if A.ndim not in (1, 2) or B.ndim not in (1, 2):
             raise ValueError("dot requires 1 or 2-dimensional arrays")

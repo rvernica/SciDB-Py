@@ -260,8 +260,9 @@ class SciDBDataShape(object):
         if dim_low is None or dim_high is None:
             raise ValueError("Must specify dim_low and dim_high, or shape")
 
-        dim_low = tuple(map(lambda x: None if x == '*' else int(x), dim_low))
-        dim_high = tuple(map(lambda x: None if x == '*' else int(x), dim_high))
+        todim = lambda x: None if x in ('*', None) else int(x)
+        dim_low = tuple(map(todim, dim_low))
+        dim_high = tuple(map(todim, dim_high))
 
         self.dim_low = dim_low
         self.dim_high = dim_high
@@ -313,6 +314,24 @@ class SciDBDataShape(object):
 
         if len(self.sdbtype.names) != len(set(self.sdbtype.names)):
             warnings.warn("Duplicate attribute names: %s" % self.sdbtype.names)
+
+    def copy(self):
+        """
+        Return a copy of the DataShape
+        """
+        return SciDBDataShape(None, self.sdbtype, dim_names=self.dim_names,
+                              chunk_size=self.chunk_size,
+                              chunk_overlap=self.chunk_overlap,
+                              dim_low=self.dim_low,
+                              dim_high=self.dim_high)
+
+    def __eq__(self, other):
+        return self.sdbtype == other.sdbtype and \
+            self.dim_names == other.dim_names and \
+            self.chunk_size == other.chunk_size and \
+            self.chunk_overlap == other.chunk_overlap and \
+            self.dim_low == other.dim_low and \
+            self.dim_high == other.dim_high
 
     @property
     def ndim(self):
@@ -1526,8 +1545,11 @@ class SciDBArray(object):
             if len(ind) > 0:
                 idx_args = [self.dim_names[i] for i in ind]
 
-        agg = "{agg}({att})".format(agg=agg, att=self.att(0))
-        return self.afl.aggregate(self, agg, *idx_args)
+        agg = ["{agg}({att})".format(agg=agg, att=a)
+               for a in self.att_names]
+
+        args = agg + idx_args
+        return self.afl.aggregate(self, *args)
 
     def min(self, index=None, scidb_syntax=False):
         """
