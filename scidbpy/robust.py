@@ -11,7 +11,8 @@ start index. The merge() function performs this preprocessing as needed.
 # License: Simplified BSD, 2014
 # See LICENSE.txt for more information
 
-__all__ = ['join', 'merge', 'gemm']
+__all__ = ['join', 'merge', 'gemm', 'cumulate',
+           'reshape', 'gesvd', 'thin']
 
 from .schema_utils import change_axis_schema
 from .utils import _new_attribute_label
@@ -125,14 +126,47 @@ def match_chunks(*arrays):
     result = []
     for a in arrays:
         ds = a.datashape
-        for i in range(len(ds.dim_names)):
-            ds = change_axis_schema(ds, i, chunk=target.chunk_size[i],
-                                    overlap=target.chunk_overlap[i])
+        for i, j in zip(reversed(list(range(a.ndim))),
+                        reversed(list(range(target.ndim)))):
+            ds = change_axis_schema(ds, i, chunk=target.chunk_size[j],
+                                    overlap=target.chunk_overlap[j])
         if a.datashape.schema != ds.schema:
             a = a.redimension(ds.schema)
         result.append(a)
 
     return result
+
+
+def match_chunk_permuted(src, target, indices):
+    """
+    Rechunk an array to match a target, along a set of
+    permuted dimensions
+
+    Parameters
+    ----------
+    src : SciDBArray
+        The array to modify
+    target: SciDBArray
+        The array to match
+    indices: A list of tuples
+        Each tuple (i,j) indicates that
+        dimension *j* of src should have the same chunk properties
+        as dimension *i* of target
+
+    Returns
+    -------
+    A (possibly redimensioned) version of src
+    """
+
+    ds = src.datashape.copy()
+    for i, j in indices:
+        ds.chunk_size[j] = target.datashape.chunk_size[i]
+        ds.chunk_overlap[j] = target.datashape.chunk_overlap[i]
+
+    if ds.schema != src.datashape.schema:
+        src = src.redimension(ds.schema)
+
+    return src
 
 
 def rechunk(array, chunk_size=None, chunk_overlap=None):
@@ -309,3 +343,78 @@ def gemm(a, b, c):
     b = boundify(b)
     c = boundify(c)
     return a.afl.gemm(a, b, c)
+
+
+def gesvd(array, *args):
+    """
+    Robust AFL svd call
+
+    Parameters
+    ----------
+    array : SciDBArray
+    *args : Subsequent arguments to SVD AFL call
+
+    Notes
+    -----
+    Rechunks array if needed by AFL
+    """
+    array = rechunk(array, chunk_size=32, chunk_overlap=0)
+    return array.afl.gesvd(array, *args)
+
+
+def cumulate(array, *args):
+    """
+    Robust AFL cumulate call
+
+    Parameters
+    ----------
+    array : Array to cumulate
+    *args: Additional arguments to pass to AFL cumulate()
+
+    Returns
+    -------
+    cumulate(array, *args)
+
+    Notes
+    -----
+    Re-chunks array to have no chunk overlap, if needed
+    """
+    array = rechunk(array, chunk_overlap=0)
+    return array.afl.cumulate(array, *args)
+
+
+def reshape(array, *args):
+    """
+    Robust AFL reshape
+    """
+    array = rechunk(array, chunk_overlap=0)
+    return array.afl.reshape(array, *args)
+
+
+def thin(array, *args):
+    """
+    Robust AFL thin call
+
+    Parameters
+    ----------
+    array : SciDBArray
+        The array to thin
+    args: sequence of ints
+        sequence of start, step for each dimension
+
+    Notes
+    -----
+    The array is redimensioned if necessary, so that
+    the chunk size is a multiple of the thin steps
+    """
+
+    ds = array.datashape.copy()
+
+    # ensure step divides chunk_size
+    for i, (start, step) in enumerate(zip(args[::2], args[1::2])):
+        ds.chunk_size[i] = ds.chunk_size[i] / step * step
+
+    if ds != array.datashape:
+        array = array.redimension(ds.schema)
+
+    return array.afl.thin(array, *args)

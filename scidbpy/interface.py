@@ -33,7 +33,9 @@ from .scidbarray import SciDBArray, SciDBDataShape, ArrayAlias, SDB_IND_TYPE
 from .errors import SHIM_ERROR_DICT, SciDBQueryError, SciDBInvalidSession
 from .utils import broadcastable, _is_query, iter_record, _new_attribute_label, as_list
 from .schema_utils import disambiguate
-from .robust import join, merge, gemm, assert_single_attribute, boundify
+from .robust import (join, merge, gemm, assert_single_attribute,
+                     boundify, match_chunks,
+                     gesvd, match_chunk_permuted)
 import arithmetic
 
 __all__ = ['SciDBInterface', 'SciDBShimInterface', 'connect']
@@ -776,7 +778,7 @@ class SciDBInterface(object):
         ret = []
         for output in ['U', 'S', 'VT']:
             if out_dict[output]:
-                ret.append(self.afl.gesvd(A, "'%s'" % output))
+                ret.append(gesvd(A, "'%s'" % output))
         return tuple(ret)
 
     def from_array(self, A, instance_id=0, **kwargs):
@@ -1079,6 +1081,7 @@ class SciDBInterface(object):
             The remaining arguments are tuples of dimension indices which
             should be joined.
         """
+        B = match_chunk_permuted(B, A, dims)
         dims = [_df(arr, index)
                 for dim in dims
                 for arr, index in zip([A, B], dim)]
@@ -1149,6 +1152,12 @@ class SciDBInterface(object):
                 join_indices = []
                 left_slices = []
                 right_slices = []
+
+                # cross join requires matched chunks
+                left, right = match_chunks(left, right)
+                left_fmt = _af(left.eval(), 0)
+                right_fmt = _af(right.eval(), 0)
+                op = _op(left_fmt, right_fmt)
 
                 for tup in zip(reversed(list(enumerate(left.shape))),
                                reversed(list(enumerate(right.shape)))):

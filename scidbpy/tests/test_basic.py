@@ -26,6 +26,7 @@ needs_scipy = pytest.mark.skipif(MISSING_SP, reason='Test requires SciPy')
 # In order to run tests, we need to connect to a valid SciDB engine
 from scidbpy import SciDBArray, SciDBShimInterface, connect, SciDBDataShape
 from scidbpy.schema_utils import disambiguate
+from scidbpy.robust import rechunk
 
 from . import sdb, TestBase, teardown_function
 RTOL = 1E-6
@@ -849,3 +850,9 @@ class TestBooleanIndexing(TestBase):
         m = sdb.from_array(mnp)
 
         assert_array_equal(xnp[mnp], x[m].toarray())
+
+
+def test_rechunk_noop():
+    x = sdb.zeros(5)
+    y = rechunk(x, chunk_size=x.datashape.chunk_size)
+    assert y is x

@@ -19,7 +19,7 @@ from . import parse
 from .utils import meshgrid, slice_syntax, _is_query, _new_attribute_label
 from ._py3k_compat import genfromstr, iteritems, csv_reader, string_type
 from .schema_utils import change_axis_schema
-from .robust import join
+from .robust import join, cumulate, reshape, thin
 
 __all__ = ["sdbtype", "SciDBArray", "SciDBDataShape"]
 
@@ -319,19 +319,19 @@ class SciDBDataShape(object):
         """
         Return a copy of the DataShape
         """
-        return SciDBDataShape(None, self.sdbtype, dim_names=self.dim_names,
-                              chunk_size=self.chunk_size,
-                              chunk_overlap=self.chunk_overlap,
-                              dim_low=self.dim_low,
-                              dim_high=self.dim_high)
+        return SciDBDataShape(None,
+                              self.sdbtype,
+                              dim_names=list(self.dim_names),
+                              chunk_size=list(self.chunk_size),
+                              chunk_overlap=list(self.chunk_overlap),
+                              dim_low=list(self.dim_low),
+                              dim_high=list(self.dim_high))
 
     def __eq__(self, other):
-        return self.sdbtype == other.sdbtype and \
-            self.dim_names == other.dim_names and \
-            self.chunk_size == other.chunk_size and \
-            self.chunk_overlap == other.chunk_overlap and \
-            self.dim_low == other.dim_low and \
-            self.dim_high == other.dim_high
+        return self.schema == other.schema
+
+    def __ne__(self, other):
+        return not self == other
 
     @property
     def ndim(self):
@@ -1161,7 +1161,7 @@ class SciDBArray(object):
         # if thinning is required, then call the thin() command
         if any(i[2] != 1 for i in indices):
             steps = sum([[0, i[2]] for i in indices], [])
-            arr3 = self.afl.thin(arr2, *steps)
+            arr3 = thin(arr2, *steps)
         else:
             arr3 = arr2
 
@@ -1444,7 +1444,7 @@ class SciDBArray(object):
         arr = self.interface.new_array(shape=shape,
                                        dtype=self.sdbtype,
                                        **kwargs)
-        return self.afl.reshape(self, arr).eval(out=arr)
+        return reshape(self, arr).eval(out=arr)
 
     def substitute(self, value):
         """Reshape data into a new array, substituting a default for any nulls.
@@ -1830,7 +1830,7 @@ class SciDBArray(object):
         if isinstance(dimension, int):
             dimension = self.dim_names[dimension]
 
-        return self.afl.cumulate(self, expression, dimension)
+        return cumulate(self, expression, dimension)
 
     def cumsum(self, axis=None):
         """
@@ -1884,7 +1884,7 @@ class SciDBArray(object):
         sums = ["%s(%s) as %s" % (func, att, att)
                 for att in self.att_names]
         sums = ", ".join(sums)
-        return self.afl.cumulate(self, sums, axis)
+        return cumulate(self, sums, axis)
 
     def compress(self, mask, axis=0):
         """
