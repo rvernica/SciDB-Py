@@ -1081,7 +1081,7 @@ class SciDBInterface(object):
             The remaining arguments are tuples of dimension indices which
             should be joined.
         """
-        B = match_chunk_permuted(B, A, dims)
+        B = match_chunk_permuted(B, A, dims).eval()
         dims = [_df(arr, index)
                 for dim in dims
                 for arr, index in zip([A, B], dim)]

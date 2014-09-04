@@ -1,7 +1,7 @@
 # License: Simplified BSD, 2014
 # See LICENSE.txt for more information
 
-__version__ = "14.9.0.dev"
+__version__ = "14.8.1"
 
 from .interface import *
 from .scidbarray import *
