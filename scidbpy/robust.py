@@ -12,7 +12,7 @@ start index. The merge() function performs this preprocessing as needed.
 # See LICENSE.txt for more information
 
 __all__ = ['join', 'merge', 'gemm', 'cumulate',
-           'reshape', 'gesvd', 'thin']
+           'reshape', 'gesvd', 'thin', 'cross_join']
 
 from .schema_utils import change_axis_schema
 from .utils import _new_attribute_label
@@ -137,7 +137,7 @@ def match_chunks(*arrays):
     return result
 
 
-def match_chunk_permuted(src, target, indices):
+def match_chunk_permuted(src, target, indices, match_bounds=False):
     """
     Rechunk an array to match a target, along a set of
     permuted dimensions
@@ -152,6 +152,8 @@ def match_chunk_permuted(src, target, indices):
         Each tuple (i,j) indicates that
         dimension *j* of src should have the same chunk properties
         as dimension *i* of target
+    match_bounds : bool (optional, default False)
+        If true, match the chunk dimensions as well
 
     Returns
     -------
@@ -159,9 +161,19 @@ def match_chunk_permuted(src, target, indices):
     """
 
     ds = src.datashape.copy()
+    ds.dim_low = list(ds.dim_low)
+    ds.dim_high = list(ds.dim_high)
+
     for i, j in indices:
+        if not isinstance(i, int):
+            i = target.dim_names.index(i)
+        if not isinstance(j, int):
+            j = src.dim_names.index(j)
         ds.chunk_size[j] = target.datashape.chunk_size[i]
         ds.chunk_overlap[j] = target.datashape.chunk_overlap[i]
+        if match_bounds:
+            ds.dim_low[j] = target.datashape.dim_low[i]
+            ds.dim_high[j] = target.datashape.dim_high[i]
 
     if ds.schema != src.datashape.schema:
         src = src.redimension(ds.schema)
@@ -418,3 +430,25 @@ def thin(array, *args):
         array = array.redimension(ds.schema)
 
     return array.afl.thin(array, *args)
+
+
+def cross_join(a, b, *dims):
+    """
+    Robust AFL cross_join
+
+    Parameters
+    ----------
+    a : SciDBArray
+       The left array in the join
+    b : SciDBArray
+       The right array in the join
+    *dims : Pairs of dimension names
+       The dimensions to join along
+
+    Notes
+    -----
+    Arrays will be rechunked as needed for the cross join to run
+    """
+    inds = tuple((i, j) for i, j in zip(dims[::2], dims[1::2]))
+    b = match_chunk_permuted(b, a, inds, match_bounds=True)
+    return a.afl.cross_join(a, b, *dims)

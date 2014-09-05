@@ -93,6 +93,8 @@ def disambiguate(*arrays):
     """
     Process a list of arrays with calls to cast as needed, to avoid
     any name collisions in dimensions or attributes
+
+    The first array is guaranteed *not* to be modified
     """
     from .scidbarray import SciDBArray
 

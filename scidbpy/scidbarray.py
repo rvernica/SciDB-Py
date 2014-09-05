@@ -19,7 +19,8 @@ from . import parse
 from .utils import meshgrid, slice_syntax, _is_query, _new_attribute_label
 from ._py3k_compat import genfromstr, iteritems, csv_reader, string_type
 from .schema_utils import change_axis_schema
-from .robust import join, cumulate, reshape, thin
+from .robust import (join, cumulate, reshape, thin, match_chunk_permuted,
+                     cross_join)
 
 __all__ = ["sdbtype", "SciDBArray", "SciDBDataShape"]
 
@@ -335,7 +336,17 @@ class SciDBDataShape(object):
 
     @property
     def ndim(self):
+        """
+        The number of dimensions in the array
+        """
         return len(self.dim_names)
+
+    @property
+    def natt(self):
+        """
+        The number of attributes in the array
+        """
+        return len(self.att_names)
 
     @classmethod
     def from_schema(cls, schema):
@@ -905,7 +916,7 @@ class SciDBArray(object):
                 result = np.zeros(self.shape, self.dtype)
                 coords = tuple([arr[d] for d in self.dim_names])
 
-                if len(self.att_names) == 1:
+                if self.natt == 1:
                     result[coords] = arr[self.att_names[0]]
                     return result
 
@@ -1078,6 +1089,33 @@ class SciDBArray(object):
             arr = sparse.coo_matrix((data, ij), shape=self.shape)
             return spmat(arr)
 
+    def _integer_index(self, idx):
+        """
+        Index using an integer array
+        """
+        from .schema_utils import disambiguate, redimension
+
+        if self.ndim != 1 or idx.ndim != 1:
+            raise NotImplementedError("Slicing with integers requires 1D arrays")
+
+        if len(idx.att_names) != 1:
+            raise ValueError("Can only index with single-attribute arrays")
+
+        f = self.afl
+        self, idx = disambiguate(self, idx)
+
+        idx_att = idx.att_names[0]
+        orig_atts = self.att_names
+
+        pos = _new_attribute_label('pos', self, idx)
+        idx = idx.apply(pos, idx.dim_names[0])
+        idx = redimension(idx, idx.dim_names + idx.att_names[0:1], [pos])
+
+        idx = match_chunk_permuted(idx, self, ((0, idx_att),))
+        x = cross_join(self, idx, self.dim_names[0], idx_att)
+        x = redimension(x, [pos], orig_atts)
+        return x
+
     def __getitem__(self, indices):
         # The goal of getitem is to make a numpy-style interface perform
         # the correct operations on a SciDB array.  The corresponding
@@ -1091,13 +1129,28 @@ class SciDBArray(object):
         #         specified place in each dimension.
         #  [reshape: This applies if a slice argument is newaxis.]
 
-        # TODO: make this more efficient by using a single query
         # TODO: allow newaxis to be passed
 
         # slice can be either a tuple/iterable or a single integer/slice
 
-        if isinstance(indices, SciDBArray):
+        def _boolean_scidbarray(x):
+            if not isinstance(x, SciDBArray):
+                return False
+            rep = x.sdbtype.full_rep
+            return len(rep) == 1 and rep[0][1] == 'bool'
+
+        def _integer_scidbarray(x):
+            if not isinstance(x, SciDBArray):
+                return False
+            rep = x.sdbtype.full_rep
+            return len(rep) == 1 and rep[0][1].startswith('int')
+
+        # boolean scidbarray
+        if _boolean_scidbarray(indices):
             return self._boolean_filter(indices)
+
+        if _integer_scidbarray(indices):
+            return self._integer_index(indices)
 
         # passing a boolean mask
         if isinstance(indices, np.ndarray) and indices.dtype == np.bool:
@@ -1263,7 +1316,7 @@ class SciDBArray(object):
         if isinstance(other, SciDBArray):
             return self._boolean_compare_array(operator, other)
 
-        if len(self.att_names) > 1:
+        if self.natt > 1:
             raise TypeError("Inequality comparison not supported for "
                             "multi-attribute arrays")
 
@@ -1285,7 +1338,7 @@ class SciDBArray(object):
         """
         from .schema_utils import disambiguate
 
-        if len(self.att_names) > 1 or len(other.att_names) > 1:
+        if self.natt > 1 or other.natt > 1:
             raise TypeError("Inequality comparison not supported for "
                             "multi-attribute arrays")
 
@@ -1344,7 +1397,7 @@ class SciDBArray(object):
         return self._boolean_compare('>', other)
 
     def __invert__(self):
-        if len(self.att_names) != 1:
+        if self.natt != 1:
             raise TypeError("Can only invert single-attribute arrays")
         if self.sdbtype.full_rep[0][1] != 'bool':
             raise TypeError("Can only invert boolean arrays")

@@ -6,6 +6,8 @@ from numpy.random import randint
 from .. import connect
 from ..robust import rechunk
 
+RTOL = 1e-6
+
 sdb = connect()
 
 # NOTE: this needs to be explicitly imported in each test module,

@@ -2,6 +2,7 @@ Version 14.9.0
 --------------
 
 - 2014-08-24 dot() method works for non-default array chunk sizes
+- 2014-09-04 slicing with integer arrays. robust cross join
 
 Version 14.8.0
 --------------

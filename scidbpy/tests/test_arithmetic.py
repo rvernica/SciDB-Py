@@ -6,10 +6,9 @@ from operator import add, sub, mul, truediv, mod, pow
 
 from numpy.testing import assert_allclose
 
-from . import sdb, teardown_function, TestBase
+from . import sdb, teardown_function, TestBase, RTOL
 from .test_basic import needs_scipy
 
-RTOL = 1e-6
 ARITHMETIC_OPERATORS = (add, sub, mul, truediv, mod, pow)
 
 
