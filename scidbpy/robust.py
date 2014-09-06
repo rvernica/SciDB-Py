@@ -21,6 +21,7 @@ from .utils import _new_attribute_label
 def assert_single_attribute(array):
     if len(array.att_names) > 1:
         raise ValueError("Array must have a single attribute: %s" % array.name)
+    return array
 
 
 def as_same_dimension(*arrays):
@@ -456,3 +457,19 @@ def cross_join(a, b, *dims):
 
     # do the cross join
     return a.afl.cross_join(a, b, *dims)
+
+
+def uniq(a, is_sorted=False):
+    assert_single_attribute(a)
+
+    # ravel if need be
+    if a.ndim != 1 and is_sorted:
+        raise ValueError("Cannot use is_sorted with multidimensional arrays")
+    if a.ndim != 1:
+        att = _new_attribute_label('idx')
+        a = a.unpack(att)[a.att_names[0]]
+
+    # sort if need be
+    if not is_sorted:
+        a = a.sort()
+    return a.uniq()

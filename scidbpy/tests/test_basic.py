@@ -745,3 +745,14 @@ def test_rechunk_noop():
     x = sdb.zeros(5)
     y = rechunk(x, chunk_size=x.datashape.chunk_size)
     assert y is x
+
+
+def test_unique():
+    def check(x, is_sorted):
+        y = sdb.from_array(x)
+        assert_array_equal(np.unique(x),
+                           sdb.unique(y, is_sorted).toarray())
+
+    yield check, np.array([1, 1, 2, 3]), True
+    yield check, np.array([3, 2, 1, 3]), False
+    yield check, np.random.randint(0, 5, (3, 4)), False

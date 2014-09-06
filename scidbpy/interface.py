@@ -34,7 +34,7 @@ from .errors import SHIM_ERROR_DICT, SciDBQueryError, SciDBInvalidSession
 from .utils import broadcastable, _is_query, iter_record, _new_attribute_label, as_list
 from .schema_utils import disambiguate
 from .robust import (join, merge, gemm, assert_single_attribute,
-                     boundify, match_chunks,
+                     boundify, match_chunks, uniq,
                      gesvd, match_chunk_permuted)
 import arithmetic
 
@@ -921,6 +921,25 @@ class SciDBInterface(object):
         # TODO: allow creation of arrays from pre-existing files within the
         #       database
         raise NotImplementedError()
+
+    def unique(self, x, is_sorted=False):
+        """
+        Store the unique elements of an array in a new array
+
+        Parameters
+        ----------
+        x : SciDBArray
+            The array to compute unique elements of.
+        is_sorted : bool
+            Whether the array is pre-sorted. If True,
+            x must be a 1D array.
+
+        Returns
+        -------
+        u : SciDBArray
+           The unique elements of x
+        """
+        return uniq(x, is_sorted=is_sorted)
 
     def _apply_func(self, A, func):
         # TODO: new value name could conflict.  How to generate a unique one?
