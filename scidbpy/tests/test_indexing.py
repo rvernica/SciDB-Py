@@ -120,8 +120,16 @@ class TestBooleanIndexing(TestBase):
 
 class TestIndexIntegerArrays(TestBase):
 
-    def test_basic(self):
-        x = sdb.random(5)
-        y = sdb.from_array(np.array([0, 0, 1, 1, 1]))
+    def test_1d(self):
+        x = sdb.from_array(np.array([0, 10, 20]))
+        y = sdb.from_array(np.array([0, 2, 0]))
 
         assert_array_equal(x[y].toarray(), x.toarray()[y.toarray()])
+
+    def test_1d_multiattribute(self):
+        x = sdb.random(5)
+        y = sdb.random(5)
+        z = sdb.join(x, y)
+        idx = sdb.from_array(np.array([0, 0, 1, 1, 1]))
+
+        assert_array_equal(z[idx].toarray(), z.toarray()[idx.toarray()])

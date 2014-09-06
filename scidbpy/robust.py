@@ -449,6 +449,10 @@ def cross_join(a, b, *dims):
     -----
     Arrays will be rechunked as needed for the cross join to run
     """
+
+    # match chunk info of joined dimensions
     inds = tuple((i, j) for i, j in zip(dims[::2], dims[1::2]))
     b = match_chunk_permuted(b, a, inds, match_bounds=True)
+
+    # do the cross join
     return a.afl.cross_join(a, b, *dims)

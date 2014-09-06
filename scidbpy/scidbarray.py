@@ -1101,18 +1101,34 @@ class SciDBArray(object):
         if len(idx.att_names) != 1:
             raise ValueError("Can only index with single-attribute arrays")
 
-        f = self.afl
+        # example array: [0, 10, 20]
+        #         idx  : [0, 2, 0]
+
+        # relabel idx to avoid name collisions
         self, idx = disambiguate(self, idx)
 
         idx_att = idx.att_names[0]
         orig_atts = self.att_names
 
+        # turn into 2D array, 2nd dim = idx
+        # idx: [(0, 0), (2, 1), (0, 2)]
         pos = _new_attribute_label('pos', self, idx)
         idx = idx.apply(pos, idx.dim_names[0])
+        # idx: [[(0), (), ()],
+        #       [(), (), (1)],
+        #       [(2), (), ()]]
         idx = redimension(idx, idx.dim_names + idx.att_names[0:1], [pos])
 
-        idx = match_chunk_permuted(idx, self, ((0, idx_att),))
+        #    (value, idx)
+        # x: [[(0,0), (),    (0,2)],
+        #     [(),    (),    ()],
+        #     [(),    (20,1),()]]
         x = cross_join(self, idx, self.dim_names[0], idx_att)
+
+        # for some reason, SciDB needs to eval() the query for
+        # multiattribute arrays
+        if len(orig_atts) > 1:
+            x = x.eval()
         x = redimension(x, [pos], orig_atts)
         return x
 
