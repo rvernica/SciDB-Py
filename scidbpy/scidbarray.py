@@ -248,7 +248,6 @@ class SciDBDataShape(object):
     def __init__(self, shape, typecode, dim_names=None,
                  chunk_size=1000, chunk_overlap=0, dim_low=None,
                  dim_high=None):
-
         # Process array shape
         if shape is not None:
             try:
@@ -346,7 +345,7 @@ class SciDBDataShape(object):
         """
         The number of attributes in the array
         """
-        return len(self.att_names)
+        return len(self.sdbtype.names)
 
     @classmethod
     def from_schema(cls, schema):
@@ -581,8 +580,10 @@ class SciDBArray(object):
         if self.shape is not None:
             n = min(n, self.size)
 
+        # use first dimension only
         args = zip([0] * (self.ndim - 1), [1] * (self.ndim - 1))
-        result = self.subarray(0, n - 1, *args)
+        l = self.datashape.dim_low[0]
+        result = self.between(l, l + n - 1, *args)
         try:
             return result.todataframe()
         except ImportError:
@@ -718,6 +719,10 @@ class SciDBArray(object):
     @property
     def ndim(self):
         return self.datashape.ndim
+
+    @property
+    def natt(self):
+        return self.datashape.natt
 
     @property
     def size(self):
@@ -1014,8 +1019,7 @@ class SciDBArray(object):
     def todataframe(self, transfer_bytes=True):
         """Transfer array from database and store in a local Pandas dataframe
 
-        For multidimensional arrays, the dimension values are added
-        as additional columns in the dataframe.
+        The arry dimensions are assigned to the index of the output.
 
         Parameters
         ----------
@@ -1029,11 +1033,10 @@ class SciDBArray(object):
             The dataframe object containing the data in the array.
         """
         from pandas import DataFrame
-        if self.ndim == 1:
-            return DataFrame(self.toarray())
 
         idx = _new_attribute_label('row', self)
-        return self.afl.unpack(self, idx).todataframe()
+        a = self.afl.unpack(self, idx).toarray()
+        return DataFrame(a, columns=self.dim_names + self.att_names).set_index(self.dim_names)
 
     def tosparse(self, sparse_fmt='recarray', transfer_bytes=True):
         """Transfer array from database and store in a local sparse array.
@@ -1098,7 +1101,7 @@ class SciDBArray(object):
         if self.ndim != 1 or idx.ndim != 1:
             raise NotImplementedError("Slicing with integers requires 1D arrays")
 
-        if len(idx.att_names) != 1:
+        if idx.natt != 1:
             raise ValueError("Can only index with single-attribute arrays")
 
         # example array: [0, 10, 20]

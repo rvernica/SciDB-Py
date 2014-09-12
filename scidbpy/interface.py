@@ -32,7 +32,8 @@ import numpy as np
 from .scidbarray import SciDBArray, SciDBDataShape, ArrayAlias, SDB_IND_TYPE
 from .errors import SHIM_ERROR_DICT, SciDBQueryError, SciDBInvalidSession
 from .utils import broadcastable, _is_query, iter_record, _new_attribute_label, as_list
-from .schema_utils import disambiguate
+from .schema_utils import (disambiguate, as_row_vector, as_column_vector,
+                           zero_indexed, match_dimensions)
 from .robust import (join, merge, gemm, assert_single_attribute,
                      boundify, match_chunks, uniq,
                      gesvd, match_chunk_permuted)
@@ -309,7 +310,7 @@ class SciDBInterface(object):
             wrapper of the new SciDB array instance.
         """
         name = self._db_array_name()
-        if shape is not None:
+        if shape is not None or ('dim_low' in kwargs and 'dim_high' in kwargs):
             datashape = SciDBDataShape(shape, dtype, **kwargs)
             query = "CREATE ARRAY {0} {1}".format(name, datashape.schema)
             self._execute_query(query)
@@ -845,7 +846,14 @@ class SciDBInterface(object):
         kwargs['dim_names'] = [A_rec.dtype.names[0]]
 
         # redimension the array on the index
-        arr = self.new_array(shape=A_rec.shape,
+        try:
+            dim_low = (m for m in A.index.min())
+            dim_high = (m for m in A.index.max())
+        except TypeError:
+            dim_low = (A.index.min(),)
+            dim_high = (A.index.max(),)
+
+        arr = self.new_array(dim_low=dim_low, dim_high=dim_high,
                              dtype=A_rec.dtype.descr[1:],
                              **kwargs)
         self.afl.redimension_store(A_sdb, arr).eval(store=False)

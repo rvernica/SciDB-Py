@@ -236,3 +236,116 @@ def redimension(array, dimensions, attributes):
 
     schema = '<{0}> [{1}]'.format(atts, dims)
     return array.redimension(schema)
+
+
+def match_size(*arrays):
+    """
+    Resize all arrays in a list to the size of the first array
+    """
+    target = arrays[0].datashape
+    result = []
+
+    for a in arrays:
+        ds = a.datashape.copy()
+        ds.dim_low = list(ds.dim_low)
+        ds.dim_high = list(ds.dim_high)
+
+        for i in range(min(a.ndim, target.ndim)):
+            ds.dim_low[i] = target.dim_low[i]
+            ds.dim_high[i] = target.dim_high[i]
+        if ds != a.datashape:
+            print a.schema, ds.schema
+            a = a.redimension(ds.schema)
+        result.append(a)
+
+    return result
+
+
+def as_column_vector(array):
+    """
+    Convert a 1D array into a 2D array with a single column
+    """
+    idx = _new_attribute_label('idx', array)
+    ds = array.datashape.copy()
+    ds.dim_low = list(ds.dim_low) + [0]
+    ds.dim_high = list(ds.dim_high) + [0]
+    ds.chunk_size = list(ds.chunk_size) * 2
+    ds.chunk_overlap = list(ds.chunk_overlap) * 2
+    ds.dim_names = list(ds.dim_names) + [idx]
+    return array.redimension(ds.schema)
+
+
+def as_row_vector(array):
+    """
+    Convert a 1D array into a 2D array with a single row
+    """
+    idx = _new_attribute_label('idx', array)
+    ds = array.datashape.copy()
+    ds.dim_low = [0] + list(ds.dim_low)
+    ds.dim_high = [0] + list(ds.dim_high)
+    ds.chunk_size = list(ds.chunk_size) * 2
+    ds.chunk_overlap = list(ds.chunk_overlap) * 2
+    ds.dim_names = [idx] + list(ds.dim_names)
+    return array.redimension(ds.schema)
+
+
+def zero_indexed(array):
+    """
+    Redimension an array so all lower coordinates are at 0
+
+    Will only grow an array that starts above zero. If the
+    array has any dimensions starting below zero,
+    will raise a ValueError
+    """
+    if all(dl == 0 for dl in array.datashape.dim_low):
+        return array
+    if any(dl < 0 for dl in array.datashape.dim_low):
+        raise ValueError("Cannot zero_index array: one or more "
+                         "dimensions start < 0")
+
+    ds = array.datashape.copy()
+    ds.dim_low = [0] * ds.ndim
+    return array.redimension(ds.schema)
+
+
+def match_dimensions(A, B, dims):
+    """
+    Match the dimension bounds along a list of dimensions in 2 arrays.
+
+    Parameters
+    ----------
+    A : SciDBArray
+        First array
+    B : SciDBArray
+        Second array
+    dims : list of pairs of integers
+        For each (i,j) pair, indicates that A[i] should have same
+        dimension boundaries as B[j]
+
+    Returns
+    -------
+    Anew, Bnew : SciDBArrays
+        (Possibly redimensioned) versions of A and B
+    """
+    dsa = A.datashape.copy()
+    dsb = B.datashape.copy()
+    dsa.dim_low = list(dsa.dim_low)
+    dsb.dim_low = list(dsb.dim_low)
+    dsa.dim_high = list(dsa.dim_high)
+    dsb.dim_high = list(dsb.dim_high)
+
+    for i, j in dims:
+        low = min(dsa.dim_low[i], dsb.dim_low[j])
+        high = max(dsa.dim_high[i], dsb.dim_high[j])
+
+        dsa.dim_low[i] = low
+        dsa.dim_high[i] = high
+        dsb.dim_low[j] = low
+        dsb.dim_high[j] = high
+
+    if dsa != A.datashape:
+        A = A.redimension(dsa.schema)
+    if dsb != B.datashape:
+        B = B.redimension(dsb.schema)
+
+    return A, B

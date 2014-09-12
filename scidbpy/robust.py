@@ -460,6 +460,26 @@ def cross_join(a, b, *dims):
 
 
 def uniq(a, is_sorted=False):
+    """
+    Robust AFL uniq operator
+
+    Parameters
+    ----------
+    a : SciDBArray
+        Array to compute unique elements of. Must have a single attribute
+    is_sorted: bool
+        Whether the array is pre_sorted
+
+    Returns
+    -------
+    u : SciDBArray
+       The unique elements of A
+
+    Notes
+    -----
+    Will flatten and/or sort the input as necessar
+    """
+
     assert_single_attribute(a)
 
     # ravel if need be

@@ -103,6 +103,22 @@ def test_from_dataframe():
 
 
 @needs_pandas
+def test_from_dataframe_nonzero_index():
+    x = pd.DataFrame({'x': [1, 2, 3], 'y': [2, 3, 4]}).set_index('x')
+    xsdb = sdb.from_dataframe(x)
+
+    assert xsdb.dim_names == ['x']
+
+
+@needs_pandas
+def test_from_dataframe_negative_index():
+    x = pd.DataFrame({'x': [-1, 2, 3], 'y': [2, 3, 4]}).set_index('x')
+    xsdb = sdb.from_dataframe(x)
+
+    assert xsdb.dim_names == ['x']
+
+
+@needs_pandas
 def test_to_dataframe():
     """Test export to Pandas dataframe"""
 
@@ -121,8 +137,7 @@ def test_to_dataframe():
 def test_to_dataframe_multidim():
     x = sdb.afl.build('<a:float>[i=0:2,10,0, j=0:1,10,0]', 'i+j')
 
-    df = x.todataframe()
-
+    df = x.todataframe().reset_index()
     assert_array_equal(df['i'], [0, 0, 1, 1, 2, 2])
     assert_array_equal(df['j'], [0, 1, 0, 1, 0, 1])
     assert_array_equal(df['a'], [0, 1, 1, 2, 2, 3])
