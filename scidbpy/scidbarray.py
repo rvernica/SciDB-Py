@@ -1019,7 +1019,7 @@ class SciDBArray(object):
     def todataframe(self, transfer_bytes=True):
         """Transfer array from database and store in a local Pandas dataframe
 
-        The arry dimensions are assigned to the index of the output.
+        The array dimensions are assigned to the index of the output.
 
         Parameters
         ----------

@@ -771,3 +771,37 @@ def test_unique():
     yield check, np.array([1, 1, 2, 3]), True
     yield check, np.array([3, 2, 1, 3]), False
     yield check, np.random.randint(0, 5, (3, 4)), False
+
+
+@needs_pandas
+def test_dot_index_align():
+
+    x = pd.DataFrame({'x': np.ones(5)},
+                     index=np.arange(5))
+    y = pd.DataFrame({'x': np.ones(5)},
+                     index=np.arange(5) + 1)
+
+    xs = sdb.from_dataframe(x)
+    ys = sdb.from_dataframe(y)
+    print ys.schema
+    actual = sdb.dot(xs, ys)
+
+    x = x['x'].values
+    y = y['x'].values
+    expected = np.dot(x[1:], y[:-1].T)
+
+    assert_allclose(expected, actual, rtol=RTOL)
+
+
+class TestHead(TestBase):
+
+    @needs_pandas
+    def test_1d(self):
+        x = sdb.arange(10)
+        assert_array_equal(x.head()['f0'], [0, 1, 2, 3, 4])
+
+    @needs_pandas
+    def test_offset_dim(self):
+        x = pd.DataFrame({'x': [1, 2, 3], 'y': [2, 3, 4]}).set_index('x')
+        x = sdb.from_dataframe(x)
+        assert_array_equal(x.head()['y'], [2, 3, 4])

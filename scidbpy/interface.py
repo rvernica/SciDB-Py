@@ -701,34 +701,30 @@ class SciDBInterface(object):
             The wrapper of the SciDB Array, of shape (n, m), consisting of the
             matrix product of A and B
         """
-        # TODO: use GEMM and repartition where applicable.  GEMM requires the
-        #       chunk size to be 32.  We should probably not repartition the
-        #       arrays silently, but instead raise an efficiency warning and
-        #       provide a flag that enables automatic repartitioning.
 
         # TODO: make matrix-vector and vector-vector cases more efficient.
         #       Currently they involve creating copies of the arrays, but this
         #       is just a place-holder for a more efficient implementation.
-        A = boundify(A)
-        B = boundify(B)
-
         if A.ndim not in (1, 2) or B.ndim not in (1, 2):
             raise ValueError("dot requires 1 or 2-dimensional arrays")
 
-        if A.shape[-1] != B.shape[0]:
-            raise ValueError("array dimensions must match for dot product")
-
-        output_shape = A.shape[:-1] + B.shape[1:]
+        A = boundify(A)
+        B = boundify(B)
 
         # TODO: the following four transformations should be done by building
         #       a single query rather than executing separate queries.
         #       The following should be considered a place-holder for right
         #       now.
         if A.ndim == 1:
-            A = A.reshape((1, A.size))
+            A = as_row_vector(A)
 
         if B.ndim == 1:
-            B = B.reshape((B.size, 1))
+            B = as_column_vector(B)
+
+        A = zero_indexed(A)
+        B = zero_indexed(B)
+
+        A, B = match_dimensions(A, B, ((1, 0),))
 
         if A.sdbtype.nullable[0]:
             A = A.substitute(0)
@@ -739,15 +735,20 @@ class SciDBInterface(object):
         # TODO: is there a more efficient way to do this than instantiating
         #       an array of zeros?
         # TODO: use spgemm() when the matrices are sparse
-        C = self.zeros((A.shape[0], B.shape[1]), dtype=A.dtype)
+        kwargs = {'dtype': 'double'}
+        if A.dim_names[0] != B.dim_names[1]:
+            kwargs['dim_names'] = [A.dim_names[0], B.dim_names[1]]
+        C = self.zeros((A.shape[0], B.shape[-1]), **kwargs)
         C = gemm(A, B, C).eval()
 
-        if C.shape == output_shape:
-            return C
-        elif len(output_shape) == 0:
+        if C.size == 1:
             return C[0, 0]
+        if C.shape[0] == 1:
+            return C[0, :]
+        elif C.shape[1] == 1:
+            return C[:, 0]
         else:
-            return C.reshape(output_shape)
+            return C
 
     def svd(self, A, return_U=True, return_S=True, return_VT=True):
         """Compute the Singular Value Decomposition of the array A:
