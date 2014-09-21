@@ -4,7 +4,22 @@ from .utils import _new_attribute_label
 
 def assert_single_attribute(array):
     """
-    If the array has one attribute, do nothing. Else, raise ValueError
+    Raise a ValueError if an array has multiple attributes
+
+    Parameters
+    ----------
+    array : SciDBArray
+        The array to test
+
+    Returns
+    -------
+    array : SciDBArray
+        The input array
+
+    Raises
+    ------
+    ValueError
+        if array has multiple attributes
     """
     if len(array.att_names) > 1:
         raise ValueError("Array must have a single attribute: %s" % array.name)
@@ -17,12 +32,23 @@ def as_same_dimension(*arrays):
 
     Parameters
     ----------
-    *arrays: One or more arrays
-        The arrays to coerce
+    *arrays
+       One or more arrays to test
 
     Returns
     -------
     new_arrays : tuple of SciDBArrays
+
+    Raises
+    ------
+    ValueError
+        if arrays have mismatched dimensions, and cannot be
+        coerced into the same shape.
+
+    Notes
+    -----
+    Currently this function only checkes for mismatched dimensions,
+    it is unable to fix them.
     """
     ndim = arrays[0].ndim
     for a in arrays:
@@ -68,20 +94,30 @@ def _find_rename(rep, item, reserved):
 
 def match_attribute_names(*arrays):
     """
-    Rename attributes in an array list as necessary, to match all names
+    Rename attributes in a set of arrays, so that all arrays
+    have the same names of attributes
 
     Parameters
     ----------
-    *arrays : one or more SciDBArrays
+    *arrays
+       one or more SciDBArrays
 
     Returns
     -------
-    arrays: tuple of SciDBArrays
+    arrays : tuple of SciDBArrays
        All output arrays have the same attribute names
 
     Raises
     ------
-    ValueError: if arrays aren't conformable
+    ValueError : if arrays aren't conformable
+
+    Notes
+    -----
+    An array's attributes will be renamed to match an attribute name
+    in the first array, if the association is unambiguous. For example,
+    consider two arrays with attribute schemas ``<a:int32, b:float>`` and
+    ``<a:int32, c:float>``. The attribute ``c`` will be renamed to ``b``, since
+    the datatypes match and there is no other ``b`` attribute.
     """
     rep = arrays[0].sdbtype.full_rep
     result = [arrays[0]]
@@ -101,14 +137,30 @@ def match_attribute_names(*arrays):
         if renames:
             a = a.afl.attribute_rename(a, *renames)
         result.append(a)
-    return result
+    return tuple(result)
 
 
 def match_chunks(*arrays):
     """
     Redimension arrays so they have identical chunk sizes and overlaps
 
-    It is assumed that all input arrays have the same dimensionality.
+    It is assumed that all input arrays have the same dimensionality. If
+    needed, use :func:`as_same_dimension` to ensure this.
+
+    Parameters
+    ----------
+    *arrays
+        One or more arrays to match
+
+    Returns
+    -------
+    arrays : Tuple of SciDBArrays
+        The chunk sizes and overlaps will be matched to the first input.
+
+    See Also
+    --------
+    match_chunk_permuted(), to match chunks along particular pairs of
+                            dimensions
     """
     target = arrays[0].datashape
     result = []
@@ -122,13 +174,13 @@ def match_chunks(*arrays):
             a = a.redimension(ds.schema)
         result.append(a)
 
-    return result
+    return tuple(result)
 
 
 def match_chunk_permuted(src, target, indices, match_bounds=False):
     """
-    Rechunk an array to match a target, along a set of
-    permuted dimensions
+    Rechunk an array to match a target, along a set of specified
+    dimension pairs.
 
     Parameters
     ----------
@@ -141,11 +193,12 @@ def match_chunk_permuted(src, target, indices, match_bounds=False):
         dimension *j* of src should have the same chunk properties
         as dimension *i* of target
     match_bounds : bool (optional, default False)
-        If true, match the chunk dimensions as well
+        If true, match the dimension boundaries as well
 
     Returns
     -------
-    A (possibly redimensioned) version of src
+    new_src : SciDBArray
+        A (possibly redimensioned) version of src
     """
 
     ds = src.datashape.copy()
@@ -179,12 +232,13 @@ def rechunk(array, chunk_size=None, chunk_overlap=None):
         The array to sanitize
     chunk_size : int or list of ints (optional)
        The new chunk_size. Defaults to old chunk_size
-    chunk_overlap: int or list of ints (optional)
+    chunk_overlap : int or list of ints (optional)
        The new chunk overlap. Defaults to old chunk overlap
 
     Returns
     -------
-    Either array (if unmodified) or a redimensioned version of array
+    array : SciDBArray
+       A (possibly redimensioned) version of the input
     """
 
     # deal with chunk sizes
@@ -208,8 +262,23 @@ def rechunk(array, chunk_size=None, chunk_overlap=None):
 
 def boundify(array):
     """
-    Redimension an array as needed so that no dimension
-    is unbound (ie ending with *)
+    Redimension an array as needed so that no dimension is unbound (ie ending with *)
+
+    Parameters
+    ----------
+    array : SciDBArray
+       The array to bound
+
+    Returns
+    -------
+    array : SciDBArray
+       A (possibly redimensioned) version of array
+
+    Notes
+    -----
+    For unbound arrays, SciDB scans the array to determine the
+    maximum index along each dimension, and the array is truncated
+    at that location.
     """
     if not any(d is None for d in array.datashape.dim_high):
         return array
@@ -251,8 +320,9 @@ def change_axis_schema(datashape, axis, start=None, stop=None,
 
     Returns
     -------
-    A new SciDBDataShape, obtained by overriding the input parameters
-    of the template datashape along the specified axis
+    new_schema : SciDBDataShape
+       The new schema, obtained by overriding the input parameters
+       of the template datashape along the specified axis
     """
     from .scidbarray import SciDBDataShape
 
@@ -319,6 +389,17 @@ def disambiguate(*arrays):
     any name collisions in dimensions or attributes
 
     The first array is guaranteed *not* to be modified
+
+    Parameters
+    ----------
+    *arrays
+        One or more arrays to process
+
+    Returns
+    -------
+    arrays : tuple of SciDBArrays
+        The (possibly recasted) inputs. None of the dimensions or
+        attribute names match.
     """
     from .scidbarray import SciDBArray
 
@@ -400,8 +481,7 @@ def limits(array, names):
 
 def redimension(array, dimensions, attributes):
     """
-    Redimension an array as needed, swapping and dropping
-    attributes as needed
+    Redimension an array as needed, swapping and dropping attributes as needed.
 
     Parameters
     ----------
@@ -417,7 +497,7 @@ def redimension(array, dimensions, attributes):
     - Only integer attributes can be listed as dimensions
     - If an attribute or dimension in the original array is not explicitly
       provided as an input, it is dropped
-    - If all attributes are marked for conversion to dimensions
+    - If no attributes are specified,
       a new dummy attribute is added to ensure a valid schema.
 
     Returns
@@ -472,10 +552,37 @@ def redimension(array, dimensions, attributes):
 
 def match_size(*arrays):
     """
-    Resize all arrays in a list to the size of the first array
+    Resize all arrays in a list to the size of the first array. This
+    requires that all arrays span a subset of the first array's domain.
+
+    Parameters
+    ----------
+    *arrays
+       One or more SciDBArrays
+
+    Returns
+    -------
+    arrays : tuple of SciDBArrays
+       The (possibly redimensioned) inputs. All arrays are resized
+       to match the first array
+
+    Raises
+    ------
+    ValueError : If any arrays have a domain that is not a subset
+                 of the first array's domain.
+
     """
     target = arrays[0].datashape
     result = []
+
+    # check for bad inputs
+    for a in arrays:
+        ds = a.datashape.copy()
+        for i in range(min(a.ndim, target.ndim)):
+            if ds.dim_low[i] < target.dim_low[i] or \
+                ds.dim_high[i] > target.dim_high[i]:
+                raise ValueError("All array domains must be a subset "
+                                 "of the first array's domain")
 
     for a in arrays:
         ds = a.datashape.copy()
@@ -489,12 +596,23 @@ def match_size(*arrays):
             a = a.redimension(ds.schema)
         result.append(a)
 
-    return result
+    return tuple(result)
 
 
 def expand(*arrays):
     """
     Grow arrays to equal shape, without truncating any data
+
+    Parameters
+    ----------
+    *arrays
+       One or more SciDBArrays
+
+    Returns
+    -------
+    arrays : tuple of SciDBArrays
+       The input arrays, redimensioned as needed so they all have
+       the same domain.
     """
     arrays = list(map(boundify, arrays))
     assert_schema(arrays, same_dimension=True)
@@ -518,6 +636,9 @@ def as_column_vector(array):
     """
     Convert a 1D array into a 2D array with a single column
     """
+    if array.ndim != 1:
+        raise ValueError("Array must be 1D")
+
     idx = _new_attribute_label('idx', array)
     ds = array.datashape.copy()
     ds.dim_low = list(ds.dim_low) + [0]
@@ -532,6 +653,8 @@ def as_row_vector(array):
     """
     Convert a 1D array into a 2D array with a single row
     """
+    if array.ndim != 1:
+        raise ValueError("Array must be 1D")
     idx = _new_attribute_label('idx', array)
     ds = array.datashape.copy()
     ds.dim_low = [0] + list(ds.dim_low)
@@ -546,9 +669,9 @@ def zero_indexed(array):
     """
     Redimension an array so all lower coordinates are at 0
 
-    Will only grow an array that starts above zero. If the
-    array has any dimensions starting below zero,
-    will raise a ValueError
+    Raises
+    -------
+    ValueError : if any array has dimensions starting below zero.
     """
     if all(dl == 0 for dl in array.datashape.dim_low):
         return array
@@ -607,6 +730,19 @@ def match_dimensions(A, B, dims):
 def right_dimension_pad(array, n):
     """
     Add dummy dimensions as needed to an array, so that it is at least n-dimensional.
+
+    Parameters
+    ----------
+    array : SciDBArray
+        The array to pad
+    n : int
+        The minimum dimensionality of the output
+
+    Returns
+    -------
+    array : SciDBArray
+       A version of the input, with extra dimensions added after the old
+       dimensions.
     """
     if array.ndim >= n:
         return array
@@ -619,6 +755,19 @@ def right_dimension_pad(array, n):
 def left_dimension_pad(array, n):
     """
     Add dummy dimensions as needed to an array, so that it is at least n-dimensional.
+
+    Parameters
+    ----------
+    array : SciDBArray
+        The array to pad
+    n : int
+        The minimum dimensionality of the output
+
+    Returns
+    -------
+    array : SciDBArray
+       A version of the input, with extra dimensions added before the old
+       dimensions.
     """
     if array.ndim >= n:
         return array
@@ -630,6 +779,34 @@ def left_dimension_pad(array, n):
 
 def assert_schema(arrays, zero_indexed=False, bounded=False,
                   same_attributes=False, same_dimension=False):
+    """
+    Check that a set of arrays obeys a set of criteria on their schemas.
+
+    Parameters
+    ----------
+    arrays : tuple of SciDBArrays
+        The arrays to check
+
+    zero_indexed : boolean, optional (default False)
+        If True, check at all arrays have origins at 0
+    bounded : boolean, optional (default False)
+        If True, check that all arrays are bounded (ie don't have ``*`` in
+                                                    the dimension schema)
+    same_attributes : boolean, optional (default False)
+       If True, check that all arrays have identical attribute
+       names, order, datatypes, and nullability
+    same_dimension : boolean, optional (default True)
+       If True, check that all arrays have the same dimensionality
+
+    Raises
+    ------
+    ValueError : If any test fails
+
+    Returns
+    -------
+    arrays : tuple of SciDBArrays
+        The input
+    """
 
     ds0 = arrays[0].datashape
     if same_dimension:
@@ -646,3 +823,5 @@ def assert_schema(arrays, zero_indexed=False, bounded=False,
                              "all dimensions")
         if same_attributes and ds.sdbtype.full_rep != ds0.sdbtype.full_rep:
             raise ValueError("Input arrays must have the same attributes")
+
+    return tuple(arrays)
