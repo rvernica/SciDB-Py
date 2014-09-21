@@ -209,12 +209,14 @@ class GroupBy(object):
 
         if isinstance(mappings, string_type):
             atts = _expression_attributes(mappings)
-            dims.extend(d for d in self.array.dim_names if d not in atts)
+            dims.extend(d for d in self.array.dim_names
+                        if d not in atts and d not in dims)
             array = redimension(self.array, dims, atts)
             result = array.aggregate(mappings, *self.by)
         else:
             atts = sum((_expression_attributes(v) for v in mappings.values()), [])
-            dims.extend(d for d in self.array.dim_names if d not in atts)
+            dims.extend(d for d in self.array.dim_names
+                        if d not in atts and d not in dims)
             array = redimension(self.array, dims, atts)
             args = ['%s as %s' % (v, k) for k, v in mappings.items()] + self.by
             result = array.aggregate(*args)

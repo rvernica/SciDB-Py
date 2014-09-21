@@ -25,10 +25,9 @@ needs_scipy = pytest.mark.skipif(MISSING_SP, reason='Test requires SciPy')
 
 # In order to run tests, we need to connect to a valid SciDB engine
 from scidbpy import SciDBArray, SciDBShimInterface, connect, SciDBDataShape
-from scidbpy.schema_utils import disambiguate
-from scidbpy.robust import rechunk
+from scidbpy.schema_utils import disambiguate, rechunk
 
-from . import sdb, TestBase, teardown_function
+from . import sdb, TestBase, teardown_function, randarray
 RTOL = 1E-6
 
 
@@ -783,7 +782,6 @@ def test_dot_index_align():
 
     xs = sdb.from_dataframe(x)
     ys = sdb.from_dataframe(y)
-    print ys.schema
     actual = sdb.dot(xs, ys)
 
     x = x['x'].values
@@ -791,6 +789,58 @@ def test_dot_index_align():
     expected = np.dot(x[1:], y[:-1].T)
 
     assert_allclose(expected, actual, rtol=RTOL)
+
+
+def test_hstack():
+
+    def check(arrays):
+        expected = np.hstack(arrays)
+        actual = sdb.hstack([sdb.from_array(a) for a in arrays])
+        assert_array_equal(expected, actual.toarray())
+
+    rand = np.random.random
+    yield check, [rand(3), rand(4)]
+    yield check, [rand(3), rand(4), rand(5)]
+    yield check, [rand((3, 4)), rand((3, 1))]
+    yield check, [rand((2, 2, 2)), rand((2, 1, 2))]
+    yield check, [rand((2, 2, 2, 2)), rand((2, 1, 2, 2))]
+    yield check, [np.arange(3), np.arange(4)]
+    yield check, [randarray((3, 1), ('<i1', '<i4')),
+                  randarray((3, 1), ('<i1', '<i4'))]
+
+
+def test_vstack():
+
+    def check(arrays):
+        expected = np.vstack(arrays)
+        actual = sdb.vstack([sdb.from_array(a) for a in arrays])
+        assert_array_equal(expected, actual.toarray())
+
+    rand = np.random.random
+    yield check, [rand(3), rand(3)]
+    yield check, [rand((1, 2)), rand((3, 2))]
+    yield check, [rand((2, 2, 2)), rand((1, 2, 2))]
+    yield check, [rand((1, 3, 2, 2)), rand((2, 3, 2, 2))]
+    yield check, [np.arange(3), np.arange(3)]
+    yield check, [randarray((1, 3), ('<i1', '<i4')),
+                  randarray((1, 3), ('<i1', '<i4'))]
+
+
+def test_dstack():
+
+    def check(arrays):
+        expected = np.dstack(arrays)
+        actual = sdb.dstack([sdb.from_array(a) for a in arrays])
+        assert_array_equal(expected, actual.toarray())
+
+    rand = np.random.random
+    # yield check, [rand(3), rand(3)]
+    yield check, [rand((1, 2)), rand((1, 2))]
+    yield check, [rand((2, 1, 1)), rand((2, 1, 2))]
+    yield check, [rand((1, 3, 2, 2)), rand((1, 3, 1, 2))]
+    yield check, [np.arange(3), np.arange(3)]
+    yield check, [randarray((1, 3), ('<i1', '<i4')),
+                  randarray((1, 3), ('<i1', '<i4'))]
 
 
 class TestHead(TestBase):

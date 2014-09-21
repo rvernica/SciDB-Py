@@ -1,10 +1,10 @@
 # License: Simplified BSD, 2014
 # See LICENSE.txt for more information
 from numpy.random import randint
-
+import numpy as np
 
 from .. import connect
-from ..robust import rechunk
+from ..schema_utils import rechunk
 
 RTOL = 1e-6
 
@@ -50,3 +50,13 @@ def chunk_fuzz(func):
 for fac in ('zeros ones random from_array from_sparse from_dataframe '
             'identity linspace arange random randint').split():
     setattr(sdb, fac, chunk_fuzz(getattr(sdb, fac)))
+
+
+def randarray(shape, dtypes, names=None):
+    recsize = sum([np.dtype(d).itemsize for d in dtypes])
+    if names is None:
+        names = ['f%i' % i for i in range(len(dtypes))]
+
+    dtype = list(zip(names, dtypes))
+    s = [s * recsize for s in shape]
+    return np.random.randint(0, 256, s).astype(np.uint8).view(dtype=dtype)

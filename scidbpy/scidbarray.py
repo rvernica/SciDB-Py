@@ -19,8 +19,7 @@ from . import parse
 from .utils import meshgrid, slice_syntax, _is_query, _new_attribute_label
 from ._py3k_compat import genfromstr, iteritems, csv_reader, string_type
 from .schema_utils import change_axis_schema
-from .robust import (join, cumulate, reshape, thin, match_chunk_permuted,
-                     cross_join)
+from .robust import (join, cumulate, reshape, thin, cross_join)
 
 __all__ = ["sdbtype", "SciDBArray", "SciDBDataShape"]
 

@@ -33,11 +33,14 @@ from .scidbarray import SciDBArray, SciDBDataShape, ArrayAlias, SDB_IND_TYPE
 from .errors import SHIM_ERROR_DICT, SciDBQueryError, SciDBInvalidSession
 from .utils import broadcastable, _is_query, iter_record, _new_attribute_label, as_list
 from .schema_utils import (disambiguate, as_row_vector, as_column_vector,
-                           zero_indexed, match_dimensions)
-from .robust import (join, merge, gemm, assert_single_attribute,
-                     boundify, match_chunks, uniq,
-                     gesvd, match_chunk_permuted)
-import arithmetic
+                           zero_indexed, match_dimensions,
+                           assert_single_attribute,
+                           boundify, match_chunks, redimension,
+                           match_chunk_permuted, assert_schema,
+                           right_dimension_pad, left_dimension_pad)
+from .robust import (join, merge, gemm, uniq, gesvd)
+
+from . import arithmetic
 
 __all__ = ['SciDBInterface', 'SciDBShimInterface', 'connect']
 
@@ -1308,6 +1311,151 @@ class SciDBInterface(object):
         if permutation is not None:
             arr = arr.transpose(permutation)
         return arr
+
+    def concatenate(self, arrays, axis=0):
+        """
+        Concatenate several arrays along a particular dimension.
+
+        This behaves like numpy's concatenate function when the
+        input array dimensions are > the concatenation axis. It
+        behaves differently than numpy when the array dimensions
+        are less than the concatenation axis, in the following way:
+
+        Concatenating 1D arrays along axis=0 behaves like numpy's vstack.
+        Concatenating 1D arrays along axis=1 behaves like numpy's hstack.
+        Concatenating 1D or 2D arrays along axis=2 behaves like dstack.
+
+        Parameters
+        ----------
+        arrays : Sequence of SciDBArrays
+            The arrays to concatenate
+        axis : int, optional (default 0)
+            The dimension to join on. Array shapes must match along
+            all dimensions except this axis.
+
+        Returns
+        -------
+        stacked : SciDBArray
+            A stacked array
+
+        See Also
+        --------
+        hstack(), vstack(), dstack()
+        """
+
+        assert_schema(arrays, bounded=True, same_attributes=True)
+        slice_at_end = arrays[0].ndim == 1 and axis == 1
+
+        # pad with extra dimensions as needed
+        arrays = [right_dimension_pad(left_dimension_pad(a, 2), axis + 1)
+                  for a in arrays]
+        nd = arrays[0].ndim
+
+        # check for proper shape
+        if any(a.ndim != nd for a in arrays):
+            raise ValueError("All the input arrays must have the same number of dimensions")
+
+        for i, s in enumerate(arrays[0].shape):
+            if i != axis and any(a.shape[i] != s for a in arrays):
+                raise ValueError("all the input array dimensions except "
+                                 "for the concatenation axis must match exactly")
+
+        # compute the proper position along the concatenation dimension
+        # be careful about nonzero origins here
+        joinidx = 0 if (nd == 1 and axis == 1) else axis
+        join = arrays[0].dim_names[joinidx]
+
+        offset = 0
+        result = list(arrays)
+        idx = _new_attribute_label('idx', *arrays)
+
+        for i in range(len(result)):
+            dims = result[i].dim_names + [idx]
+            atts = result[i].att_names
+
+            zero = result[i].datashape.dim_low[joinidx]
+            result[i] = result[i].apply(idx, '{0}-{1}+{2}'.format(join, zero, offset))
+            result[i] = redimension(result[i], dims, atts)
+            offset += result[i].datashape.dim_high[joinidx] - zero + 1
+
+        # merge into one array
+        r = result[0]
+        for x in result[1:]:
+            r = merge(r, x)
+
+        # redimension into proper shape
+        dim_names = [d for d in r.dim_names if d != idx]
+        dim_names[joinidx] = idx
+        r = redimension(r, dim_names, r.att_names)
+
+        # special case for hstack on 1D arrays
+        if slice_at_end:
+            r = r[0]
+
+        return r
+
+    def hstack(self, arrays):
+        """
+        Stack arrays in sequence horizontally (column wise).
+
+        Parameters
+        ----------
+        arrays : Sequence of SciDBArrays
+            The arrays to join. All arrays must have the same
+            shape along all but the second dimension.
+
+        Returns
+        -------
+        stacked : SciDBArray
+            The array formed by stacking the given arrays.
+
+        See Also
+        --------
+        vstack(), dstack(), concatenate()
+        """
+        return self.concatenate(arrays, axis=1)
+
+    def vstack(self, arrays):
+        """
+        Stack arrays in sequence vertically (column wise).
+
+        Parameters
+        ----------
+        arrays : Sequence of SciDBArrays
+            The arrays to join. All arrays must have the same
+            shape along all but the first dimension.
+
+        Returns
+        -------
+        stacked : SciDBArray
+            The array formed by stacking the given arrays.
+
+        See Also
+        --------
+        hstack(), dstack(), concatenate()
+        """
+        return self.concatenate(arrays, axis=0)
+
+    def dstack(self, arrays):
+        """
+        Stack arrays in sequence depth wise (along the third axis).
+
+        Parameters
+        ----------
+        arrays : Sequence of SciDBArrays
+            The arrays to join. All arrays must have the same
+            shape along all but the third dimension.
+
+        Returns
+        -------
+        stacked : SciDBArray
+            The array formed by stacking the given arrays.
+
+        See Also
+        --------
+        hstack(), vstack(), concatenate()
+        """
+        return self.concatenate(arrays, axis=2)
 
 
 class SciDBShimInterface(SciDBInterface):
