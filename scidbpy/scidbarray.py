@@ -1414,6 +1414,9 @@ class SciDBArray(object):
     def __gt__(self, other):
         return self._boolean_compare('>', other)
 
+    def __neg__(self):
+        return self * -1
+
     def __invert__(self):
         if self.natt != 1:
             raise TypeError("Can only invert single-attribute arrays")
