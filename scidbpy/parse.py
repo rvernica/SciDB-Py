@@ -42,7 +42,7 @@ typemap = {'bool': np.dtype('<b1'),
            }
 
 null_typemap = dict(((k, False), v) for k, v in typemap.items())
-null_typemap.update(((k, True), [('mask', '<b1'), ('data', v)])
+null_typemap.update(((k, True), [('mask', '<B'), ('data', v)])
                     for k, v in typemap.items())
 
 # NULL value for each datatype

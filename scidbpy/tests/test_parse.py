@@ -32,7 +32,6 @@ class TestScalar(TestBase):
     def check_scalar(self, typ, value, null, expected=None):
         if expected is None:
             expected = [value]
-        print(value, expected, self.scalar(typ, value, null).toarray())
         self.check(self.scalar(typ, value, null), expected)
 
     def check_null(self, typ):
@@ -85,6 +84,11 @@ class TestScalar(TestBase):
         for val in ['a', 'hi', 'hi ho', 'å∫√∂']:
             for null in [False, True]:
                 yield self.check_scalar, 'string', "'%s'" % val, null, [val]
+
+    def test_parse_std(self):
+        # regression test
+        x = sdb.ones(5).std().toarray()
+        assert x == 0
 
 
 class TestMultiAttributeArrays(object):
