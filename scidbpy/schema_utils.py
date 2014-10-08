@@ -479,6 +479,30 @@ def limits(array, names):
                 for n in names)
 
 
+def cast_to_integer(array, attributes):
+    """
+    Cast a set of attributes in an array to integer datatypes.
+
+    This is a useful preprocessing step before redimensioning attributes
+    as dimensions
+    """
+    atts = array.att_names
+
+    for nm, typ, null in array.sdbtype.full_rep:
+        if nm not in attributes:
+            continue
+        if 'int' in typ:
+            continue
+        if typ == 'bool':
+            x = _new_attribute_label('__cast', array)
+            array = array.attribute_rename(nm, x).apply(nm, 'iif(%s, 1, 0)' % x)
+            continue
+        else:
+            raise ValueError("Don't know how to turn %s to int64" % typ)
+
+    return array.project(*atts)
+
+
 def redimension(array, dimensions, attributes):
     """
     Redimension an array as needed, swapping and dropping attributes as needed.
@@ -506,7 +530,6 @@ def redimension(array, dimensions, attributes):
        A new version of array, redimensioned as needed to
        ensure proper dimension/attribute schema.
     """
-    print(array.schema, dimensions, attributes)
     if array.dim_names == dimensions and array.att_names == attributes:
         return array
 
@@ -515,6 +538,7 @@ def redimension(array, dimensions, attributes):
 
     to_promote = [d for d in dimensions if d in orig_atts]  # att->dim
     to_demote = [a for a in attributes if a in orig_dims]  # dim->att
+    array = cast_to_integer(array, to_promote)
 
     # need a dummy attribute, otherwise result has no attributes
     if not attributes:
@@ -528,7 +552,7 @@ def redimension(array, dimensions, attributes):
         if r[0] in attributes:  # copy schema
             new_att[r[0]] = _att_schema_item(r)
     for d in to_demote:  # change attribute to dimension
-        new_att[d] = '%s:int' % d
+        new_att[d] = '%s:int64' % d
 
     new_att = ','.join(new_att[a] for a in attributes)
 

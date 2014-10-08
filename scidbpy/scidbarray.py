@@ -1091,6 +1091,12 @@ class SciDBArray(object):
             arr = sparse.coo_matrix((data, ij), shape=self.shape)
             return spmat(arr)
 
+    def tolist(self):
+        """
+        Download the array as a (nested) python list
+        """
+        return self.toarray().tolist()
+
     def _integer_index(self, idx):
         """
         Index using an integer array
@@ -2016,6 +2022,18 @@ class SciDBArray(object):
                                      axis, name=idx_att, stop=ct - 1).dim_schema
         q = f.redimension(q, schema)
         return q
+
+    def any(self):
+        if not all(dt == 'bool' for nm, dt, null in self.sdbtype.full_rep):
+            raise TypeError("any() only valid for boolean arrays")
+
+        return self.aggregate(*('max(%s)' % att for att in self.att_names)) > 0
+
+    def all(self):
+        if not all(dt == 'bool' for nm, dt, null in self.sdbtype.full_rep):
+            raise TypeError("any() only valid for boolean arrays")
+
+        return self.aggregate(*('min(%s)' % att for att in self.att_names)) > 0
 
 
 def _subarray(array, *masks):

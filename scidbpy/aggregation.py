@@ -172,7 +172,7 @@ class GroupBy(object):
             1  1  715  29
     """
 
-    def __init__(self, array, by):
+    def __init__(self, array, by, columns=None):
         """
         Parameters
         ----------
@@ -184,8 +184,10 @@ class GroupBy(object):
 
         """
         self.by = as_list(by)
+        self.columns = columns or (array.att_names + array.dim_names)
+
         for name, typ, _ in array.sdbtype.full_rep:
-            if name in self.by and typ not in INTEGER_TYPES:
+            if name in self.by and typ not in INTEGER_TYPES and typ != 'bool':
                 raise TypeError("Grouping by non-integer attributes not yet supported")
         self.array = array
 
@@ -223,3 +225,10 @@ class GroupBy(object):
 
         attr = _new_attribute_label('_idx', result)
         return result.unpack(attr)
+
+    def __getitem__(self, *key):
+        for k in key:
+            if k not in self.columns:
+                raise KeyError("Unrecognized attribute: %s" % k)
+
+        return GroupBy(self.array, self.by, key)

@@ -215,7 +215,7 @@ def iter_record(item):
         yield item
 
 
-def _new_attribute_label(suggestion='val', *arrays):
+def new_attribute_label(suggestion='val', *arrays):
     """Return a new attribute label
 
     The label will not clash with any attribute or dimension labels in the given arrays
@@ -234,6 +234,8 @@ def _new_attribute_label(suggestion='val', *arrays):
 
         nums.append(-1)  # in case it's empty
         return '{0}_{1}'.format(suggestion, max(nums) + 1)
+
+_new_attribute_label = new_attribute_label
 
 
 def as_list(x):
