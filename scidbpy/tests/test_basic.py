@@ -844,6 +844,52 @@ def test_dstack():
                   randarray((1, 3), ('<i1', '<i4'))]
 
 
+def test_ls():
+    x = sdb.zeros(5)
+    sdb.ls(x.name) == [x.name]
+    sdb.ls(x.name + '*') == [x.name]
+    sdb.ls('DOES NOT EXIST') == []
+    assert sorted(sdb.ls('*')) == sorted(sdb.list_arrays().keys())
+
+
+def test_remove_array():
+    x = sdb.zeros(5)
+    sdb.remove(x)
+    assert x.name not in sdb.list_arrays()
+
+
+def test_remove_name():
+    x = sdb.zeros(5)
+    sdb.remove(x.name)
+    assert x.name not in sdb.list_arrays()
+
+
+def test_percentile():
+
+    def check(array, percentiles):
+        expected = np.percentile(array, percentiles)
+        actual = sdb.percentile(sdb.from_array(array), percentiles)
+        assert_allclose(expected, actual)
+
+    x = np.arange(11)
+    yield check, x, [50]
+    yield check, x, 50
+    yield check, x, 43.2
+    yield check, x.astype(float), 43.2
+    yield check, x, [1, 5, 100]
+
+
+def test_percentile_attribute_check():
+    x = sdb.arange(5)
+    y = sdb.arange(5) * 2
+    z = join(x, y)
+
+    expected = np.percentile(y.toarray(), 50)
+    actual = sdb.percentile(z, 50, att=z.att_names[1])
+
+    assert_allclose(expected, actual)
+
+
 class TestHead(TestBase):
 
     @needs_pandas
