@@ -21,6 +21,7 @@ import atexit
 import logging
 import csv
 from time import time
+from fnmatch import fnmatch
 
 import requests
 
@@ -435,6 +436,43 @@ class SciDBInterface(object):
                                 for a in csv.reader(splits,
                                                     quotechar=quotechar))
         return arr_list
+
+    def ls(self, pattern='*'):
+        """
+        List the arrays in the database, optionally matching to a pattern
+
+        Parameters
+        ----------
+        pattern : String (optional)
+            A glob-style pattern string. If present, only arrays whose names
+            match the pattern are displayed. '*' matches any string,
+            '?' matches any character
+
+        Returns
+        -------
+        result : list
+            A list of SciDB array names
+        """
+        result = self.list_arrays()
+        return [r for r in result if fnmatch(r, pattern)]
+
+
+    def remove(self, array):
+        """
+        Remove an array from the database
+
+        This removes the array even if its persistent property is True!
+
+        Parameters
+        ----------
+        array : str or SciDBArray
+            The array (or name of array) to remove
+
+        See Also
+        --------
+        reap(), SciDBArray.reap()
+        """
+        self.query("remove({0})", array)
 
     def ones(self, shape, dtype='double', **kwargs):
         """Return an array of ones
