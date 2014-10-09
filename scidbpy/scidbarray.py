@@ -1106,6 +1106,9 @@ class SciDBArray(object):
         if self.ndim != 1 or idx.ndim != 1:
             raise NotImplementedError("Slicing with integers requires 1D arrays")
 
+        if not isinstance(idx, SciDBArray):
+            idx = self.interface.from_array(idx)
+
         if idx.natt != 1:
             raise ValueError("Can only index with single-attribute arrays")
 

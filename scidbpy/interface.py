@@ -1495,6 +1495,48 @@ class SciDBInterface(object):
         """
         return self.concatenate(arrays, axis=2)
 
+    def percentile(self, a, q, att=None):
+        """
+        Compute the qth percentile of the data along the specified axis
+
+        Parameters
+        ----------
+        a : SciDBArray
+           Input array
+        q : float in the range [0, 100] or a sequence of floats
+           The percentiles to compute
+        att : str, optional
+           The array attribute to compute percentiles for. Defaults to the first
+           attribute
+
+        Returns
+        -------
+        qs : SciDBArray
+           An array with as many elements as q, listing the data value
+           at each percentile
+        """
+        att = att or a.att_names[0]
+
+        q = np.atleast_1d(q)
+        if q.min() < 0 or q.max() > 100:
+            raise ValueError("Percentiles must be in the range [0, 100]")
+
+        f = self.afl
+        sorted = f.sort(a.project(att))
+        sz = sorted.count()[0].astype(np.int)
+
+        # use linear interpolation
+        inds = (q * (sz - 1) / 100.)
+        lo = np.clip(inds.astype(np.int), 0, (sz - 1))
+        hi = np.clip(lo + 1, 0, (sz - 1))
+        lohi = np.hstack((lo, hi))
+
+        w = 1 - (inds - lo)
+        result = sorted._integer_index(lohi).toarray()
+
+        result = (result[:q.size] * w + result[q.size:] * (1 - w))
+        return result
+
 
 class SciDBShimInterface(SciDBInterface):
 

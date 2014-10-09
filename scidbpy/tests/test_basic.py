@@ -26,6 +26,7 @@ needs_scipy = pytest.mark.skipif(MISSING_SP, reason='Test requires SciPy')
 # In order to run tests, we need to connect to a valid SciDB engine
 from scidbpy import SciDBArray, SciDBShimInterface, connect, SciDBDataShape
 from scidbpy.schema_utils import disambiguate, rechunk
+from scidbpy.robust import join
 
 from . import sdb, TestBase, teardown_function, randarray
 RTOL = 1E-6
