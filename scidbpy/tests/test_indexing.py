@@ -72,7 +72,7 @@ class TestBooleanIndexing(TestBase):
 
         def check(y):
             x = sdb.from_array(y)
-            assert_array_equal((x[x < 5]).toarray(), y[y < 5])
+            assert_array_equal((x[x < 5]).collapse().toarray(), y[y < 5])
 
         yield check, np.arange(12)
         yield check, np.arange(12).reshape(3, 4)
@@ -92,7 +92,7 @@ class TestBooleanIndexing(TestBase):
         x = sdb.arange(10)
         y = np.arange(10) > 8
 
-        assert_array_equal(x[y].toarray(), [9])
+        assert_array_equal(x[y].collapse().toarray(), [9])
 
     def test_multiattribute(self):
 
@@ -104,7 +104,7 @@ class TestBooleanIndexing(TestBase):
 
         m = sdb.from_array(mnp)
 
-        assert_array_equal(xnp[mnp], x[m].toarray())
+        assert_array_equal(xnp[mnp], x[m].collapse().toarray())
 
     def test_name_collisions(self):
         x = sdb.arange(5)
@@ -115,7 +115,14 @@ class TestBooleanIndexing(TestBase):
 
         m = sdb.from_array(mnp)
 
-        assert_array_equal(xnp[mnp], x[m].toarray())
+        assert_array_equal(xnp[mnp], x[m].collapse().toarray())
+
+    def test_index_preserved(self):
+        x = sdb.arange(5)
+        result = x[x > 3]
+        att = result.dim_names[0]
+
+        assert_array_equal(result.unpack('_').toarray()[att], [4])
 
 
 class TestIndexIntegerArrays(TestBase):

@@ -1401,9 +1401,22 @@ class SciDBArray(object):
         self, mask = disambiguate(self, mask)
         joined = join(self, mask)
         expr = '%s=TRUE' % mask.att_names[0]
-        idx = _new_attribute_label('__idx', self, mask)
-        return f.project(f.unpack(f.filter(joined, expr), idx),
-                         *self.att_names)
+        result = f.project(f.filter(joined, expr), *self.att_names)
+        return result
+
+    def collapse(self):
+        """
+        Flatten and remove all the empty cells.
+
+        Returns
+        -------
+        collapsed : SciDBArray
+           A new 1D dense array, containing all of the nonempty
+           cells in this array.
+        """
+        idx = _new_attribute_label('__idx', self)
+        return self.unpack(idx).project(*self.att_names)
+
 
     def __lt__(self, other):
         return self._boolean_compare('<', other)

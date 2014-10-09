@@ -36,21 +36,49 @@ and scalars::
 
 Array broadcasting is not currently performed when comparing two arrays -- they must have identical shapes.
 
-As with NumPy arrays, boolean SciDB arrays can be used as masks, building a 1D array
-whose elements correspond to the True locations in the mask::
+As with NumPy arrays, boolean SciDB arrays can be used as masks::
 
-    In [17]: r = sdb.random((3, 4))
+    In [4]: r = sdb.random((3,4))
 
-    In [18]: r.toarray()
-    Out[18]:
-    array([[ 0.05799351,  0.84173237,  0.96347301,  0.34572826],
-           [ 0.94962912,  0.30928932,  0.74852295,  0.0920418 ],
-           [ 0.88262646,  0.49973551,  0.93622554,  0.31813278]])
+    In [5]: r.toarray()
+    Out[5]:
+    array([[ 0.72039148,  0.6497302 ,  0.84122248,  0.87304017],
+           [ 0.14896572,  0.71237498,  0.21999935,  0.14793879],
+           [ 0.69345283,  0.18611741,  0.43660223,  0.06478555]])
 
-    In [19]: r[r > .5].toarray()
-    Out[19]:
-    array([ 0.84173237,  0.96347301,  0.94962912,  0.74852295,  0.88262646,
-            0.93622554])
+    In [6]: r[r > 0.5].toarray()
+    Out[6]:
+    array([[ 0.72039148,  0.6497302 ,  0.84122248,  0.87304017],
+           [ 0.        ,  0.71237498,  0.        ,  0.        ],
+           [ 0.69345283,  0.        ,  0.        ,  0.        ]])
+
+
+Note that this masking behavior is different than NumPy -- NumPy collapses
+the input array when masking, returning a 1D result of unmasked items.
+To reproduce this behavior in SciDB-Py, use the :meth:`~SciDBArray.collapse` method::
+
+    In [9]: r[r > 0.5].collapse().toarray()
+    Out[9]:
+    array([ 0.72039148,  0.6497302 ,  0.84122248,  0.87304017,  0.71237498,
+            0.69345283])
+
+SciDB-Py behaves this way in order to retain the location of unmasked items,
+which is often useful information. For example, we can see these locations
+when using :meth:`~SciDBArray.todataframe`::
+
+    In [10]: r[r > 0.5].todataframe()
+    Out[10]:
+                 f0
+    i0 i1
+    0  0   0.720391
+       1   0.649730
+       2   0.841222
+       3   0.873040
+    1  1   0.712375
+    2  0   0.693453
+
+.. note:: SciDB-Py's masking behavior was changed in version 12.10. Prior
+          to this, SciDB-Py collapsed results like NumPy
 
 Extracting values along a particular axis
 -----------------------------------------
