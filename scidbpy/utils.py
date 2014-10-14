@@ -242,3 +242,8 @@ def as_list(x):
     if isinstance(x, string_type):
         return [x]
     return list(x)
+
+def interleave(*args):
+    for items in zip(*args):
+        for item in items:
+            yield item

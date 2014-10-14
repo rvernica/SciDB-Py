@@ -8,27 +8,14 @@ import pytest
 import numpy as np
 from numpy.testing import assert_allclose, assert_array_equal
 
-MISSING_PD = False
-MISSING_SP = False
-try:
-    import pandas as pd
-except ImportError:
-    MISSING_PD = True
-try:
-    from scipy import sparse
-except ImportError:
-    MISSING_SP = True
-
-needs_pandas = pytest.mark.skipif(MISSING_PD, reason='Test requires Pandas')
-needs_scipy = pytest.mark.skipif(MISSING_SP, reason='Test requires SciPy')
-
 
 # In order to run tests, we need to connect to a valid SciDB engine
 from scidbpy import SciDBArray, SciDBShimInterface, connect, SciDBDataShape
 from scidbpy.schema_utils import disambiguate, rechunk
 from scidbpy.robust import join
 
-from . import sdb, TestBase, teardown_function, randarray
+from . import (sdb, TestBase, teardown_function,
+               randarray, needs_pandas, needs_scipy, pd, sparse)
 RTOL = 1E-6
 
 
@@ -415,30 +402,6 @@ def test_transpose():
         assert_allclose(AT, npAT)
 
     assert_allclose(A.T.toarray(), A.toarray().T)
-
-
-def test_join():
-    A = sdb.randint(10)
-    B = sdb.randint(10)
-    C = sdb.join(A, B)
-
-    Cnp = C.toarray()
-    names = Cnp.dtype.names
-    assert_allclose(Cnp[names[0]], A.toarray())
-    assert_allclose(Cnp[names[1]], B.toarray())
-
-
-def test_cross_join():
-    A = sdb.random((10, 5))
-    B = sdb.random(10)
-    AB = sdb.cross_join(A, B, (0, 0))
-
-    ABnp = AB.toarray()
-    names = ABnp.dtype.names
-    assert_allclose(ABnp[names[0]],
-                    A.toarray())
-    assert_allclose(ABnp[names[1]],
-                    B.toarray()[:, None] + np.zeros(A.shape[1]))
 
 
 def test_regrid():

@@ -35,6 +35,9 @@ def _format_operand(o):
     if isinstance(o, string_type):
         return o
 
+    if hasattr(o, '__query_label__'):
+        return o._query_label
+
     if isinstance(o, SciDBArray):
         return o.name
 

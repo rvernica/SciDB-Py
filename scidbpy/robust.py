@@ -14,7 +14,7 @@ start index. The merge() function performs this preprocessing as needed.
 __all__ = ['join', 'merge', 'gemm', 'cumulate',
            'reshape', 'gesvd', 'thin', 'cross_join', 'uniq']
 
-from .utils import _new_attribute_label
+from .utils import _new_attribute_label, interleave
 from . import schema_utils as su
 
 
@@ -227,11 +227,23 @@ def cross_join(a, b, *dims):
     Arrays will be rechunked as needed for the cross join to run
     """
 
-    # match chunk info of joined dimensions
-    inds = tuple((i, j) for i, j in zip(dims[::2], dims[1::2]))
-    b = su.match_chunk_permuted(b, a, inds, match_bounds=True)
+    adims = dims[::2]
+    bdims = dims[1::2]
 
-    # do the cross join
+    # match chunk info of joined dimensions
+    inds = tuple((i, j) for i, j in zip(adims, bdims))
+    b, a = su.match_chunk_permuted(b, a, inds, match_bounds=True)
+
+    # use aliases if needed
+    if (any(d in a.dim_names for d in bdims) or
+        any(d in b.dim_names for d in adims)):
+        l = su.new_alias('L', a, b)
+        r = su.new_alias('R', a, b)
+        adims = ['%s.%s' % (l, d) for d in adims]
+        bdims = ['%s.%s' % (r, d) for d in bdims]
+        dims = interleave(adims, bdims)
+        return a.afl.cross_join(a.as_(l), b.as_(r), *dims)
+
     return a.afl.cross_join(a, b, *dims)
 
 

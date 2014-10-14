@@ -1,5 +1,6 @@
 # License: Simplified BSD, 2014
 # See LICENSE.txt for more information
+import pytest
 from numpy.random import randint
 import numpy as np
 
@@ -7,6 +8,23 @@ from .. import connect
 from ..schema_utils import rechunk
 
 RTOL = 1e-6
+
+MISSING_PD = False
+MISSING_SP = False
+try:
+    import pandas as pd
+except ImportError:
+    pd = None
+    MISSING_PD = True
+try:
+    from scipy import sparse
+except ImportError:
+    sparse = None
+    MISSING_SP = True
+
+needs_pandas = pytest.mark.skipif(MISSING_PD, reason='Test requires Pandas')
+needs_scipy = pytest.mark.skipif(MISSING_SP, reason='Test requires SciPy')
+
 
 sdb = connect()
 

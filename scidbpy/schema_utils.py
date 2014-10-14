@@ -2,6 +2,10 @@ import numpy as np
 from .utils import _new_attribute_label
 
 
+def new_alias(target, *arrays):
+    # Detect and resolve conflicting aliases here
+    return target
+
 def assert_single_attribute(array):
     """
     Raise a ValueError if an array has multiple attributes
@@ -179,8 +183,7 @@ def match_chunks(*arrays):
 
 def match_chunk_permuted(src, target, indices, match_bounds=False):
     """
-    Rechunk an array to match a target, along a set of specified
-    dimension pairs.
+    Match chunks along a set of dimension pairs.
 
     Parameters
     ----------
@@ -197,13 +200,16 @@ def match_chunk_permuted(src, target, indices, match_bounds=False):
 
     Returns
     -------
-    new_src : SciDBArray
-        A (possibly redimensioned) version of src
+    new_src, new_target : tuple of SciDBArrays
+        A (possibly redimensioned) version of the inputs
     """
 
     ds = src.datashape.copy()
     ds.dim_low = list(ds.dim_low)
     ds.dim_high = list(ds.dim_high)
+    ds_target = target.datashape.copy()
+    ds_target.dim_low = list(ds_target.dim_low)
+    ds_target.dim_high = list(ds_target.dim_high)
 
     for i, j in indices:
         if not isinstance(i, int):
@@ -213,13 +219,21 @@ def match_chunk_permuted(src, target, indices, match_bounds=False):
         ds.chunk_size[j] = target.datashape.chunk_size[i]
         ds.chunk_overlap[j] = target.datashape.chunk_overlap[i]
         if match_bounds:
-            ds.dim_low[j] = target.datashape.dim_low[i]
-            ds.dim_high[j] = target.datashape.dim_high[i]
+            l = min(ds.dim_low[j], ds_target.dim_low[i])
+            h = max(ds.dim_high[j], ds_target.dim_high[i])
+
+            ds.dim_low[j] = l
+            ds.dim_high[j] = h
+            ds_target.dim_low[i] = l
+            ds_target.dim_high[i] = h
+
 
     if ds.schema != src.datashape.schema:
         src = src.redimension(ds.schema)
+    if ds_target.schema != target.datashape.schema:
+        target = target.redimension(ds_target.schema)
 
-    return src
+    return src, target
 
 
 def rechunk(array, chunk_size=None, chunk_overlap=None):
@@ -501,6 +515,47 @@ def cast_to_integer(array, attributes):
             raise ValueError("Don't know how to turn %s to int64" % typ)
 
     return array.project(*atts)
+
+def to_dimensions(array, *attributes):
+    """
+    Ensure that a set of attributes or dimensions are dimensions
+
+    Parameters
+    -----------
+    array : SciDBArray
+        The array to promote
+    attributes : one or more strings
+        Attribute names to promote. Dimension labels are ignored
+
+    Returns
+    -------
+    promoted : SciDBArray
+        A new array
+    """
+    dims = list(array.dim_names) + [a for a in attributes if a in array.att_names]
+    atts = [a for a in array.att_names if a not in attributes]
+    return redimension(array, dims, atts)
+
+def to_attributes(array, *dimensions):
+    """
+    Ensure that a set of attributes or dimensions are attributes
+
+    Parameters
+    -----------
+    array : SciDBArray
+        The array to promote
+    dimensions : one or more strings
+        Dimension names to demote. Attribute labels are ignored
+
+    Returns
+    -------
+    demoted : SciDBArray
+        A new array
+    """
+    dims = [d for d in array.dim_names if d not in dimensions]
+    atts = list(array.att_names) + [d for d in dimensions if d in array.dim_names]
+    return redimension(array, dims, atts)
+
 
 
 def redimension(array, dimensions, attributes):
