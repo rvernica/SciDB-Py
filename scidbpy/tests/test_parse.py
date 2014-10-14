@@ -192,3 +192,17 @@ def test_dense():
     x = sdb.afl.build('<a:int8>[i=0:100,7,3, j=0:100,10,2]', 'i+j')
 
     assert_array_equal(x.toarray(method='sparse'), x.toarray(method='dense'))
+
+
+def test_fromarray_chunksize():
+    from . import unfuzzed
+    from_array = unfuzzed['from_array']
+
+    def check(chunk):
+        x = np.arange(24).reshape(2, 3, 4)
+        y = from_array(x, chunk_size=chunk)
+        assert_array_equal(x, y.toarray())
+        assert chunk == tuple(y.datashape.chunk_size)
+
+    for chunk in [(2, 3, 4), (1, 2, 2), (1, 1, 1), (5, 5, 5), (5, 1, 5)]:
+        yield check, chunk
