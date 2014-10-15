@@ -1532,7 +1532,6 @@ class SciDBInterface(object):
         lo = np.clip(inds.astype(np.int), 0, (sz - 1))
         hi = np.clip(lo + 1, 0, (sz - 1))
         lohi = np.hstack((lo, hi))
-
         w = 1 - (inds - lo)
         result = sorted._integer_index(lohi).toarray()
 

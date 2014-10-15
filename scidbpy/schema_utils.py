@@ -211,6 +211,18 @@ def match_chunk_permuted(src, target, indices, match_bounds=False):
     ds_target.dim_low = list(ds_target.dim_low)
     ds_target.dim_high = list(ds_target.dim_high)
 
+    hi1 = ds.dim_high
+    hi2 = ds_target.dim_high
+
+    # lookup array dounds if schema is unbound
+    if match_bounds:
+        if any(l is None for l in hi1):
+            tops = src.unpack('_').max().toarray()
+            hi1 = [int(tops['%s_max' % l][0]) for l in src.dim_names]
+        if any(l is None for l in hi2):
+            tops = target.unpack('_').max().toarray()
+            hi2 = [int(tops['%s_max' % l][0]) for l in target.dim_names]
+
     for i, j in indices:
         if not isinstance(i, int):
             i = target.dim_names.index(i)
@@ -220,7 +232,7 @@ def match_chunk_permuted(src, target, indices, match_bounds=False):
         ds.chunk_overlap[j] = target.datashape.chunk_overlap[i]
         if match_bounds:
             l = min(ds.dim_low[j], ds_target.dim_low[i])
-            h = max(ds.dim_high[j], ds_target.dim_high[i])
+            h = max(hi1[j], hi2[i])
 
             ds.dim_low[j] = l
             ds.dim_high[j] = h
