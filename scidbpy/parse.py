@@ -51,7 +51,10 @@ NULLS['bool'] = np.float32(np.nan)
 NULLS['string'] = None
 NULLS['float'] = np.float32(np.nan)
 NULLS['datetime'] = np.datetime64('NaT')
-NULLS['datetimetz'] = np.datetime64('NaT')
+NULLS['datetimetz'] = np.zeros(1, dtype=typemap['datetimetz'])
+NULLS['datetimetz']['time'] = np.datetime64('NaT')
+NULLS['datetimetz']['tz'] = np.datetime64('NaT')
+NULLS['datetimetz'] = NULLS['datetimetz'][0]
 NULLS['char'] = '\0'
 
 for k in typemap:
