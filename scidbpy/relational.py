@@ -1,36 +1,61 @@
 from __future__ import print_function, absolute_import, unicode_literals
+import logging
 
 from .robust import cross_join
 from .utils import interleave, as_list, _new_attribute_label
 from . import schema_utils as su
 
 
-def _prepare_join_schema(array, on):
-    """
-    Prepare an array to be joined on the specified attributes or dimensions
-    """
-    new_on = list(on)
+def _prepare_join_schema(left, right, left_on, right_on):
 
-    dt = dict((nm, typ) for nm, typ, _ in array.sdbtype.full_rep)
+    new_left = list(left_on)
+    new_right = list(right_on)
 
-    f = array.afl
+    dt = dict((nm, typ) for nm, typ, _ in left.sdbtype.full_rep)
+    f = left.afl
+    sdb = left.interface
 
-    for i, att in enumerate(on):
-        if att not in dt or 'int' in dt[att]:
+    # create categorical variables for attributes that cant be cast to
+    # integers. Update join lists
+    for i, (l, r) in enumerate(zip(left_on, right_on)):
+        if l not in dt or 'int' in dt[l]:
             continue
 
-        new_att = _new_attribute_label('%s_idx' % att, array)
-        idx = f.uniq(f.sort(array[att])).eval()
-        array = f.index_lookup(array.as_('L'),
+        left_att = _new_attribute_label('%s_idx' % l, left)
+        right_att = _new_attribute_label('%s_idx' % r, right)
+
+        # compute the union of key values
+        logging.getLogger(__name__).debug('Build category variable 1')
+        lidx = su.boundify(f.uniq(f.sort(left[l]).eval()).eval())
+        logging.getLogger(__name__).debug('Build category variable 2')
+        ridx = su.boundify(f.uniq(f.sort(right[r])).eval()).eval()
+        logging.getLogger(__name__).debug('Rename')
+        ridx = ridx.attribute_rename(ridx.att_names[0], lidx.att_names[0]).eval()
+        logging.getLogger(__name__).debug('Join')
+        idx = f.uniq(f.sort(sdb.hstack((lidx, ridx))))
+
+        logging.getLogger(__name__).debug('index lookup L')
+        left = f.index_lookup(left.as_('L'),
+                              idx,
+                              'L.%s' % l,
+                              left_att,
+                              "'index_sorted=true'")
+        new_left[i] =  left_att
+
+        logging.getLogger(__name__).debug('index lookup R')
+        right = f.index_lookup(right.as_('R'),
                                idx,
-                               'L.%s' % att,
-                               new_att,
+                               'R.%s' % r,
+                               right_att,
                                "'index_sorted=true'")
-        new_on[i] = new_att
+        new_right[i] =  right_att
 
-    result = su.to_dimensions(array, *new_on)
-    return result, new_on
+    # promote join attributes to dimensions
+    logging.getLogger(__name__).debug('dimensionify')
+    left = su.to_dimensions(left, *new_left)
+    right = su.to_dimensions(right, *new_right)
 
+    return left, right, new_left, new_right
 
 def _apply_suffix(left, right, left_on, right_on, suffixes):
     """
@@ -98,11 +123,40 @@ def merge(left, right, on=None, left_on=None, right_on=None,
     joined : SciDBArray
        The new SciDB array. The new array has a single dimension,
        and an attribute for each attribute + dimension in left and right.
+       The order of rows in the result is unspecified.
 
     Examples
     --------
 
+    In [15]: authors
+    Out[15]:
+    array([('Tukey', 'US', True), ('Venables', 'Australia', False),
+           ('Tierney', 'US', False), ('Ripley', 'UK', False),
+           ('McNeil', 'Australia', False)],
+          dtype=[('surname', 'S10'), ('nationality', 'S10'), ('deceased', '?')])
 
+    In [16]: books
+    Out[16]:
+    array([('Exploratory Data Analysis', 'Tukey'),
+           ('Modern Applied Statistics ...', 'Venables'),
+           ('LISP-STAT', 'Tierney'), ('Spatial Statistics', 'Ripley'),
+           ('Stochastic Simulation', 'Ripley'),
+           ('Interactive Data Analysis', 'McNeil'),
+           ('Python for Data Analysis', 'McKinney')],
+          dtype=[('title', 'S40'), ('name', 'S10')])
+
+    In [17]: a = sdb.from_array(authors)
+    In [18]: b = sdb.from_array(books)
+    In [19]: sdb.join(a, b, left_on='surname', right_on='name').todataframe()
+    Out[19]:
+          i0_x  i0_y   surname nationality deceased                          title
+    _row
+    0        0     0     Tukey          US     True      Exploratory Data Analysis
+    1        1     1  Venables   Australia    False  Modern Applied Statistics ...
+    2        2     2   Tierney          US    False                      LISP-STAT
+    3        3     3    Ripley          UK    False             Spatial Statistics
+    4        3     4    Ripley          UK    False          Stochastic Simulation
+    5        4     5    McNeil   Australia    False      Interactive Data Analysis
 
     Notes
     -----
@@ -146,6 +200,7 @@ def merge(left, right, on=None, left_on=None, right_on=None,
             raise ValueError("Right array join name is invalid: %s" % r)
 
     # fully disambiguate arrays
+    logging.getLogger(__name__).debug("Applying suffixes")
     left_on_orig = left_on
     left, right, left_on, right_on = _apply_suffix(left, right,
                                                    left_on, right_on,
@@ -157,17 +212,20 @@ def merge(left, right, on=None, left_on=None, right_on=None,
 
     # build necessary dimensions to join on
     # XXX push this logic into cross_join
-    left, left_on = _prepare_join_schema(left, left_on)
-    right, right_on = _prepare_join_schema(right, right_on)
+    logging.getLogger(__name__).debug("Preparing categorical attributes")
+    left, right, left_on, right_on = _prepare_join_schema(left, right, left_on, right_on)
 
+    logging.getLogger(__name__).debug("Performing cross join")
     result = cross_join(left, right, *interleave(left_on, right_on))
 
     # throw away index dimensions added by _prepare_join_schema
+    logging.getLogger(__name__).debug("Dropping supurious attributes")
     idx = _new_attribute_label('_row', result)
     result = result.unpack(idx)
     result = result.project(*(a for a in result.att_names if a in keep))
 
     # drop suffixes if they aren't needed
+    logging.getLogger(__name__).debug("Dropping suffixes")
     renames = []
     for a in result.att_names:
         if not a.endswith(suffixes[0]):

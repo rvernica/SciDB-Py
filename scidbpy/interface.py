@@ -41,7 +41,7 @@ from .schema_utils import (disambiguate, as_row_vector, as_column_vector,
                            right_dimension_pad, left_dimension_pad)
 from .robust import (join, merge, gemm, uniq, gesvd)
 
-from . import arithmetic
+from . import arithmetic, relational
 
 __all__ = ['SciDBInterface', 'SciDBShimInterface', 'connect']
 
@@ -1129,9 +1129,7 @@ class SciDBInterface(object):
         """
         return A.substitute(value)
 
-    def merge(self, A, B):
-        """Merge two arrays"""
-        return merge(A, B)
+    merge = staticmethod(relational.merge)
 
     def join(self, *args):
         """

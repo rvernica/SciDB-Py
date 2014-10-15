@@ -190,6 +190,22 @@ class TestMerge(TestBase):
 
         self.check(expected, actual)
 
+    def test_string_join_extra_cells(self):
+        a = np.array([("one", 10), ("two", 20), ("three", 30)],
+                     dtype=[(str('x'), '|S8'), (str('y'), int)])
+        b = np.array([("two", 30), ("five", 50), ("one", 40)],
+                     dtype=[(str('x'), '|S8'), (str('z'), int)])
+
+        expected = pd.DataFrame(dict(x=["one", "two"],
+                                     y=[10, 20],
+                                     z=[40, 30],
+                                     i0_1=[0, 1],
+                                     i0_2=[2, 0]))
+        actual = merge(sdb.from_array(a), sdb.from_array(b),
+                       on='x', suffixes=('_1', '_2'))
+
+        self.check(expected, actual)
+
     def test_separate_on(self):
 
         a = pd.DataFrame(dict(x=[True, False], y=[10, 20]))
@@ -203,4 +219,32 @@ class TestMerge(TestBase):
         actual = merge(sdb.from_dataframe(a), sdb.from_dataframe(b),
                        left_on='x',
                        right_on='a', suffixes=('_a', '_b'))
+        self.check(expected, actual)
+
+    def test_books(self):
+
+        authors = np.array([('Tukey', 'US', True),
+                           ('Venables', 'Australia', False),
+                           ('Tierney', 'US', False),
+                           ('Ripley', 'UK', False),
+                           ('McNeil', 'Australia', False)],
+                           dtype=[(str('surname'), 'S10'), (str('nationality'), 'S10'),
+                                  (str('deceased'), '?')])
+        books = np.array([('Exploratory Data Analysis', 'Tukey'),
+                         ('Modern Applied Statistics ...', 'Venables'),
+                         ('LISP-STAT', 'Tierney'),
+                         ('Spatial Statistics', 'Ripley'),
+                         ('Stochastic Simulation', 'Ripley'),
+                         ('Interactive Data Analysis', 'McNeil'),
+                         ('Python for Data Analysis', 'McKinney')],
+                         dtype=[(str('title'), 'S40'), (str('name'), 'S10')])
+        expected = pd.DataFrame(dict(i0_x=[0, 1, 2, 3, 3, 4],
+                                     i0_y=[0, 1, 2, 3, 4, 5],
+                                     surname=['Tukey', 'Venables', 'Tierney', 'Ripley', 'Ripley', 'McNeil'],
+                                     title=books['title'][:-1],
+                                     nationality=['US', 'Australia', 'US', 'UK', 'UK', 'Australia'],
+                                     deceased=[True, False, False, False, False, False]))
+
+        actual = merge(sdb.from_array(authors), sdb.from_array(books),
+                       left_on='surname', right_on='name')
         self.check(expected, actual)
