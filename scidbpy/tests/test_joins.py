@@ -190,3 +190,17 @@ class TestMerge(TestBase):
 
         self.check(expected, actual)
 
+    def test_separate_on(self):
+
+        a = pd.DataFrame(dict(x=[True, False], y=[10, 20]))
+        b = pd.DataFrame(dict(a=[False, True], z=[20, 30]))
+
+        expected = pd.DataFrame(dict(x=[True, False],
+                                     y=[10, 20],
+                                     z=[30, 20],
+                                     index_a=[0, 1],
+                                     index_b=[1, 0]))
+        actual = merge(sdb.from_dataframe(a), sdb.from_dataframe(b),
+                       left_on='x',
+                       right_on='a', suffixes=('_a', '_b'))
+        self.check(expected, actual)
