@@ -18,7 +18,7 @@ from .errors import SciDBError, SciDBForbidden, SciDBQueryError
 from . import parse
 from .utils import meshgrid, slice_syntax, _is_query, _new_attribute_label
 from ._py3k_compat import genfromstr, iteritems, csv_reader, string_type
-from .schema_utils import change_axis_schema
+from .schema_utils import change_axis_schema, dimension_rename
 from .robust import (join, cumulate, reshape, thin, cross_join)
 
 __all__ = ["sdbtype", "SciDBArray", "SciDBDataShape"]
@@ -1268,6 +1268,16 @@ class SciDBArray(object):
 
         args = [s.start for s in slices] + [s.stop - 1 for s in slices]
         return self.afl.subarray(self, *args)
+
+    def dimension_rename(self, *args):
+        if len(args) == 0:
+            return self
+        return dimension_rename(self, *args)
+
+    def attribute_rename(self, *args):
+        if len(args) == 0:
+            return self
+        return self.afl.attribute_rename(self, *args)
 
     # join operations: note that these ignore all but the first attribute
     # of each array.

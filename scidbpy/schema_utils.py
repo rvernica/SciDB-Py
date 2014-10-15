@@ -360,6 +360,20 @@ def change_axis_schema(datashape, axis, start=None, stop=None,
                           dim_low=starts, dim_high=stops)
 
 
+def dimension_rename(array, *args):
+    old = args[::2]
+    new = args[1::2]
+    ds = array.datashape
+
+    for o, n in zip(old, new):
+        axis = array.dim_names.index(o)
+        ds = change_axis_schema(ds, axis, name=n)
+
+    if ds.schema != array.datashape.schema:
+        array = array.redimension(ds.schema)
+
+    return array
+
 def _unique(val, taken):
     if val not in taken:
         return val
