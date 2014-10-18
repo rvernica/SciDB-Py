@@ -209,7 +209,7 @@ def toarray(array):
     # determine shape and dtype of final result
     shp = array.shape
     if shp is None:  # unbound array
-        shp = tuple([i.max() + 1 for i in inds])
+        shp = tuple([i.max() + 1 if i.size > 0 else 0 for i in inds])
     dtype = [(nm, atts[nm].dtype)
              for (nm, d, n) in array.datashape.sdbtype.full_rep]
     result = np.zeros(shp, dtype)
