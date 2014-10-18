@@ -285,7 +285,7 @@ class SciDBInterface(object):
     # TODO: give the option to pass a user-defined array name
     #       (use this in copy(), rename(), and others)
     def new_array(self, shape=None, dtype='double', persistent=False,
-                  name = None,
+                  name=None,
                   **kwargs):
         """
         Create a new array, either instantiating it in SciDB or simply
@@ -463,7 +463,6 @@ class SciDBInterface(object):
         """
         result = self.list_arrays()
         return sorted([r for r in result if fnmatch(r, pattern)])
-
 
     def remove(self, array):
         """
@@ -1245,7 +1244,7 @@ class SciDBInterface(object):
                     if (s1 == s2):
                         join_indices.append((i1, i2))
                         if (left.chunk_size[i1] != right.chunk_size[i2] or
-                            left.chunk_overlap[i1] != right.chunk_overlap[i2]):
+                                left.chunk_overlap[i1] != right.chunk_overlap[i2]):
                             raise ValueError("join operations require chunk_"
                                              "size/chunk_overlap to match.")
                     elif s1 == 1:
@@ -1425,8 +1424,8 @@ class SciDBInterface(object):
 
             zero = result[i].datashape.dim_low[joinidx]
             result[i] = result[i].apply(idx, '{0}-{1}+{2}'.format(join, zero, offset))
-            result[i] = redimension(result[i], dims, atts)
             offset += result[i].datashape.dim_high[joinidx] - zero + 1
+            result[i] = redimension(result[i], dims, atts, dim_boundaries={idx: (0, offset - 1)})
 
         # merge into one array
         r = result[0]

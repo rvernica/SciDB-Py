@@ -55,7 +55,7 @@ def _disambiguate(array, avoid, joins, suffix):
                   and d not in joins])
 
     renames = dict((x, x + suffix) for x in to_rename)
-    return array.rename(renames)
+    return array.relabel(renames)
 
 
 def _validate_ons(left, right, on, left_on, right_on):

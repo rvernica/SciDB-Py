@@ -13,7 +13,7 @@ class TestRedimension(TestBase):
     def test_dim_att_swap(self):
         x = sdb.arange(5) * 2
         y = su.redimension(x, ['x'], ['i0'])
-        assert y.size == 9
+        assert su.boundify(y, trim=True).size == 9
 
     def test_boolean_dim(self):
         x = sdb.from_array(np.array([True, False]))

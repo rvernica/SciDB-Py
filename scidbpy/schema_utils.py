@@ -599,7 +599,7 @@ def to_attributes(array, *dimensions):
     return redimension(array, dims, atts)
 
 
-def redimension(array, dimensions, attributes):
+def redimension(array, dimensions, attributes, dim_boundaries=None):
     """
     Redimension an array as needed, swapping and dropping attributes as needed.
 
@@ -611,6 +611,11 @@ def redimension(array, dimensions, attributes):
         The dimensions or attributes in array that should be dimensions
     attributes : list of strings
         The dimensions or attributes in array that should be attributes
+    dim_boundaries : dict (optional)
+        A dictionary mapping dimension names to boundary tuples (lo, hi)
+        Specifies the dimension bounds for attributes promoted to dimensions.
+        If not provided, will default to (0,*). WARNING: this will
+        fail if promiting negatively-valued attributes to dimensions.
 
     Notes
     -----
@@ -628,6 +633,7 @@ def redimension(array, dimensions, attributes):
     """
     if array.dim_names == dimensions and array.att_names == attributes:
         return array
+    dim_boundaries = dim_boundaries or {}
 
     orig_atts = set(array.att_names)
     orig_dims = set(array.dim_names)
@@ -666,7 +672,7 @@ def redimension(array, dimensions, attributes):
         # XXX this does wrong thing if attribute has negative values
         # for k, v in limits(array, to_promote).items():
         for k in to_promote:
-            v = (0, '*')
+            v = dim_boundaries.get(k, (0, '*'))
             new_dim[k] = _dim_schema_item(k, v)
 
     new_dim = ','.join(new_dim[d] for d in dimensions)
@@ -969,7 +975,7 @@ def assert_schema(arrays, zero_indexed=False, bounded=False,
     return tuple(arrays)
 
 
-def _rename(array, renames):
+def _relabel(array, renames):
     """
     renames is a dict mapping old names to new names
     """

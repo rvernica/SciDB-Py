@@ -1281,9 +1281,9 @@ class SciDBArray(object):
             return self
         return self.afl.attribute_rename(self, *args)
 
-    def rename(self, renames):
+    def relabel(self, renames):
         """
-        Rename the attributes or dimensions in an array.
+        relabel the attributes or dimensions in an array.
 
         Parameters
         ----------
@@ -1295,7 +1295,7 @@ class SciDBArray(object):
         renamed : SciDBArray
             A new array
         """
-        return su._rename(self, renames)
+        return su._relabel(self, renames)
 
     def index_lookup(self, idx_array, attribute, output_attribute='idx'):
         """ Wrapper around the index_lookup AFL call.
