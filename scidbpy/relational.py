@@ -1,3 +1,6 @@
+"""
+Database-style joins
+"""
 from __future__ import print_function, absolute_import, unicode_literals
 import logging
 
@@ -6,93 +9,101 @@ from .utils import interleave, as_list, _new_attribute_label
 from . import schema_utils as su
 
 
-def _prepare_join_schema(left, right, left_on, right_on):
+def _prepare_categories(left, right, left_on, right_on):
+    """
+    Search join predicates for attributes, compute categorical
+    index dimensions, build new join lists
+
+    Returns new versions of inputs
+    """
+    f = left.afl
 
     new_left = list(left_on)
     new_right = list(right_on)
 
-    dt = dict((nm, typ) for nm, typ, _ in left.sdbtype.full_rep)
-    f = left.afl
-    sdb = left.interface
-
-    # create categorical variables for attributes that cant be cast to
-    # integers. Update join lists
     for i, (l, r) in enumerate(zip(left_on, right_on)):
-        if l not in dt or 'int' in dt[l]:
+        if l in left.dim_names and r in right.dim_names:
             continue
 
-        left_att = _new_attribute_label('%s_idx' % l, left)
-        right_att = _new_attribute_label('%s_idx' % r, right)
+        # XXX handle case where only one is attribute
 
-        # compute the union of key values
-        logging.getLogger(__name__).debug('Build category variable 1')
-        lidx = su.boundify(f.uniq(f.sort(left[l]).eval()).eval())
-        logging.getLogger(__name__).debug('Build category variable 2')
-        ridx = su.boundify(f.uniq(f.sort(right[r])).eval()).eval()
-        logging.getLogger(__name__).debug('Rename')
-        ridx = ridx.attribute_rename(ridx.att_names[0], lidx.att_names[0]).eval()
-        logging.getLogger(__name__).debug('Join')
-        idx = f.uniq(f.sort(sdb.hstack((lidx, ridx))))
+        cats = f.sort(left[l]).uniq().eval()
+        l_cat = _new_attribute_label('%s_cat' % l, left)
+        r_cat = _new_attribute_label('%s_cat' % r, right)
 
-        logging.getLogger(__name__).debug('index lookup L')
-        left = f.index_lookup(left.as_('L'),
-                              idx,
-                              'L.%s' % l,
-                              left_att,
-                              "'index_sorted=true'")
-        new_left[i] =  left_att
+        new_left[i] = l_cat
+        new_right[i] = r_cat
+        left = left.index_lookup(cats, l, l_cat)
+        right = right.index_lookup(cats, r, r_cat)
 
-        logging.getLogger(__name__).debug('index lookup R')
-        right = f.index_lookup(right.as_('R'),
-                               idx,
-                               'R.%s' % r,
-                               right_att,
-                               "'index_sorted=true'")
-        new_right[i] =  right_att
-
-    # promote join attributes to dimensions
-    logging.getLogger(__name__).debug('dimensionify')
     left = su.to_dimensions(left, *new_left)
     right = su.to_dimensions(right, *new_right)
-
     return left, right, new_left, new_right
 
-def _apply_suffix(left, right, left_on, right_on, suffixes):
-    """
-    Fully disambiguate left and right schemas by applying suffixes.
 
-    Returns
-    -------
-    new_left, new_right, new_left_on, new_right_on
+def _disambiguate(array, avoid, joins, suffix):
     """
+    Resolve name collisions
+
+    Returns a new copy of the array
+    """
+    to_rename = ([a for a in array.att_names if a in avoid] +
+                 [d for d in array.dim_names if d in avoid
+                  and d not in joins])
+
+    renames = dict((x, x + suffix) for x in to_rename)
+    return array.rename(renames)
+
+
+def _validate_ons(left, right, on, left_on, right_on):
+    """
+    Check that join predicates are valid
+
+    Returns valid left_on, right_on lists
+    """
+
     lnames = set(left.att_names) | set(left.dim_names)
     rnames = set(right.att_names) | set(right.dim_names)
 
-    # add suffix to join column names
-    left_on_old = list(left_on)
-    left_on = [l if l not in right_on else l + suffixes[0]
-               for l in left_on]
-    right_on = [r if r not in left_on_old else r + suffixes[1]
-                for r in right_on]
+    if (left_on is not None or right_on is not None) and on is not None:
+        raise ValueError("Cannot specify left_on/right_on with on")
 
-    duplicates = list(lnames & rnames)
+    if left_on is not None or right_on is not None:
+        if left_on is None or right_on is None:
+            raise ValueError("Must specify both left_on and right_on")
 
-    def _relabel(x, dups, suffix):
-        x = x.attribute_rename(*(item for d in dups if d in x.att_names
-                                 for item in (d, d + suffix)))
-        x = x.dimension_rename(*(item for d in dups if d in x.dim_names
-                                 for item in (d, d + suffix)))
-        return x
+        left_on = as_list(left_on)
+        right_on = as_list(right_on)
+        if len(left_on) != len(right_on):
+            raise ValueError("left_on and right_on must have "
+                             "the same number of items")
 
-    return (_relabel(left, duplicates, suffixes[0]),
-            _relabel(right, duplicates, suffixes[1]),
-            left_on, right_on)
+    else:
+        # default join is on matching dimensions
+        on = on or list(set(left.dim_names) & set(right.dim_names))
+        on = as_list(on)
+        left_on = right_on = on
+
+    for l in left_on:
+        if l not in lnames:
+            raise ValueError("Left array join name is invalid: %s" % l)
+    for r in right_on:
+        if r not in rnames:
+            raise ValueError("Right array join name is invalid: %s" % r)
+
+    for l, r in zip(left_on, right_on):
+        # we don't currently handle dimension-attribute joins
+        if (l in left.att_names) ^ (r in right.att_names):
+            raise NotImplementedError("Attribute-dimension join pair not supported: "
+                                      " %s, %s" % (l, r))
+
+    return left_on, right_on
 
 
 def merge(left, right, on=None, left_on=None, right_on=None,
           how='inner', suffixes=('_x', '_y')):
     """
-    Perform a pandas-like join on two SciDBArrays.
+    Perform a Pandas-like join on two SciDBArrays.
 
     Parameters
     ----------
@@ -121,118 +132,38 @@ def merge(left, right, on=None, left_on=None, right_on=None,
     Returns
     -------
     joined : SciDBArray
-       The new SciDB array. The new array has a single dimension,
-       and an attribute for each attribute + dimension in left and right.
-       The order of rows in the result is unspecified.
-
-    Examples
-    --------
-
-    In [15]: authors
-    Out[15]:
-    array([('Tukey', 'US', True), ('Venables', 'Australia', False),
-           ('Tierney', 'US', False), ('Ripley', 'UK', False),
-           ('McNeil', 'Australia', False)],
-          dtype=[('surname', 'S10'), ('nationality', 'S10'), ('deceased', '?')])
-
-    In [16]: books
-    Out[16]:
-    array([('Exploratory Data Analysis', 'Tukey'),
-           ('Modern Applied Statistics ...', 'Venables'),
-           ('LISP-STAT', 'Tierney'), ('Spatial Statistics', 'Ripley'),
-           ('Stochastic Simulation', 'Ripley'),
-           ('Interactive Data Analysis', 'McNeil'),
-           ('Python for Data Analysis', 'McKinney')],
-          dtype=[('title', 'S40'), ('name', 'S10')])
-
-    In [17]: a = sdb.from_array(authors)
-    In [18]: b = sdb.from_array(books)
-    In [19]: sdb.join(a, b, left_on='surname', right_on='name').todataframe()
-    Out[19]:
-          i0_x  i0_y   surname nationality deceased                          title
-    _row
-    0        0     0     Tukey          US     True      Exploratory Data Analysis
-    1        1     1  Venables   Australia    False  Modern Applied Statistics ...
-    2        2     2   Tierney          US    False                      LISP-STAT
-    3        3     3    Ripley          UK    False             Spatial Statistics
-    4        3     4    Ripley          UK    False          Stochastic Simulation
-    5        4     5    McNeil   Australia    False      Interactive Data Analysis
+       The joined array.
 
     Notes
     -----
-    This function wraps the SciDB cross_join operator, but performs several
-    preprocessing steps::
+    When joining on attributes, a categorical index is computed
+    for each array. This index will appear as a dimension in the output.
 
-      - Attributes are converted into dimensions automatically
-      - Chunk size and overlap is standardized
-      - Joining on non-integer attributes is handled using index_lookup
+    This function builds an AFL cross join query,
+    performing preprocessing on the inputs as necessary to match chunk
+    sizes, avoid name collisions, etc.
+
+    If neither on, left_on, or right_on are provided, then the join
+    defaults to the overlapping dimension names.
     """
+    if how != 'inner':
+        raise NotImplementedError("Only inner joins are supported for now.")
 
     lnames = set(left.att_names) | set(left.dim_names)
     rnames = set(right.att_names) | set(right.dim_names)
 
-    if how != 'inner':
-        raise NotImplementedError("Only inner joins are supported for now.")
+    left_on, right_on = _validate_ons(left, right, on, left_on, right_on)
 
-    if (left_on is not None or right_on is not None) and on is not None:
-        raise ValueError("Cannot specify left_on/right_on with on")
+    logging.getLogger(__name__).debug("Joining on %s, %s" % (left_on, right_on))
 
-    if left_on is not None or right_on is not None:
-        if left_on is None or right_on is None:
-            raise ValueError("Must specify both left_on and right_on")
+    # turn attributes into categorical dimensions
+    # XXX need to update this when joins besides inner supported
+    left, right, left_on, right_on = _prepare_categories(left, right, left_on, right_on)
 
-        left_on = as_list(left_on)
-        right_on = as_list(right_on)
-        if len(left_on) != len(right_on):
-            raise ValueError("left_on and right_on must have "
-                             "the same number of items")
+    # add suffixes to disambiguate non-join columns
+    # scidb throws out the redundant join columns for us, so no need
+    # to rename
+    left = _disambiguate(left, rnames, left_on, suffixes[0])
+    right = _disambiguate(right, lnames, right_on, suffixes[1])
 
-    else:
-        on = on or list(lnames & rnames)
-        on = as_list(on)
-        left_on = right_on = on
-
-    for l in left_on:
-        if l not in lnames:
-            raise ValueError("Left array join name is invalid: %s" % l)
-    for r in right_on:
-        if r not in rnames:
-            raise ValueError("Right array join name is invalid: %s" % r)
-
-    # fully disambiguate arrays
-    logging.getLogger(__name__).debug("Applying suffixes")
-    left_on_orig = left_on
-    left, right, left_on, right_on = _apply_suffix(left, right,
-                                                   left_on, right_on,
-                                                   suffixes)
-
-    keep = (set(left.att_names) | set(left.dim_names)
-            | set(right.dim_names) | set(right.att_names))
-    keep = keep - set(right_on)
-
-    # build necessary dimensions to join on
-    # XXX push this logic into cross_join
-    logging.getLogger(__name__).debug("Preparing categorical attributes")
-    left, right, left_on, right_on = _prepare_join_schema(left, right, left_on, right_on)
-
-    logging.getLogger(__name__).debug("Performing cross join")
-    result = cross_join(left, right, *interleave(left_on, right_on))
-
-    # throw away index dimensions added by _prepare_join_schema
-    logging.getLogger(__name__).debug("Dropping supurious attributes")
-    idx = _new_attribute_label('_row', result)
-    result = result.unpack(idx)
-    result = result.project(*(a for a in result.att_names if a in keep))
-
-    # drop suffixes if they aren't needed
-    logging.getLogger(__name__).debug("Dropping suffixes")
-    renames = []
-    for a in result.att_names:
-        if not a.endswith(suffixes[0]):
-            continue
-
-        if a.replace(suffixes[0], suffixes[1]) not in result.att_names:
-            renames.extend((a, a.replace(suffixes[0], '')))
-
-    result = result.attribute_rename(*renames)
-    return result
+    return cross_join(left, right, *interleave(left_on, right_on))
