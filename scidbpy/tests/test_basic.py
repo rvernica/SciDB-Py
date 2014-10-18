@@ -853,6 +853,16 @@ def test_percentile_attribute_check():
     assert_allclose(expected, actual)
 
 
+def test_index_lookup():
+
+    x = sdb.from_array(np.array([5, 5, 5, 3, 5, 3, 2]))
+    idx = sdb.from_array(np.array([2, 3, 5]))
+
+    x = x.index_lookup(idx, x.att_names[0], 'tmp')
+
+    assert_array_equal(x['tmp'].toarray(), [2, 2, 2, 1, 2, 1, 0])
+
+
 class TestHead(TestBase):
 
     @needs_pandas
@@ -865,3 +875,9 @@ class TestHead(TestBase):
         x = pd.DataFrame({'x': [1, 2, 3], 'y': [2, 3, 4]}).set_index('x')
         x = sdb.from_dataframe(x)
         assert_array_equal(x.head()['y'], [2, 3, 4])
+
+    @needs_pandas
+    def test_nd(self):
+        x = sdb.arange(12).reshape((4, 3))
+        y = x.head(n=3)
+        assert len(y) == 3

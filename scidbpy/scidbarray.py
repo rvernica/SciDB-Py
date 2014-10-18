@@ -16,9 +16,11 @@ from .errors import SciDBError, SciDBForbidden, SciDBQueryError
 
 # Numpy 1.7 meshgrid backport
 from . import parse
-from .utils import meshgrid, slice_syntax, _is_query, _new_attribute_label
+from .utils import (meshgrid, slice_syntax, _is_query,
+                    _new_attribute_label, as_list)
 from ._py3k_compat import genfromstr, iteritems, csv_reader, string_type
-from .schema_utils import change_axis_schema, dimension_rename
+from .schema_utils import change_axis_schema, dimension_rename, new_alias_label
+from . import schema_utils as su
 from .robust import (join, cumulate, reshape, thin, cross_join)
 
 __all__ = ["sdbtype", "SciDBArray", "SciDBDataShape"]
@@ -163,8 +165,8 @@ class sdbtype(object):
     @classmethod
     def from_full_rep(cls, rep):
         schema = '<%s>' % (','.join('%s: %s %s' %
-                          (nm, typ, 'NULL' if null else '')
-            for nm, typ, null in rep))
+                                    (nm, typ, 'NULL' if null else '')
+                                    for nm, typ, null in rep))
         return cls(schema)
 
     @classmethod
@@ -580,19 +582,10 @@ class SciDBArray(object):
             n = min(n, self.size)
 
         # use first dimension only
-        args = zip([0] * (self.ndim - 1), [1] * (self.ndim - 1))
-        l = self.datashape.dim_low[0]
-        result = self.between(l, l + n - 1, *args)
-        try:
-            return result.todataframe()
-        except ImportError:
-            return result.toarray()
+        args = list(self.datashape.dim_low)
+        args += ([args[0] + n - 1] + args[1:])
+        result = self.between(*args)
 
-    def tail(self, n=5):
-        hi = self.size - 1
-        lo = max(hi - n + 1, 0)
-        args = zip([0] * (self.ndim - 1), [1] * (self.ndim - 1))
-        result = self.subarray(lo, hi, *args)
         try:
             return result.todataframe()
         except ImportError:
@@ -976,7 +969,7 @@ class SciDBArray(object):
         """
         if transfer_bytes:
             warnings.warn(DeprecationWarning("transfer_bytes is deprecated, "
-                          "and will be removed in a future version"))
+                                             "and will be removed in a future version"))
 
         self.eval()  # evaluate if needed, for speed
         return parse.toarray(self)
@@ -1143,6 +1136,15 @@ class SciDBArray(object):
         x = redimension(x, [pos], orig_atts)
         return x
 
+    def isel(self, **kwargs):
+        slices = [slice(None) for _ in range(self.ndim)]
+        for k, v in kwargs.items():
+            if k not in self.dim_names:
+                raise KeyError("Invalid dimension name: %s" % k)
+            idx = self.dim_names.index(k)
+            slices[idx] = v
+        return self[slices]
+
     def __getitem__(self, indices):
         # The goal of getitem is to make a numpy-style interface perform
         # the correct operations on a SciDB array.  The corresponding
@@ -1278,6 +1280,48 @@ class SciDBArray(object):
         if len(args) == 0:
             return self
         return self.afl.attribute_rename(self, *args)
+
+    def rename(self, renames):
+        """
+        Rename the attributes or dimensions in an array.
+
+        Parameters
+        ----------
+        renames: dict
+            A dictionary mapping old names to new names
+
+        Returns
+        -------
+        renamed : SciDBArray
+            A new array
+        """
+        return su._rename(self, renames)
+
+    def index_lookup(self, idx_array, attribute, output_attribute='idx'):
+        """ Wrapper around the index_lookup AFL call.
+
+        This automatically wraps the array name and attribute in an alias,
+        as is required by AFL
+
+        Parameters
+        ----------
+        idx_array : SciDBArray
+           A single-attribute array of unique values to lookup
+        attribute : string
+           The name of an attribute in this array
+        output_attribute : string
+           The attribute of the output containing the indices
+
+        Returns
+        -------
+        indexed : SciDBArray
+           The current array appended with an index attribute
+        """
+        output_attribute = _new_attribute_label(output_attribute, self)
+        alias = new_alias_label('x', self)
+        attribute = '%s.%s' % (alias, attribute)
+
+        return self.afl.index_lookup(self.as_(alias), idx_array, attribute, output_attribute)
 
     # join operations: note that these ignore all but the first attribute
     # of each array.
@@ -1427,7 +1471,6 @@ class SciDBArray(object):
         idx = _new_attribute_label('__idx', self)
         return self.unpack(idx).project(*self.att_names)
 
-
     def __lt__(self, other):
         return self._boolean_compare('<', other)
 
@@ -1516,6 +1559,10 @@ class SciDBArray(object):
     # This allows the transpose of A to be computed via A.T
     T = property(transpose)
 
+    def unpack(self, name='idx'):
+        name = _new_attribute_label(name, self)
+        return self.afl.unpack(self, name)
+
     def reshape(self, shape, **kwargs):
         """Reshape data into a new array
 
@@ -1572,6 +1619,37 @@ class SciDBArray(object):
         b = self.afl.build('%s[i=0:0,1,0]' % self.sdbtype, value)
         q = self.afl.substitute(self, b)
         return q
+
+    def aggregate(self, *args, **kwargs):
+        """
+        Perform one or more aggregations over an array.
+
+        Parameters
+        ----------
+        *args: One or more SciDB aggregate expressions
+            Aggregations to perform, like 'sum(value) as x'
+        by :
+
+        Examples
+        --------
+        x = sdb.arange(10).reshape((5, 2))
+        x.aggregate('count(*)').toarray()
+        x.aggregate('max(f0)', by='i0').toarray()
+
+        See Also
+        --------
+        groupby()
+        """
+        by = kwargs.pop('by', None)
+        if kwargs:
+            raise ValueError("Invalid keywords: %s" % list(kwargs.keys()))
+
+        if by is None:
+            return self.afl.aggregate(self, *args)
+        else:
+            by = as_list(by)
+            # XXX deal with aggregation on attributes
+            return self.afl.aggregate(self, *(list(args) + by))
 
     def groupby(self, by):
         """

@@ -16,3 +16,13 @@ class TestRedimension(TestBase):
         x = sdb.from_array(np.array([True, False]))
         y = su.redimension(x, ['f0'], ['i0'])
         assert_array_equal(y.toarray(), [1, 0])
+
+
+def test_new_alias_label():
+    x = sdb.zeros(1)
+    y = sdb.afl.cross_join(x.as_('L'), x.as_('R'),
+                           'L.i0', 'R.i0')
+
+    assert su.new_alias_label('B', x, y) == 'B'
+    assert su.new_alias_label('L', x, y) != 'L'
+    assert su.new_alias_label('R', x, y) != 'R'

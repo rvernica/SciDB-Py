@@ -224,24 +224,66 @@ def new_attribute_label(suggestion='val', *arrays):
                       for arr in arrays], [])
     label_list += sum([a.dim_names for a in arrays], [])
 
-    if suggestion not in label_list:
+    return _disambiguate(suggestion, label_list)
+
+
+def _disambiguate(suggestion, taken):
+    if suggestion not in taken:
         return suggestion
     else:
-        # find all labels of the form val_0, val_1, val_2 ... etc.
-        # where `val` is replaced by suggestion
-        R = re.compile(r'^{0}_(\d+)$'.format(suggestion))
-        nums = sum([list(map(int, R.findall(label))) for label in label_list], [])
-
-        nums.append(-1)  # in case it's empty
-        return '{0}_{1}'.format(suggestion, max(nums) + 1)
+        suffix = 0
+        while (("%s_%i" % (suggestion, suffix)) in taken):
+            suffix += 1
+        return "%s_%i" % (suggestion, suffix)
 
 _new_attribute_label = new_attribute_label
+
+
+def _alias_names(*arrays):
+
+    taken = set()
+    # this regex finds basically all alphanumeric tokens in an AFL query
+    # it's overzealous, but that's fine for disambiguation -- we'd rather
+    # reject an OK alias name then accept a bad one
+    tokens = '(\w+)(?:\W|\Z)'
+
+    for a in arrays:
+        if a.query is None:
+            taken.add(a.name)
+        else:
+            taken.update(re.findall(tokens, a.query))
+
+    return taken
+
+
+def new_alias_label(suggestion='_X', *arrays):
+    """
+    Find an unambiguous name to alias an array by
+
+    Parameters
+    ----------
+    suggestion : str
+        The preferred alias name
+    *arrays : sequence of SciDBArrays
+        Extra arrays to avoid name clashes with
+
+    Returns
+    -------
+    alias : str
+       An alias name that does not conflict with the names
+       of other arrays, or aliases contained in the unevaluated
+       query of lazy arrays
+    """
+
+    taken = _alias_names(*arrays)
+    return _disambiguate(suggestion, taken)
 
 
 def as_list(x):
     if isinstance(x, string_type):
         return [x]
     return list(x)
+
 
 def interleave(*args):
     for items in zip(*args):

@@ -14,7 +14,7 @@ start index. The merge() function performs this preprocessing as needed.
 __all__ = ['join', 'merge', 'gemm', 'cumulate',
            'reshape', 'gesvd', 'thin', 'cross_join', 'uniq']
 
-from .utils import _new_attribute_label, interleave
+from .utils import _new_attribute_label, interleave, new_alias_label
 from . import schema_utils as su
 
 
@@ -232,13 +232,13 @@ def cross_join(a, b, *dims):
 
     # match chunk info of joined dimensions
     inds = tuple((i, j) for i, j in zip(adims, bdims))
-    b, a = su.match_chunk_permuted(b, a, inds, match_bounds=True)
+    b, a = su.match_chunk_permuted(b, a, inds)
 
     # use aliases if needed
     if (any(d in a.dim_names for d in bdims) or
-        any(d in b.dim_names for d in adims)):
-        l = su.new_alias('L', a, b)
-        r = su.new_alias('R', a, b)
+            any(d in b.dim_names for d in adims)):
+        l = su.new_alias_label('L', a, b)
+        r = su.new_alias_label('R', a, b)
         adims = ['%s.%s' % (l, d) for d in adims]
         bdims = ['%s.%s' % (r, d) for d in bdims]
         dims = interleave(adims, bdims)

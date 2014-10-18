@@ -1,10 +1,7 @@
 import numpy as np
-from .utils import _new_attribute_label
 
+from .utils import _new_attribute_label, new_alias_label
 
-def new_alias(target, *arrays):
-    # Detect and resolve conflicting aliases here
-    return target
 
 def assert_single_attribute(array):
     """
@@ -239,7 +236,6 @@ def match_chunk_permuted(src, target, indices, match_bounds=False):
             ds_target.dim_low[i] = l
             ds_target.dim_high[i] = h
 
-
     if ds.schema != src.datashape.schema:
         src = src.redimension(ds.schema)
     if ds_target.schema != target.datashape.schema:
@@ -286,7 +282,7 @@ def rechunk(array, chunk_size=None, chunk_overlap=None):
     return array
 
 
-def boundify(array):
+def boundify(array, trim=False):
     """
     Redimension an array as needed so that no dimension is unbound (ie ending with *)
 
@@ -302,13 +298,27 @@ def boundify(array):
 
     Notes
     -----
-    For unbound arrays, SciDB scans the array to determine the
-    maximum index along each dimension, and the array is truncated
-    at that location.
+    This forces evaluation of lazy arrays
     """
     if not any(d is None for d in array.datashape.dim_high):
         return array
 
+    if trim:
+        return _boundify_trim(array)
+
+    # use special scan syntax to get current bounds. eval() required
+    r = array.afl.show("'%s'" % array.eval().scan().query, "'afl'")
+    r = r.eval(store=False, response=True)
+    schema = r[r.index('<'):r.index(']') + 1]
+
+    if schema != array.schema:
+        array = array.redimension(schema)
+
+    return array
+
+
+def _boundify_trim(array):
+    # actually scan the array to find boundaries
     ds = array.datashape.copy()
     idx = _new_attribute_label('_', array)
     bounds = array.unpack(idx).max().toarray()
@@ -318,7 +328,7 @@ def boundify(array):
             continue
         ds.dim_high[i] = int(bounds['%s_max' % ds.dim_names[i]][0])
 
-    if ds != array.datashape:
+    if ds.schema != array.schema:
         array = array.redimension(ds.schema)
 
     return array
@@ -382,9 +392,10 @@ def dimension_rename(array, *args):
         ds = change_axis_schema(ds, axis, name=n)
 
     if ds.schema != array.datashape.schema:
-        array = array.redimension(ds.schema)
+        array = array.cast(ds.schema)
 
     return array
+
 
 def _unique(val, taken):
     if val not in taken:
@@ -542,6 +553,7 @@ def cast_to_integer(array, attributes):
 
     return array.project(*atts)
 
+
 def to_dimensions(array, *attributes):
     """
     Ensure that a set of attributes or dimensions are dimensions
@@ -562,6 +574,7 @@ def to_dimensions(array, *attributes):
     atts = [a for a in array.att_names if a not in attributes]
     return redimension(array, dims, atts)
 
+
 def to_attributes(array, *dimensions):
     """
     Ensure that a set of attributes or dimensions are attributes
@@ -581,7 +594,6 @@ def to_attributes(array, *dimensions):
     dims = [d for d in array.dim_names if d not in dimensions]
     atts = list(array.att_names) + [d for d in dimensions if d in array.dim_names]
     return redimension(array, dims, atts)
-
 
 
 def redimension(array, dimensions, attributes):
@@ -642,11 +654,16 @@ def redimension(array, dimensions, attributes):
     new_dim = {}
     for n, l, h, ch, co in zip(ds.dim_names, ds.dim_low, ds.dim_high,
                                ds.chunk_size, ds.chunk_overlap):
+        h = h if h is not None else '*'
         if n in dimensions:
             new_dim[n] = '{0}={1}:{2},{3},{4}'.format(n, l, h, ch, co)
 
     if to_promote:
-        for k, v in limits(array, to_promote).items():
+        # don't do limits here, too expensive!
+        # XXX this does wrong thing if attribute has negative values
+        # for k, v in limits(array, to_promote).items():
+        for k in to_promote:
+            v = (0, '*')
             new_dim[k] = _dim_schema_item(k, v)
 
     new_dim = ','.join(new_dim[d] for d in dimensions)
@@ -685,7 +702,7 @@ def match_size(*arrays):
         ds = a.datashape.copy()
         for i in range(min(a.ndim, target.ndim)):
             if ds.dim_low[i] < target.dim_low[i] or \
-                ds.dim_high[i] > target.dim_high[i]:
+                    ds.dim_high[i] > target.dim_high[i]:
                 raise ValueError("All array domains must be a subset "
                                  "of the first array's domain")
 
@@ -852,9 +869,18 @@ def right_dimension_pad(array, n):
     if array.ndim >= n:
         return array
 
-    atts = [_new_attribute_label('_dim%i' % i, array) for i in range(n - array.ndim)]
+    nadd = n - array.ndim
+    atts = [_new_attribute_label('_dim%i' % i, array) for i in range(nadd)]
     apply_args = [x for item in enumerate(atts) for x in item[::-1]]
-    return redimension(array.apply(*apply_args), array.dim_names + atts, array.att_names)
+
+    ds = array.datashape.copy()
+    ds.dim_low = list(ds.dim_low) + ([0] * nadd)
+    ds.dim_high = list(ds.dim_high) + ([0] * nadd)
+    ds.dim_names = list(ds.dim_names) + atts
+    ds.chunk_overlap = list(ds.chunk_overlap) + ([0] * nadd)
+    ds.chunk_size = list(ds.chunk_size) + ([1000] * nadd)
+
+    return array.apply(*apply_args).redimension(ds.schema)
 
 
 def left_dimension_pad(array, n):
@@ -876,10 +902,18 @@ def left_dimension_pad(array, n):
     """
     if array.ndim >= n:
         return array
-
-    atts = [_new_attribute_label('_dim%i' % i, array) for i in range(n - array.ndim)]
+    nadd = n - array.ndim
+    atts = [_new_attribute_label('_dim%i' % i, array) for i in range(nadd)]
     apply_args = [x for item in enumerate(atts) for x in item[::-1]]
-    return redimension(array.apply(*apply_args), atts + array.dim_names, array.att_names)
+
+    ds = array.datashape.copy()
+    ds.dim_low = ([0] * nadd) + list(ds.dim_low)
+    ds.dim_high = ([0] * nadd) + list(ds.dim_high)
+    ds.dim_names = atts + list(ds.dim_names)
+    ds.chunk_overlap = ([0] * nadd) + list(ds.chunk_overlap)
+    ds.chunk_size = ([1000] * nadd) + list(ds.chunk_size)
+
+    return array.apply(*apply_args).redimension(ds.schema)
 
 
 def assert_schema(arrays, zero_indexed=False, bounded=False,
@@ -930,3 +964,22 @@ def assert_schema(arrays, zero_indexed=False, bounded=False,
             raise ValueError("Input arrays must have the same attributes")
 
     return tuple(arrays)
+
+
+def _rename(array, renames):
+    """
+    renames is a dict mapping old names to new names
+    """
+
+    att_renames = []
+    dim_renames = []
+
+    for k, v in renames.items():
+        if k in array.att_names:
+            att_renames.extend([k, v])
+        elif k in array.dim_names:
+            dim_renames.extend([k, v])
+        else:
+            raise ValueError("Invalid array attribute: %s" % k)
+
+    return array.attribute_rename(*att_renames).dimension_rename(*dim_renames)

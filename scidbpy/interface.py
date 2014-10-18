@@ -1391,13 +1391,14 @@ class SciDBInterface(object):
         --------
         hstack(), vstack(), dstack()
         """
-
         assert_schema(arrays, bounded=True, same_attributes=True)
         slice_at_end = arrays[0].ndim == 1 and axis == 1
 
         # pad with extra dimensions as needed
         arrays = [right_dimension_pad(left_dimension_pad(a, 2), axis + 1)
                   for a in arrays]
+        arrays = list(map(boundify, arrays))
+
         nd = arrays[0].ndim
 
         # check for proper shape
