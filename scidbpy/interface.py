@@ -462,7 +462,7 @@ class SciDBInterface(object):
             A list of SciDB array names
         """
         result = self.list_arrays()
-        return [r for r in result if fnmatch(r, pattern)]
+        return sorted([r for r in result if fnmatch(r, pattern)])
 
 
     def remove(self, array):
@@ -480,7 +480,10 @@ class SciDBInterface(object):
         --------
         reap(), SciDBArray.reap()
         """
-        self.query("remove({0})", array)
+        try:
+            self.query("remove({0})", array)
+        except SciDBQueryError:  # array does not exist
+            pass
 
     def ones(self, shape, dtype='double', **kwargs):
         """Return an array of ones
