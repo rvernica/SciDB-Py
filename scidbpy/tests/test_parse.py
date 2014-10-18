@@ -1,3 +1,6 @@
+# License: Simplified BSD, 2014
+# See LICENSE.txt for more information
+
 # -*- coding: utf-8 -*-
 from __future__ import print_function, unicode_literals
 

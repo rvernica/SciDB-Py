@@ -1,3 +1,6 @@
+# License: Simplified BSD, 2014
+# See LICENSE.txt for more information
+
 """
 This is a lightweight utility module which streamlines Python 2/Python 3
 compatibility.  It uses a few routines from the six.py package, as well

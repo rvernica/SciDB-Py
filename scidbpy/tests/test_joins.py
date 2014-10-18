@@ -1,3 +1,6 @@
+# License: Simplified BSD, 2014
+# See LICENSE.txt for more information
+
 from __future__ import print_function, absolute_import, unicode_literals
 
 import pytest

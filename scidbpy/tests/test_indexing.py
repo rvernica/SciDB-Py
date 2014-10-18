@@ -1,3 +1,6 @@
+# License: Simplified BSD, 2014
+# See LICENSE.txt for more information
+
 from numpy.testing import assert_allclose, assert_array_equal
 import numpy as np
 import pytest
