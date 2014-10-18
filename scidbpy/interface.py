@@ -285,6 +285,7 @@ class SciDBInterface(object):
     # TODO: give the option to pass a user-defined array name
     #       (use this in copy(), rename(), and others)
     def new_array(self, shape=None, dtype='double', persistent=False,
+                  name = None,
                   **kwargs):
         """
         Create a new array, either instantiating it in SciDB or simply
@@ -305,6 +306,9 @@ class SciDBInterface(object):
             whether the created array should be persistent, i.e. survive
             in SciDB past when the object wrapper goes out of scope.  Default
             is False.
+        name : str (optional)
+            The name to give the array in the databse. If present,
+            persistent will be set to True.
         **kwargs : (optional)
             If `shape` is specified, additional keyword arguments are passed
             to SciDBDataShape.  Otherwise, these will not be referenced.
@@ -313,7 +317,11 @@ class SciDBInterface(object):
         arr : SciDBArray
             wrapper of the new SciDB array instance.
         """
-        name = self._db_array_name()
+        if name is not None:
+            persistent = True
+
+        name = name or self._db_array_name()
+
         if shape is not None or ('dim_low' in kwargs and 'dim_high' in kwargs):
             datashape = SciDBDataShape(shape, dtype, **kwargs)
             query = "CREATE ARRAY {0} {1}".format(name, datashape.schema)
