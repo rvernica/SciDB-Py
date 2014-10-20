@@ -7,7 +7,7 @@ Database-style joins
 from __future__ import print_function, absolute_import, unicode_literals
 import logging
 
-from .robust import cross_join
+from .robust import cross_join, join
 from .utils import interleave, as_list, _new_attribute_label
 from . import schema_utils as su
 
@@ -142,7 +142,7 @@ def merge(left, right, on=None, left_on=None, right_on=None,
     When joining on attributes, a categorical index is computed
     for each array. This index will appear as a dimension in the output.
 
-    This function builds an AFL cross join query,
+    This function builds an AFL join or cross join query,
     performing preprocessing on the inputs as necessary to match chunk
     sizes, avoid name collisions, etc.
 
@@ -162,6 +162,16 @@ def merge(left, right, on=None, left_on=None, right_on=None,
     # turn attributes into categorical dimensions
     # XXX need to update this when joins besides inner supported
     left, right, left_on, right_on = _prepare_categories(left, right, left_on, right_on)
+
+    # shortcut: if we are joining on all dimensions of both arrays, use
+    # a join instead of a cross join. SciDB is much faster with this operation
+    lidx = [left.dim_names.index(l) for l in left_on]
+    ridx = [right.dim_names.index(r) for r in right_on]
+    if lidx == ridx and len(lidx) == left.ndim:
+        return join(left, right)
+
+    if (list(left_on) == list(left.dim_names)) and (list(right_on) == list(right.dim_names)):
+        return join(left, right)
 
     # add suffixes to disambiguate non-join columns
     # scidb throws out the redundant join columns for us, so no need

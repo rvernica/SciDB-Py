@@ -2,7 +2,7 @@
 # See LICENSE.txt for more information
 
 import pytest
-from numpy.testing import assert_allclose
+from numpy.testing import assert_allclose, assert_array_equal
 import numpy as np
 
 from .. import histogram
@@ -77,15 +77,16 @@ class TestHistogram(TestBase):
         self.check_multi(x, 'b')
 
 
-class TestGroupBy(object):
+class TestGroupBy(TestBase):
 
     def setup_method(self, method):
-        self.a = sdb.afl.build('<val:int32>[i=0:5,10,0, j=0:3,10,0]', 2)
+        self.a = sdb.afl.build('<val:uint32>[i=0:5,10,0, j=0:3,10,0]', 2)
         self.b = sdb.afl.build('<k:float>[i=0:5,10,0, j=0:3,10,0]', 1)
         self.c = sdb.join(self.a, self.b)
 
-    def teardown_method(self, method):
-        sdb.reap()
+        self.d = sdb.afl.build('<name:string>[i=0:5,10,0,j=0:3,10,0]',
+                               "iif(i % 2 = 0, 'a', 'b')")
+        self.e = sdb.join(self.c, self.d)
 
     def test_global_groupby(self):
 
@@ -115,13 +116,15 @@ class TestGroupBy(object):
         assert_allclose(x['val'], [2])
         assert_allclose(x['k_sum'], [24])
 
-    def test_float_forbidden(self):
-        with pytest.raises(TypeError) as exc:
-            self.b.groupby('k')
-        assert exc.value.args[0] == 'Grouping by non-integer attributes not yet supported'
-
     def test_group_over_all_attributes(self):
         x = self.a.groupby('val').aggregate('count(*)').toarray()
         assert_allclose(x['count'], [24])
 
-    # other tests: handle aggregation over a dimension?
+    def test_group_on_string(self):
+        x = self.e.groupby('name').aggregate('count(*)').toarray()
+        assert_array_equal(x['name'], ['a', 'b'])
+        assert_allclose(x['count'], [12, 12])
+
+    def test_aggregate_on_dimension(self):
+        x = self.a.groupby('val').aggregate('max(i) as mi').toarray()
+        assert_allclose(x['mi'], [5])

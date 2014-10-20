@@ -10,7 +10,7 @@ from . import SciDBArray
 from .interface import _new_attribute_label
 from .scidbarray import NP_SDB_TYPE_MAP, INTEGER_TYPES
 from ._py3k_compat import string_type
-from .schema_utils import redimension
+from . import schema_utils as su
 from .utils import as_list
 
 __all__ = ['histogram', 'GroupBy']
@@ -144,13 +144,10 @@ class GroupBy(object):
     Notes
     -----
 
-    GroupBy operations are currently restricted in the following ways:
+    GroupBy items must be the names of attributes or dimensions
 
-    - GroupBy items must be names of attributes or dimensions
-    - Non-integer attributes cannot be used as a groupby item
-    - Dimensions cannot be used in aggregate calls
-
-    These limitations will be addressed in the 14.9 release of SciDB-Py
+    For each non-unsigned integer attribute used in a groupby,
+    a new categorical index dimension is created.
 
     Examples
     --------
@@ -186,12 +183,14 @@ class GroupBy(object):
         self.by = as_list(by)
         self.columns = columns or (array.att_names + array.dim_names)
 
-        for name, typ, _ in array.sdbtype.full_rep:
-            if name in self.by and typ not in INTEGER_TYPES and typ != 'bool':
-                raise TypeError("Grouping by non-integer attributes not yet supported")
+        names = set(array.att_names) | set(array.dim_names)
+        for b in self.by:
+            if b not in names:
+                raise ValueError("Unrecognized groupby name: %s" % b)
+
         self.array = array
 
-    def aggregate(self, mappings):
+    def aggregate(self, mappings, unpack=True):
         """
         Peform an aggregation over each group
 
@@ -201,6 +200,11 @@ class GroupBy(object):
            If a string, a single SciDB expression to apply to each group
            If a dict, mapping several attribute names to expression strings
 
+        unpack : bool (optional)
+           If True (the default), the result will be unpacked into
+           a dense 1D array. If False, the result will be dimensioned
+           by each groupby item.
+
         Returns
         -------
         agg : SciDBArray
@@ -209,22 +213,72 @@ class GroupBy(object):
         """
         dims = list(self.by)
 
-        if isinstance(mappings, string_type):
-            atts = _expression_attributes(mappings)
-            dims.extend(d for d in self.array.dim_names
-                        if d not in atts and d not in dims)
-            array = redimension(self.array, dims, atts)
-            result = array.aggregate(mappings, *self.by)
-        else:
-            atts = sum((_expression_attributes(v) for v in mappings.values()), [])
-            dims.extend(d for d in self.array.dim_names
-                        if d not in atts and d not in dims)
-            array = redimension(self.array, dims, atts)
-            args = ['%s as %s' % (v, k) for k, v in mappings.items()] + self.by
-            result = array.aggregate(*args)
+        array, mappings = self._validate_mappings(mappings)
 
-        attr = _new_attribute_label('_idx', result)
-        return result.unpack(attr)
+        promote = []
+        by = list(self.by)
+        dt = dict((l, t) for l, t, _ in array.sdbtype.full_rep)
+        f = array.afl
+
+        # Every by item must be a dimension. Make it so
+        for i, b in enumerate(by):
+            # already a dimension
+            if b in array.dim_names:
+                continue
+
+            # an attribute that can safely be promoted
+            # to a dimension with (0, *) bounds
+            typ = dt[b]
+            if typ == 'bool' or 'uint' in typ:
+                promote.append(b)
+            else:
+                # a float, string, char, datetime, etc
+                # create a categorical index dimension for it
+                cats = f.sort(self.array[b]).uniq().eval()
+                lbl = _new_attribute_label('%s_cat' % b, self.array)
+                array = array.index_lookup(cats, b, lbl)
+
+                by[i] = lbl  # aggregate over index, not attribute
+
+                # make sure we pull out the category label
+                mappings.append('max({0}) as {0}'.format(b))
+                promote.append(lbl)
+
+        array = su.to_dimensions(array, *promote)
+        args = mappings + by
+
+        result = array.aggregate(*args)
+        if unpack:
+            result = result.unpack()
+
+        return result
+
+    def _validate_mappings(self, mappings):
+
+        if isinstance(mappings, string_type):
+            mappings = mappings.split(',')
+        elif isinstance(mappings, dict):
+            mappings = ['%s as %s' % (v, k) for k, v in mappings.items()]
+        else:
+            raise ValueError("Invalid mappings: Must be string or dict")
+
+        # if any aggregations use dimensions, we need to
+        # add them as attributes
+        array = self.array
+        for i, m in enumerate(mappings):
+
+            # extract out dim/att name in aggregate call
+            item = re.findall('\((.*?)\)', m)
+            if len(item) != 1 or item[0].strip() not in array.dim_names:
+                continue
+
+            item = item[0].strip()
+            new_att = _new_attribute_label('%s_' % item)
+            array = array.apply(new_att, item)
+
+            mappings[i] = re.sub('\((.*?)\)', '(%s)' % new_att, m)
+
+        return array, mappings
 
     def __getitem__(self, *key):
         for k in key:
