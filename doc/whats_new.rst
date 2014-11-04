@@ -6,6 +6,30 @@
 Whats New
 =========
 
+14.10 (Released November 4, 2014)
+---------------------------------
+
+Highlights
+^^^^^^^^^^
+- Support for performing :meth:`~SciDBArray.groupby` on non-integer attributes
+- Added a pandas-like :meth:`~interface.SciDBInterface.merge` method
+  to perform database-style joins
+- Experimental support for :ref:`compressed transfer <compressed_transfer>`,
+  and for :ref:`efficient downloading <dense_transfer>` of dense arrays
+- Added :ref:`robust versions <robust>` of many AFL operators, that perform array
+  preprocessing (chunk alignment, schema matching, etc.) automatically
+- Several new methods: :meth:`~interface.SciDBInterface.unique`, :meth:`~interface.SciDBInterface.percentile`, :meth:`~SciDBArray.isel`, :meth:`~interface.SciDBInterface.hstack`, :meth:`~interface.SciDBInterface.vstack`, :meth:`~interface.SciDBInterface.concatenate`, :meth:`~SciDBArray.any`, :meth:`~SciDBArray.all`, :meth:`~interface.SciDBInterface.remove`, :meth:`~interface.SciDBInterface.ls`, :meth:`~SciDBArray.collapse`
+- Ability to index arrays using :ref:`integer arrays <fancy_indexing>`
+
+API Changes in 14.10
+^^^^^^^^^^^^^^^^^^^^
+ - Slicing an array by a boolean array now produces a sparse result, preserving
+   the location of the selected cells. The collapse method converts this array
+   to the 1D dense array previously returned by boolean masking.
+ - The :meth:`~SciDBPy.interface.SciDBInterface.merge` method was changed
+   from a direct AFL call to a high-level join operator. Use robust.merge
+   for the old behavior
+
 14.8 (Released August 22, 2014)
 -------------------------------
 

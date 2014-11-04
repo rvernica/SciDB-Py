@@ -153,3 +153,43 @@ Multiattribute arrays
 Arrays with multiple attributes are handled analogously to single-attribute
 arrays as discussed above. However, the output is returned as a NumPy
 record array, with record labels matching the SciDB attribute labels.
+
+Efficient Transfer for Dense Arrays
+-----------------------------------
+.. _dense_transfer:
+
+SciDB arrays are internally sparse. To preserve the location of nonempty
+cells when downloading, SciDB-Py has to explicitly transfer the multidimensional
+index of each nonempty cell, along with the values of that cell. This adds
+processing and bandwidth overhead.
+
+SciDB-Py v14.10 introduced a new **dense transfer** option for more efficient
+downloading of arrays with no empty cells. If you specify ``method=dense`` to
+methods like :meth:`~SciDBArray.toarray`, SciDB-Py will avoid transferring
+indices.
+
+It is up to the user to set ``method=dense``, as well as to verify
+that the array is fully dense (has no empty cells).
+
+.. note:: ``method=dense'' is an experimental feature of SciDB-Py v14.10.
+          Please report any bugs.
+
+Compressed Transfer
+-------------------
+.. _compressed_transfer:
+
+Starting in v14.10, SciDB-Py has experimental support for gzipped-compressed
+transfer. This requires a version of Shim more recent than Nov 3, 2014.
+
+To explicitly enable compression for a particular transfer, specify
+``compression=1-9`` in a method like :meth:`~SciDBArray.toarray`. ``compression=1``
+corresponds to fast compression, ``compression=9'' corresponds to best compression.
+
+To implicitly enable compression for all transfers, set the `default_compression`
+attribute of the :class:`SciDBInterface` to 1-9::
+
+    sdb.default_compression = 1
+    sdb.zeros(10).toarray()  # implicitly uses toarray(compression=1)
+
+
+

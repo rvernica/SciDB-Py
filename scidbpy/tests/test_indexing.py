@@ -34,6 +34,14 @@ def test_slicing():
     #(slice(8, 2, -1), slice(7, 3, -1))
 
 
+def test_slice_unbound_array():
+
+    x = sdb.ones((3, 4)).redimension('<f0:double>[i0=0:*,10,0, i1=0:*,10,0]')
+    y = x[0]
+    assert_allclose(y.toarray(), [1, 1, 1, 1])
+    assert list(y.datashape.dim_high) == [None]
+
+
 class TestAttributeAccess(TestBase):
 
     def test_single(self):

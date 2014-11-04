@@ -58,6 +58,7 @@ data to Python:
         4  8  5  1
 
 These methods are discussed in greater detail in :ref:`downloading`.
+
 Element Access
 --------------
 
@@ -100,7 +101,30 @@ SciDBArrays support NumPy's slice syntax for extracting subregions::
            [20, 21, 22, 23, 24]])
 
 Some of NumPy's "Fancy Indexing" operations, like indexing
-with a boolean array, are also supported; see :ref:`comparison_and_filtering`
+with a boolean array, are also supported; see :ref:`comparison_and_filtering`.
+
+
+.. _fancy_indexing:
+You can also index arrays using integer arrays::
+
+   >>> x = sdb.arange(100) * 5
+   >>> y = sdb.from_array(np.array([ 3,  3,  5, 10, 30, 20,  5]))
+   >>> x[y].toarray()
+   array([ 15,  15,  25,  50, 150, 100,  25])
+
+
+
+Slicing by dimension name
+-------------------------
+The :meth:`~SciDBArray.isel` method allows you to index into arrays
+by dimension name instead of position::
+
+    >>> x = sdb.arange(30).reshape((6, 5))
+    >>> x.schema
+    '<f0:int64> [i0=0:5,1000,0,i1=0:4,1000,0]'
+    >>> x.isel(i1=2).toarray()   # same as x[:, 2]
+    array([ 2,  7, 12, 17, 22, 27])
+
 
 Attribute access
 ----------------

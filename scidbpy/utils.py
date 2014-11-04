@@ -282,7 +282,10 @@ def new_alias_label(suggestion='_X', *arrays):
 def as_list(x):
     if isinstance(x, string_type):
         return [x]
-    return list(x)
+    try:
+        return list(x)
+    except TypeError: # not iterable
+        return [x]
 
 
 def interleave(*args):
