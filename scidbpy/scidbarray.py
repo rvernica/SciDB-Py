@@ -1133,6 +1133,27 @@ class SciDBArray(object):
         return x
 
     def isel(self, **kwargs):
+        """
+        Select a subset of the array by dimension name
+
+        Parameters
+        ----------
+        kwargs : dimension names -> slice descrption
+           What to select from the array
+
+        Returns
+        -------
+        subarray : SciDBArray
+            The array subset
+
+        Examples
+        --------
+        x = sdb.arange(20).reshape((4, 5))
+        print(x.schema)  # <f0:int64> [i0=0:3,1000,0,i1=0:4,1000,0]
+        x.isel(i0=0)  # x[0]
+        x.isel(i1=2)  # x[:, 2]
+        x.isel(i1=slice(2,4)).toarray()  # x[:, 2:4]
+        """
         slices = [slice(None) for _ in range(self.ndim)]
         for k, v in kwargs.items():
             if k not in self.dim_names:
@@ -1269,11 +1290,38 @@ class SciDBArray(object):
         return self.afl.subarray(self, *args)
 
     def dimension_rename(self, *args):
+        """
+        Rename a set of dimensions
+
+        Parameters
+        ----------
+        args : (old_name, new_name, ...)
+            0 or more rename pairs
+
+        Returns
+        -------
+        renamed : SciDBArray
+            The new array
+        """
         if len(args) == 0:
             return self
         return dimension_rename(self, *args)
 
     def attribute_rename(self, *args):
+        """
+        Rename a set of attributes
+
+        Parameters
+        ----------
+        args : (old_name, new_name, ...)
+            0 or more rename pairs
+
+        Returns
+        -------
+        renamed : SciDBArray
+            The new array
+        """
+
         if len(args) == 0:
             return self
         return self.afl.attribute_rename(self, *args)
@@ -1557,6 +1605,17 @@ class SciDBArray(object):
     T = property(transpose)
 
     def unpack(self, name='idx'):
+        """
+        Unpack with automatic dimension name disambiguation
+
+        Unpacking flattens an array to 1D, converting all old dimensions
+        to attributes
+
+        Parameters
+        ----------
+        name : str (optional, default 'idx')
+           The name of the new dimension. Will be disambiguated
+        """
         name = _new_attribute_label(name, self)
         return self.afl.unpack(self, name)
 
@@ -2125,12 +2184,28 @@ class SciDBArray(object):
         return q
 
     def any(self):
+        """
+        Returns whether any elements of each attribute are true.
+
+        Returns
+        -------
+        any : SciDBArray
+            boolean array
+        """
         if not all(dt == 'bool' for nm, dt, null in self.sdbtype.full_rep):
             raise TypeError("any() only valid for boolean arrays")
 
         return self.aggregate(*('max(%s)' % att for att in self.att_names)) > 0
 
     def all(self):
+        """
+        Returns whether all elements of each attribute are true.
+
+        Returns
+        -------
+        all : SciDBArray
+            boolean array
+        """
         if not all(dt == 'bool' for nm, dt, null in self.sdbtype.full_rep):
             raise TypeError("any() only valid for boolean arrays")
 

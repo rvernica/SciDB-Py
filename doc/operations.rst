@@ -1,5 +1,5 @@
 
-Operations on SciDB array objects
+Basic Math on SciDB array objects
 ---------------------------------
 .. currentmodule:: scidbpy
 

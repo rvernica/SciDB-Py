@@ -22,6 +22,7 @@ compising SciDB queries more explicitly.
    creation
    access
    operations
+   aggregation
    comparison_and_filtering
    query
    conversion.rst

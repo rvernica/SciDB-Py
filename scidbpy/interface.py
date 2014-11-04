@@ -100,6 +100,7 @@ class SciDBInterface(object):
     def __init__(self):
         self._created = []
         self._persistent = set()
+        self.default_compression = None
         atexit.register(self.reap)
 
     """SciDBInterface Abstract Base Class.
@@ -165,6 +166,19 @@ class SciDBInterface(object):
         if not hasattr(self, '_query_log'):
             self._query_log = []
         self._query_log.append(query)
+
+    @property
+    def default_compression(self):
+        """
+        The default compression to use when downloading data
+        """
+        return self._default_compression
+
+    @default_compression.setter
+    def default_compression(self, value):
+        if value not in [None, 1, 2, 3, 4, 5, 6, 7, 8, 9]:
+            raise ValueError("default_compression must be None or 1-9")
+        self._default_compression = value
 
     @abc.abstractmethod
     def _upload_bytes(self, data):
@@ -290,11 +304,8 @@ class SciDBInterface(object):
         datashape = SciDBDataShape.from_schema(schema)
         return SciDBArray(datashape, self, scidbname, persistent=persistent)
 
-    # TODO: give the option to pass a user-defined array name
-    #       (use this in copy(), rename(), and others)
     def new_array(self, shape=None, dtype='double', persistent=False,
-                  name=None,
-                  **kwargs):
+                  name=None, **kwargs):
         """
         Create a new array, either instantiating it in SciDB or simply
         reserving the name for use in a later query.
@@ -1584,7 +1595,6 @@ class SciDBShimInterface(SciDBInterface):
                  pam=None, digest=None):
         super(SciDBShimInterface, self).__init__()
         self.hostname = hostname.rstrip('/')
-        self.default_compression = None
 
         https = self.hostname.startswith('https')
         authenticate = password is not None
@@ -1630,19 +1640,6 @@ class SciDBShimInterface(SciDBInterface):
         url = self._shim_url('login', username=user, password=password)
         result = self._shim_urlopen(url)
         self._pam_auth = result.read()
-
-    @property
-    def default_compression(self):
-        """
-        The default compression to use when downloading data
-        """
-        return self._default_compression
-
-    @default_compression.setter
-    def default_compression(self, value):
-        if value not in [None, 1, 2, 3, 4, 5, 6, 7, 8, 9]:
-            raise ValueError("default_compression must be None or 1-9")
-        self._default_compression = value
 
     def logout(self):
         """

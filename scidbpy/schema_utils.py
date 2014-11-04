@@ -163,8 +163,9 @@ def match_chunks(*arrays):
 
     See Also
     --------
-    match_chunk_permuted(), to match chunks along particular pairs of
-                            dimensions
+    match_chunk_permuted()
+        to match chunks along particular pairs of
+        dimensions
     """
     target = arrays[0].datashape
     result = []

@@ -1,3 +1,18 @@
+Version 14.10.0
+---------------
+- 2014-09-06 Integer indexing on multiattribute arrays
+- 2014-09-06 Unique method
+- 2014-09-11 Preserve index information in todataframe()
+- 2014-09-11 Better handling of misaligned arrrays for dot() operator
+- 2014-09-21 Array condatenation methods concatenate, hstack, vstack, dstack
+- 2014-10-08 all, any methods
+- 2014-10-10 remove, ls, percentile, collapse methods
+- 2014-10-10 merge operator. noninteger support for groupby and merge
+- 2014-10-15 fix parsing bug with numpy datetimes
+- 2014-10-18 name keyword for new_array
+- 2014-10-18 Fix bug when parsing empty arrays
+- 2014-11-03 compressed and dense transfer
+
 Version 14.9.0
 --------------
 
