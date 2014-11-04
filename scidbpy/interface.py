@@ -44,6 +44,7 @@ from .schema_utils import (disambiguate, as_row_vector, as_column_vector,
 from .robust import (join, merge, gemm, uniq, gesvd)
 
 from . import arithmetic, relational
+from .parse import _scidb_serialize
 
 __all__ = ['SciDBInterface', 'SciDBShimInterface', 'connect']
 
@@ -68,26 +69,6 @@ def _af(arr, ind):
     if not isinstance(arr, ArrayAlias):
         arr = ArrayAlias(arr)
     return "{{a.a{i}f}}".format(i=ind).format(a=arr)
-
-
-def _scidb_serialize(arr, chunk_size):
-    """
-    Serialize a multidimensional numpy array into a 1D array,
-    with an interleaving scheme that matches SciDB.
-
-    Such a scheme first interleaves chunks in C-contiguous order.
-    Then it interleaves cells in the chunk in C-contiguous order.
-    """
-    chunk_size = as_list(chunk_size)
-    if len(chunk_size) == 1:
-        chunk_size = chunk_size * arr.ndim
-    result = []
-    for start in product(*(range(0, s, c)
-                           for s, c in zip(arr.shape, chunk_size))):
-        slices = tuple(slice(i, i + s)
-                       for i, s in zip(start, chunk_size))
-        result.append(arr[slices].ravel())
-    return np.hstack(result)
 
 
 def _to_bytes(arr, chunk_size=1000):

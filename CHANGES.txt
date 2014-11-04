@@ -8,6 +8,7 @@ Version 14.10.0
 - 2014-10-08 all, any methods
 - 2014-10-10 remove, ls, percentile, collapse methods
 - 2014-10-10 merge operator. noninteger support for groupby and merge
+- 2014-10-14 Support custom chunk size in from_array
 - 2014-10-15 fix parsing bug with numpy datetimes
 - 2014-10-18 name keyword for new_array
 - 2014-10-18 Fix bug when parsing empty arrays
