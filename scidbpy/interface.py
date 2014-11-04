@@ -22,6 +22,7 @@ import logging
 import csv
 from time import time
 from fnmatch import fnmatch
+from zlib import decompress
 
 import requests
 
@@ -47,6 +48,13 @@ __all__ = ['SciDBInterface', 'SciDBShimInterface', 'connect']
 
 SCIDB_RAND_MAX = 2147483647  # 2 ** 31 - 1
 UNESCAPED_QUOTE = re.compile(r"(?<!\\)'")
+
+
+def unzip(payload):
+    try:
+        return decompress(payload, 31)
+    except:
+        raise ValueError("Could not unzip: %s" % repr(payload))
 
 
 def _df(arr, ind):
@@ -1576,6 +1584,7 @@ class SciDBShimInterface(SciDBInterface):
                  pam=None, digest=None):
         super(SciDBShimInterface, self).__init__()
         self.hostname = hostname.rstrip('/')
+        self.default_compression = None
 
         https = self.hostname.startswith('https')
         authenticate = password is not None
@@ -1599,8 +1608,11 @@ class SciDBShimInterface(SciDBInterface):
         s.mount('http://', a)
         self._session = s
 
+        self._auth = None
+
         if digest:
-            s.auth = requests.auth.HTTPDigestAuth(user, password)
+            self._auth = requests.auth.HTTPDigestAuth(user, password)
+            s.auth = self._auth
 
         if pam:
             self.login(user, password)
@@ -1619,6 +1631,19 @@ class SciDBShimInterface(SciDBInterface):
         result = self._shim_urlopen(url)
         self._pam_auth = result.read()
 
+    @property
+    def default_compression(self):
+        """
+        The default compression to use when downloading data
+        """
+        return self._default_compression
+
+    @default_compression.setter
+    def default_compression(self, value):
+        if value not in [None, 1, 2, 3, 4, 5, 6, 7, 8, 9]:
+            raise ValueError("default_compression must be None or 1-9")
+        self._default_compression = value
+
     def logout(self):
         """
         Logout from PAM authentication (e.g., over HTTPS)
@@ -1634,22 +1659,30 @@ class SciDBShimInterface(SciDBInterface):
                                         "load_library('dense_linear_algebra')",
                                         release=True)
 
-    def _execute_query(self, query, response=False, n=0, fmt='auto'):
+    def _execute_query(self, query, response=False, n=0, fmt='auto', **kwargs):
         # log the query
         SciDBInterface._execute_query(self, query, response, n, fmt)
+
+        # parse compression
+        comp = kwargs.pop('compression', 'auto')
+        if comp == 'auto':
+            comp = self.default_compression
+        if comp is not None:
+            kwargs['compression'] = comp
+        compressed = comp is not None
 
         session_id = self._shim_new_session()
         if response:
             self._shim_execute_query(session_id, query, save=fmt,
-                                     release=False)
+                                     release=False, **kwargs)
 
             if fmt.startswith('(') and fmt.endswith(')'):
                 # binary format
-                result = self._shim_read_bytes(session_id, n)
+                result = self._shim_read_bytes(session_id, n, compressed)
             else:
                 # text format
-                result = self._shim_read_lines(session_id, n)
-            self._shim_release_session(session_id)
+                result = self._shim_read_lines(session_id, n, compressed)
+            self._shim_release_session(session_id, ignore_invalid=True)
         else:
             self._shim_execute_query(session_id, query, release=True)
             result = None
@@ -1664,6 +1697,10 @@ class SciDBShimInterface(SciDBInterface):
 
     def _shim_url(self, keyword, **kwargs):
 
+        if 'compression' in kwargs:
+            # compression implies streaming=2
+            kwargs['stream'] = 2
+
         # add authentication token if needed
         if self._pam_auth is not None:
             kwargs['auth'] = self._pam_auth
@@ -1675,8 +1712,11 @@ class SciDBShimInterface(SciDBInterface):
         return url
 
     def _shim_urlopen(self, url):
+        logging.getLogger(__name__).debug("REQUEST: %s", url)
         try:
-            r = self._session.get(url, verify=False)
+            r = requests.get(url, verify=False, auth=self._auth)
+            # XXX having trouble with hanging streamed requests here
+            #r = self._session.get(url, verify=False)
             r.raise_for_status()
         except requests.HTTPError as e:
             Error = SHIM_ERROR_DICT[r.status_code]
@@ -1705,11 +1745,12 @@ class SciDBShimInterface(SciDBInterface):
         else:
             self._shim_urlopen(url)
 
-    def _shim_execute_query(self, session_id, query, save=None, release=False):
+    def _shim_execute_query(self, session_id, query, save=None, release=False, **kwargs):
         url = self._shim_url('execute_query',
                              id=session_id,
                              query=quote(query.encode('utf-8')),
-                             release=int(bool(release)))
+                             release=int(bool(release)),
+                             **kwargs)
         if save is not None:
             url += "&save={0}".format(quote(save))
 
@@ -1727,7 +1768,7 @@ class SciDBShimInterface(SciDBInterface):
         url = self._shim_url('cancel', id=session_id)
         self._shim_urlopen(url)
 
-    def _shim_read_lines(self, session_id, n):
+    def _shim_read_lines(self, session_id, n, compressed=False):
         url = self._shim_url('read_lines', id=session_id, n=n)
         t0 = time()
         result = self._shim_urlopen(url)
@@ -1737,20 +1778,27 @@ class SciDBShimInterface(SciDBInterface):
         logging.getLogger(__name__).debug("Transfer time: %0.1f sec", dt)
         logging.getLogger(__name__).debug("Payload:       %0.2f MB", pl)
 
+        if compressed:
+            text_result = unzip(text_result)
+
         # the following check is for Py3K compatibility
         if not isinstance(text_result, string_type):
             text_result = text_result.decode('UTF-8')
+
         return text_result
 
-    def _shim_read_bytes(self, session_id, n):
+    def _shim_read_bytes(self, session_id, n, compressed=False):
         url = self._shim_url('read_bytes', id=session_id, n=n)
         t0 = time()
-        result = self._shim_urlopen(url)
-        bytes_result = result.read()
+        bytes_result = self._shim_urlopen(url).read()
+
         dt = time() - t0
         pl = len(bytes_result) / 1048576
         logging.getLogger(__name__).debug("Transfer time: %0.1f sec", dt)
         logging.getLogger(__name__).debug("Payload:       %0.2f MB", pl)
+
+        if compressed:
+            bytes_result = unzip(bytes_result)
 
         return bytes_result
 

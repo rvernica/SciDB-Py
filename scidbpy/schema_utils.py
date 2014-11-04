@@ -320,6 +320,34 @@ def boundify(array, trim=False):
     return array
 
 
+def coerced_shape(array):
+    """
+    Return an array shape, even if the array is unbound.
+
+    If the array is unbound, the shape is the smallest set of chunks
+    that contain all the data
+
+    Parameters
+    ----------
+    array : SciDBArray
+        The array to lookup the shape for
+
+    returns
+    -------
+    shape : tuple of ints
+        The shape
+    """
+    if array.shape is not None:
+        return array.shape
+
+    # use special scan syntax to get current bounds. eval() required
+    r = array.afl.show("'%s'" % array.eval().scan().query, "'afl'")
+    r = r.eval(store=False, response=True)
+    schema = r[r.index('<'):r.index(']') + 1]
+    schema = "'a%s'" % schema
+    return array.datashape.from_schema(schema).shape
+
+
 def _boundify_trim(array):
     # actually scan the array to find boundaries
     ds = array.datashape.copy()

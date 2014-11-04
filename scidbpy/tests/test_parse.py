@@ -164,3 +164,31 @@ def test_sparse():
     x = sdb.afl.build('<a:int8>[i=0:1,10,0]', 10)
     x = x.redimension('<a:int8>[i=0:2,10,0]')
     assert_array_equal(toarray(x), [10, 10, 0])
+
+
+def test_compression():
+
+    x = sdb.zeros(5, dtype=int)
+    y = toarray(x, compression=9)
+    assert_array_equal(y, [0, 0, 0, 0, 0])
+
+
+def test_auto_compression_options():
+    sdb.default_compression = None
+
+    x = sdb.zeros(5, dtype=int)
+
+    exp = [0, 0, 0, 0, 0]
+    assert_array_equal(toarray(x, compression=None), exp)
+    assert_array_equal(toarray(x, compression='auto'), exp)
+    sdb.default_compression = 1
+    assert_array_equal(toarray(x, compression='auto'), exp)
+    assert_array_equal(toarray(x), exp)
+    assert_array_equal(toarray(x, compression=9), exp)
+    sdb.default_compression = None
+
+
+def test_dense():
+    x = sdb.afl.build('<a:int8>[i=0:100,7,3, j=0:100,10,2]', 'i+j')
+
+    assert_array_equal(x.toarray(method='sparse'), x.toarray(method='dense'))

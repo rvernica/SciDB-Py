@@ -949,11 +949,28 @@ class SciDBArray(object):
 
         return arr
 
-    def toarray(self, transfer_bytes=False):
+    def toarray(self, **kwargs):
         """Transfer data from database and store in a numpy array.
 
         Parameters
         ----------
+        compression : None, 'auto' or 1-9
+           Whether to use compression. None disables compression.
+           'auto' uses the `default_compression` attribute on
+           the SciDB interface object. 1-9 uses gzip compression
+           at the specified level (1=fast, 9=best)
+
+        method : 'sparse' or 'dense' (optional, default sparse)
+            Whether the array to download is sparse or dense.
+
+            'sparse' works with all SciDB arrays, but
+            is slower (it computes and transfers array indices
+            for each cell). It is the default.
+
+            'dense' transfer only works for bound arrays
+            with no empty cells. It is faster, since it
+            doesn't compute or transfer indices.
+
         transfer_bytes : DEPRECATED
            Unused
 
@@ -967,12 +984,13 @@ class SciDBArray(object):
         If the array is backed by a query, the query is evaluated and stored
         in the database
         """
-        if transfer_bytes:
+        if 'transfer_bytes' in kwargs:
             warnings.warn(DeprecationWarning("transfer_bytes is deprecated, "
                                              "and will be removed in a future version"))
+            kwargs.pop('transfer_bytes')
 
         self.eval()  # evaluate if needed, for speed
-        return parse.toarray(self)
+        return parse.toarray(self, **kwargs)
 
     def eval(self, out=None, store=True, **kwargs):
         """
@@ -1008,16 +1026,15 @@ class SciDBArray(object):
         self.name = name
         return result
 
-    def todataframe(self, transfer_bytes=True):
+    def todataframe(self, **kwargs):
         """Transfer array from database and store in a local Pandas dataframe
 
         The array dimensions are assigned to the index of the output.
 
         Parameters
         ----------
-        transfer_bytes : boolean
-            if True (default), then transfer data as bytes rather than as
-            ASCII.
+        compression : 'auto', None, or [1-9]
+           Whether and how to compress the transfer.
 
         Returns
         -------
@@ -1027,19 +1044,15 @@ class SciDBArray(object):
         from pandas import DataFrame
 
         idx = _new_attribute_label('row', self)
-        a = self.afl.unpack(self, idx).toarray()
+        a = self.afl.unpack(self, idx).toarray(**kwargs)
         return DataFrame(a, columns=self.dim_names + self.att_names).set_index(self.dim_names)
 
-    def tosparse(self, sparse_fmt='recarray', transfer_bytes=True):
+    def tosparse(self, sparse_fmt='recarray', **kwargs):
         """Transfer array from database and store in a local sparse array.
 
         Parameters
         ----------
-        transfer_bytes : boolean
-            if True (default), then transfer data as bytes rather than as
-            ASCII.  This is more accurate, but requires two passes over
-            the data (one for indices, one for values).
-        sparse_format : string or None
+        sparse_fmt : string or None
             Specify the sparse format to use.  Available formats are:
             - 'recarray' : a record array containing the indices and
               values for each data point.  This is valid for arrays of
@@ -1048,47 +1061,30 @@ class SciDBArray(object):
               These are valid only for 2-dimensional arrays with a single
               attribute.
 
+        compression : 'auto', None, or [1-9]
+            Whether to use compression. None disables compression.
+            'auto' uses the value from the SciDBInterface's default_compression
+            attribute. 1-9 specifies a gzip-compression level (1=fast, 9=best)
+
+        transfer_bytes : deprecated
+            Unused
+
         Returns
         -------
         arr : ndarray or sparse matrix
             The sparse representation of the data
         """
-        if sparse_fmt == 'recarray':
-            spmat = None
-        else:
-            from scipy import sparse
-            try:
-                spmat = getattr(sparse, sparse_fmt + "_matrix")
-            except AttributeError:
-                raise ValueError("Invalid matrix format: "
-                                 "'{0}'".format(sparse_fmt))
+        if 'transfer_bytes' in kwargs:
+            raise DeprecationWarning("transfer_bytes is deprecated")
+            kwargs.pop('transfer_bytes')
 
-        columns = self._download_data(transfer_bytes=transfer_bytes,
-                                      output='sparse')
+        return parse.tosparse(self, sparse_fmt=sparse_fmt, **kwargs)
 
-        if sparse_fmt == 'recarray':
-            return columns
-        else:
-            from scipy import sparse
-            full_dtype = self.datashape.ind_attr_dtype
-            if self.ndim != 2:
-                raise ValueError("Only recarray format is valid for arrays "
-                                 "with ndim != 2.")
-            if len(full_dtype.names) > 3:
-                raise ValueError("Only recarray format is valid for arrays "
-                                 "with multiple attributes.")
-
-            labels = full_dtype.names
-            data = columns[labels[2]]
-            ij = (columns[labels[0]], columns[labels[1]])
-            arr = sparse.coo_matrix((data, ij), shape=self.shape)
-            return spmat(arr)
-
-    def tolist(self):
+    def tolist(self, **kwargs):
         """
         Download the array as a (nested) python list
         """
-        return self.toarray().tolist()
+        return self.toarray(**kwargs).tolist()
 
     def _integer_index(self, idx):
         """
@@ -1229,7 +1225,8 @@ class SciDBArray(object):
             arr1 = self
 
         # pull out the indices from the remaining slices
-        shape = arr1.shape
+        shape = su.coerced_shape(arr1)
+
         indices = [i for i in indices if isinstance(i, slice)]
         indices = [sl.indices(sh) for sl, sh in zip(indices, shape)]
 

@@ -77,6 +77,16 @@ def test_to_sparse():
     assert_allclose(X, Xcsr.toarray())
 
 
+def test_to_sparse_recarray():
+    """Test export to Scipy Sparse matrix"""
+
+    X = np.random.random((10, 6))
+    Xsdb = sdb.from_array(X)
+    Xrec = Xsdb.tosparse('recarray')
+
+    assert_array_equal(Xsdb.unpack().toarray(), Xrec)
+
+
 @needs_pandas
 def test_from_dataframe():
     """Test import from Pandas dataframe"""

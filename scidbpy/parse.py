@@ -17,11 +17,10 @@ the old code will be deleted
 """
 
 from collections import defaultdict
-from itertools import groupby, cycle
+from itertools import groupby, cycle, product
 
 import numpy as np
-
-from .utils import _new_attribute_label
+from .utils import as_list
 
 # byte format for binary scidb data
 typemap = {'bool': np.dtype('<b1'),
@@ -76,6 +75,26 @@ mapping['datetimetz'] = np.dtype('<M8[s]')
 mapping['string'] = object
 
 
+def _scidb_serialize(arr, chunk_size):
+    """
+    Serialize a multidimensional numpy array into a 1D array,
+    with an interleaving scheme that matches SciDB.
+
+    Such a scheme first interleaves chunks in C-contiguous order.
+    Then it interleaves cells in the chunk in C-contiguous order.
+    """
+    chunk_size = as_list(chunk_size)
+    if len(chunk_size) == 1:
+        chunk_size = chunk_size * arr.ndim
+    result = []
+    for start in product(*(range(0, s, c)
+                           for s, c in zip(arr.shape, chunk_size))):
+        slices = tuple(slice(i, i + s)
+                       for i, s in zip(start, chunk_size))
+        result.append(arr[slices].ravel())
+    return np.hstack(result)
+
+
 def _fmt(array):
     return array.sdbtype.bytes_fmt
 
@@ -117,7 +136,7 @@ def _iter_strings(contents, nullable):
         offset += sz  # skip null terminated string
 
 
-def _string_attribute_dict(array):
+def _string_attribute_dict(array, **kwargs):
     """
     Convert an all-string SciDB array into an attribute dict of numpy arrays
 
@@ -130,7 +149,7 @@ def _string_attribute_dict(array):
     -------
     dict : att name -> numpy array
     """
-    contents = array.interface._scan_array(array.name, fmt=_fmt(array))
+    contents = array.interface._scan_array(array.name, fmt=_fmt(array), **kwargs)
     nullable = [nullable for nm, typ, nullable in array.sdbtype.full_rep]
 
     result = np.array(list(_iter_strings(contents, nullable)), dtype=object)
@@ -140,7 +159,7 @@ def _string_attribute_dict(array):
                 for i, att in enumerate(array.att_names))
 
 
-def _to_attribute_dict(array):
+def _nonstring_attribute_dict(array, **kwargs):
     """
     Convert a non-string SciDB array into an attribute dict of numpy arrays
 
@@ -149,12 +168,15 @@ def _to_attribute_dict(array):
     array : SciDBArray
        An array with 1 or more non-string attributes
 
+    compression : None, 1-9, or 'auto'
+       Whether to use compression in the transfer
+
     Returns
     -------
     dict : att name -> numpy array
     """
 
-    contents = array.interface._scan_array(array.name, fmt=_fmt(array))
+    contents = array.interface._scan_array(array.name, fmt=_fmt(array), **kwargs)
     dtype = [(nm, null_typemap[t, nullable])
              for nm, t, nullable in array.sdbtype.full_rep]
     data = np.fromstring(contents, dtype=dtype)
@@ -176,30 +198,87 @@ def _to_attribute_dict(array):
     return result
 
 
-def toarray(array):
+def _attribute_dict(array, compression):
     """
-    Convert a SciDBArray to a numpy array
-
-    Notes:
-    index 0 of output array is aligned with the lower bound
-    of the scidb array.
+    Download+parse an array into a dict of numpy array attributes
     """
-    dtype = [(nm, mapping[d] if not n else NULL_PROMOTION[d])
-             for (nm, d, n) in array.datashape.sdbtype.full_rep]
-
-    ind = _new_attribute_label('ind', array)
-    unpacked = array.unpack(ind).eval()
 
     # partition string and non-string attributes. Download and process
     # separately for speed
+
     atts = {}
-    for isstring, dt in groupby(unpacked.sdbtype.full_rep, lambda r: r[1] == 'string'):
-        subarray = unpacked.project(*[nm for (nm, _, _) in dt])
-        if isstring:
-            a = _string_attribute_dict(subarray)
+    for isstring, dt in groupby(array.sdbtype.full_rep, lambda r: r[1] == 'string'):
+        # project if a subset of attributes
+        subatts = [nm for (nm, _, _) in dt]
+        if len(subatts) < array.natt:
+            subarray = array.project(*subatts)
         else:
-            a = _to_attribute_dict(subarray)
+            subarray = array
+
+        if isstring:
+            a = _string_attribute_dict(subarray, compression=compression)
+        else:
+            a = _nonstring_attribute_dict(subarray, compression=compression)
         atts.update(**a)
+
+    return atts
+
+
+def toarray_dense(array, compression='auto'):
+    """
+    Convert a dense SciDBArray to a numpy array
+
+    Avoids unpacking() the array for speed.
+
+    Warning
+    -------
+    This method will fail if any of the cells in the
+    SciDB array are empty!
+    """
+    from .schema_utils import coerced_shape
+
+    # determine shape and dtype of final result
+    shp = coerced_shape(array)
+    sz = np.product(shp)
+
+    atts = _attribute_dict(array, compression)
+    dtype = [(nm, atts[nm].dtype)
+             for (nm, d, n) in array.datashape.sdbtype.full_rep]
+
+    inds = _scidb_serialize(np.arange(sz).reshape(shp), array.datashape.chunk_size)
+    result = np.empty(sz, dtype)
+
+    for k in atts:
+        if atts[k].size < sz:
+            raise ValueError("Illegal dense download: array has empty cells")
+        result[k][inds] = atts[k]
+
+    result = result.reshape(shp)
+
+    # For convenience:
+    # cast single-attribute record arrays into plain numpy arrays
+    if len(result.dtype) == 1:
+        result = result[result.dtype.names[0]]
+
+    return result
+
+
+def toarray_sparse(array, compression='auto'):
+    """
+    Convert a SciDBArray to a numpy array.
+
+    unpacks the array and explicitly downloads indices. This
+    adds processing and memory overhead, but this is the only way
+    to properly deal with sparsity in SciDB.
+
+    Notes
+    -----
+    index 0 of output array is aligned with the lower bound
+    of the scidb array.
+    """
+
+    unpacked = array.unpack()
+    atts = _attribute_dict(unpacked, compression)
 
     # shift nonzero origins
     inds = tuple(atts[d] - lo for
@@ -224,3 +303,56 @@ def toarray(array):
         result = result[result.dtype.names[0]]
 
     return result
+
+
+def tosparse_scipy(array, sparse_fmt, compression='auto'):
+    from scipy import sparse
+    from .schema_utils import coerced_shape
+
+    try:
+        spmat = getattr(sparse, sparse_fmt + "_matrix")
+    except AttributeError:
+        raise ValueError("Invalid matrix format: "
+                         "'{0}'".format(sparse_fmt))
+    if array.ndim != 2:
+        raise ValueError("only recarray sparse format is valid for arrays with ndim != 2.")
+
+    if array.natt != 1:
+        raise ValueError("only recarray sparse format is valid for arrays with natt != 1.")
+
+    shp = coerced_shape(array)
+    unpacked = array.unpack()
+    atts = _attribute_dict(unpacked, compression)
+
+    # shift nonzero origins
+    inds = tuple(atts[d] - lo for
+                 d, lo in zip(array.dim_names,
+                              array.datashape.dim_low))
+
+    data = atts[array.att_names[0]]
+    arr = sparse.coo_matrix((data, inds), shape=shp)
+
+    return spmat(arr)
+
+
+def tosparse_recarray(array, compression='auto'):
+
+    unpacked = array.unpack()
+    return toarray_dense(unpacked, compression)
+
+
+def toarray(array, compression='auto', method='sparse'):
+    dispatch = dict(sparse=toarray_sparse, dense=toarray_dense)
+    try:
+        func = dispatch[method]
+    except KeyError:
+        valid_keys = ','.join(sorted(dispatch.keys()))
+        raise ValueError("method must be one of %s: %s" %
+                         (valid_keys, method))
+    return func(array, compression=compression)
+
+
+def tosparse(array, sparse_fmt='recarray', compression='auto'):
+    if sparse_fmt == 'recarray':
+        return tosparse_recarray(array, compression)
+    return tosparse_scipy(array, sparse_fmt)
