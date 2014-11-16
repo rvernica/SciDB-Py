@@ -10,6 +10,7 @@ start index. The merge() function performs this preprocessing as needed.
 
 # License: Simplified BSD, 2014
 # See LICENSE.txt for more information
+from __future__ import absolute_import, print_function, division, unicode_literals
 
 __all__ = ['join', 'merge', 'gemm', 'cumulate',
            'reshape', 'gesvd', 'thin', 'cross_join', 'uniq']
@@ -201,7 +202,7 @@ def thin(array, *args):
 
     # ensure step divides chunk_size
     for i, (start, step) in enumerate(zip(args[::2], args[1::2])):
-        ds.chunk_size[i] = ds.chunk_size[i] / step * step
+        ds.chunk_size[i] = ds.chunk_size[i] // step * step
 
     if ds != array.datashape:
         array = array.redimension(ds.schema)

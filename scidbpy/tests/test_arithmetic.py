@@ -2,6 +2,7 @@
 
 # License: Simplified BSD, 2014
 # See LICENSE.txt for more information
+from __future__ import absolute_import, print_function, division, unicode_literals
 from operator import add, sub, mul, truediv, mod, pow
 
 from numpy.testing import assert_allclose
@@ -91,12 +92,10 @@ def test_sparse_scalar():
         A = rand(3, 4, density=0.5)
         B = 1.2
         C = op(sdb.from_sparse(A), B)
-        print C.query
         expected = op(A.toarray(), B)
         assert_allclose(C.toarray(), expected, rtol=RTOL)
 
         C = op(B, sdb.from_sparse(A))
-        print C.query
         expected = op(B, A.toarray())
         assert_allclose(C.toarray(), expected, rtol=RTOL)
 

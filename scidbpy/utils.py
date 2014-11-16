@@ -1,5 +1,7 @@
 # License: Simplified BSD, 2014
 # See LICENSE.txt for more information
+from __future__ import absolute_import, print_function, division, unicode_literals
+
 import re
 
 import numpy as np
@@ -284,7 +286,7 @@ def as_list(x):
         return [x]
     try:
         return list(x)
-    except TypeError: # not iterable
+    except TypeError:  # not iterable
         return [x]
 
 

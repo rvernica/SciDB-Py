@@ -1,5 +1,6 @@
 # License: Simplified BSD, 2014
 # See LICENSE.txt for more information
+from __future__ import absolute_import, print_function, division, unicode_literals
 
 import pytest
 from numpy.testing import assert_allclose, assert_array_equal
@@ -51,14 +52,14 @@ class TestHistogram(TestBase):
 
     def test_multiatribute(self):
         x = np.zeros((3, 4),
-                     dtype=[('x', '<f8'), ('y', '<f8')])
+                     dtype=[(str('x'), '<f8'), (str('y'), '<f8')])
         x['x'] = np.random.random((3, 4))
         x['y'] = np.random.random((3, 4))
         self.check_multi(x, 'x')
 
     def test_nameconflict(self):
         x = np.zeros((3, 4),
-                     dtype=[('bin', '<f8'), ('counts', '<f8')])
+                     dtype=[(str('bin'), '<f8'), (str('counts'), '<f8')])
         x['bin'] = np.random.random((3, 4))
         x['counts'] = np.random.random((3, 4))
         self.check_multi(x, 'bin')
@@ -70,7 +71,7 @@ class TestHistogram(TestBase):
 
     def test_integer_multiarray(self):
         x = np.zeros((3, 4),
-                     dtype=[('a', np.int), ('b', np.float)])
+                     dtype=[(str('a'), np.int), (str('b'), np.float)])
         x['a'] = np.random.randint(0, 5, (3, 4))
         x['b'] = np.random.random((3, 4))
         self.check_multi(x, 'a')

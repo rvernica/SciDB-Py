@@ -1,5 +1,6 @@
 # License: Simplified BSD, 2014
 # See LICENSE.txt for more information
+from __future__ import absolute_import, print_function, division, unicode_literals
 
 from . import sdb, TestBase, teardown_function
 from .. import schema_utils as su

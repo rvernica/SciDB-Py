@@ -1,5 +1,7 @@
 # License: Simplified BSD, 2014
 # See LICENSE.txt for more information
+from __future__ import absolute_import, print_function, division, unicode_literals
+
 import pytest
 from numpy.random import randint
 import numpy as np
@@ -51,6 +53,7 @@ This tests that SciDBPy functions are robust to details about chunks
 
 unfuzzed = {}
 
+
 def chunk_fuzz(func):
 
     def wrapper(*args, **kwargs):
@@ -75,7 +78,7 @@ for fac in ('zeros ones random from_array from_sparse from_dataframe '
 def randarray(shape, dtypes, names=None):
     recsize = sum([np.dtype(d).itemsize for d in dtypes])
     if names is None:
-        names = ['f%i' % i for i in range(len(dtypes))]
+        names = [str('f%i') % i for i in range(len(dtypes))]
 
     dtype = list(zip(names, dtypes))
     s = [s * recsize for s in shape]

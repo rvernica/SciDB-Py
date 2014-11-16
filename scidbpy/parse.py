@@ -1,4 +1,4 @@
-from __future__ import print_function
+from __future__ import absolute_import, print_function, division, unicode_literals
 
 """
 Code to serialize SciDB binary data streams into numpy arrays.
@@ -36,12 +36,12 @@ typemap = {'bool': np.dtype('<b1'),
            'double': np.dtype('<d'),
            'char': np.dtype('c'),
            'datetime': np.dtype('<M8[s]'),
-           'datetimetz': np.dtype([('time', '<M8[s]'), ('tz', '<m8[s]')]),
+           'datetimetz': np.dtype([(str('time'), '<M8[s]'), (str('tz'), '<m8[s]')]),
            'string': np.dtype('object')
            }
 
 null_typemap = dict(((k, False), v) for k, v in typemap.items())
-null_typemap.update(((k, True), [('mask', '<B'), ('data', v)])
+null_typemap.update(((k, True), [(str('mask'), np.dtype('<B')), (str('data'), v)])
                     for k, v in typemap.items())
 
 # NULL value for each datatype
@@ -177,7 +177,7 @@ def _nonstring_attribute_dict(array, **kwargs):
     """
 
     contents = array.interface._scan_array(array.name, fmt=_fmt(array), **kwargs)
-    dtype = [(nm, null_typemap[t, nullable])
+    dtype = [(str(nm), null_typemap[t, nullable])
              for nm, t, nullable in array.sdbtype.full_rep]
     data = np.fromstring(contents, dtype=dtype)
 

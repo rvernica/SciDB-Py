@@ -1,3 +1,5 @@
+from __future__ import absolute_import, print_function, division, unicode_literals
+
 """Functions to perform arithmetic on arrays"""
 
 # License: Simplified BSD, 2014

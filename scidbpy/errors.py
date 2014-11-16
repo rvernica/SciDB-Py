@@ -5,6 +5,7 @@ These are custom errors and exceptions for SciDB queries.
 """
 # License: Simplified BSD, 2013
 # See LICENSE.txt for more information
+from __future__ import absolute_import, print_function, division, unicode_literals
 
 from collections import defaultdict
 

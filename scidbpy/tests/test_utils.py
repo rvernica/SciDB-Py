@@ -1,5 +1,6 @@
 # License: Simplified BSD, 2014
 # See LICENSE.txt for more information
+from __future__ import absolute_import, print_function, division, unicode_literals
 
 import numpy as np
 from numpy.testing import assert_allclose

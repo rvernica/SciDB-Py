@@ -5,19 +5,24 @@ except ImportError:
 
 
 class PyTest(Command):
-    user_options = []
+    user_options = [('pytest-args=', 'a', "Arguments to pass to py.test")]
 
     def initialize_options(self):
-        pass
+        # Command.initialize_options(self)
+        self.pytest_args = []
 
     def finalize_options(self):
-        pass
+        # Command.finalize_options(self)
+        self.test_args = []
+        self.test_suite = True
 
     def run(self):
+        # import here, cause outside the eggs aren't loaded
+        import pytest
         import sys
-        import subprocess
-        errno = subprocess.call([sys.executable, 'runtests.py'])
-        raise SystemExit(errno)
+        errno = pytest.main(self.pytest_args + ['scidbpy'])
+        sys.exit(errno)
+
 
 DESCRIPTION = "Python wrappers for SciDB"
 LONG_DESCRIPTION = open('README.rst').read()
@@ -44,15 +49,15 @@ setup(name=NAME,
       license=LICENSE,
       packages=['scidbpy', 'scidbpy.tests'],
       classifiers=[
-      'Development Status :: 4 - Beta',
-      'Environment :: Console',
-      'Intended Audience :: Science/Research',
-      'License :: OSI Approved :: BSD License',
-      'Natural Language :: English',
-      'Programming Language :: Python :: 2.6',
-      'Programming Language :: Python :: 2.7',
-      'Programming Language :: Python :: 3.3',
-      'Topic :: Database :: Front-Ends',
-      'Topic :: Scientific/Engineering'],
+          'Development Status :: 4 - Beta',
+          'Environment :: Console',
+          'Intended Audience :: Science/Research',
+          'License :: OSI Approved :: BSD License',
+          'Natural Language :: English',
+          'Programming Language :: Python :: 2.6',
+          'Programming Language :: Python :: 2.7',
+          'Programming Language :: Python :: 3.3',
+          'Topic :: Database :: Front-Ends',
+          'Topic :: Scientific/Engineering'],
       cmdclass={'test': PyTest}
       )

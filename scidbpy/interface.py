@@ -12,8 +12,8 @@ The following interfaces are currently available:
 """
 # License: Simplified BSD, 2013
 # See LICENSE.txt for more information
+from __future__ import absolute_import, print_function, division, unicode_literals
 
-from __future__ import print_function, unicode_literals
 import warnings
 import abc
 import os
@@ -21,7 +21,6 @@ import atexit
 import logging
 import csv
 from time import time
-from itertools import product
 from fnmatch import fnmatch
 from zlib import decompress
 
