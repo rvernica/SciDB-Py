@@ -2,6 +2,7 @@
 
 # License: Simplified BSD, 2014
 # See LICENSE.txt for more information
+from __future__ import absolute_import, print_function, division
 from operator import lt, le, eq, gt, ge, ne
 
 import pytest
@@ -91,7 +92,7 @@ def test_to_sparse_recarray():
 def test_from_dataframe():
     """Test import from Pandas dataframe"""
 
-    X = np.zeros(10, dtype=[('i', int), ('f', float)])
+    X = np.zeros(10, dtype=[(str('i'), int), (str('f'), float)])
     X['i'] = np.arange(10)
     X['f'] = 0.1 * np.arange(10, 20)
     Xdf = pd.DataFrame(X)

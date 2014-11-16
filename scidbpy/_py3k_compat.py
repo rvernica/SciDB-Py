@@ -6,6 +6,8 @@ This is a lightweight utility module which streamlines Python 2/Python 3
 compatibility.  It uses a few routines from the six.py package, as well
 as some other custom routines.
 """
+from __future__ import absolute_import, print_function, division, unicode_literals
+
 import sys
 import csv
 
@@ -13,7 +15,7 @@ import numpy as np
 PYTHON3 = sys.version_info[0] == 3
 
 __all__ = ["PYTHON3", "string_type", "iteritems", "genfromstr",
-           "csv_reader", "stringio"]
+           "csv_reader", "stringio", "dtype"]
 
 if PYTHON3:
     string_type = str
@@ -22,11 +24,18 @@ if PYTHON3:
     from urllib.error import HTTPError
     from urllib.parse import quote
     from functools import reduce
+    dtype = np.dtype
 else:
     string_type = basestring
     _iteritems = "iteritems"
     from urllib2 import urlopen, quote, HTTPError
     reduce = reduce
+
+    def dtype(desc):
+        if not isinstance(desc, list):
+            return np.dtype(desc)
+        desc = [(str(n), t) for n, t in desc]
+        return np.dtype(desc)
 
 
 def iteritems(D, **kwargs):

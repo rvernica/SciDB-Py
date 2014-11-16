@@ -1,5 +1,6 @@
 # License: Simplified BSD, 2014
 # See LICENSE.txt for more information
+from __future__ import absolute_import, print_function, division, unicode_literals
 
 import numpy as np
 
@@ -448,6 +449,9 @@ def _rename_att(datashape, index, name):
     rep = [list(x) for x in datashape.sdbtype.full_rep]
     rep[index][0] = name
     rep = [tuple(x) for x in rep]
+
+    # py2 numpy doesn't like unicode here
+    rep = [(str(r[0]), r[1]) for r in rep]
 
     schema = "tmp%s%s" % (sdbtype(np.dtype(rep)).schema, datashape.dim_schema)
     return SciDBDataShape.from_schema(schema)

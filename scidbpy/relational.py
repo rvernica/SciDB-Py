@@ -4,7 +4,7 @@
 """
 Database-style joins
 """
-from __future__ import print_function, absolute_import, unicode_literals
+from __future__ import absolute_import, print_function, division, unicode_literals
 import logging
 
 from .robust import cross_join, join

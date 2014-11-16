@@ -3,7 +3,8 @@
 # License: Simplified BSD, 2014
 # See LICENSE.txt for more information
 
-from __future__ import print_function, division, unicode_literals
+from __future__ import absolute_import, print_function, division, unicode_literals
+
 import warnings
 import re
 from itertools import chain
@@ -18,7 +19,7 @@ from .errors import SciDBError, SciDBForbidden, SciDBQueryError
 from . import parse
 from .utils import (meshgrid, slice_syntax, _is_query,
                     _new_attribute_label, as_list)
-from ._py3k_compat import genfromstr, iteritems, csv_reader, string_type
+from ._py3k_compat import genfromstr, iteritems, csv_reader, string_type, dtype as _dtype
 from .schema_utils import change_axis_schema, dimension_rename, new_alias_label
 from . import schema_utils as su
 from .robust import (join, cumulate, reshape, thin, cross_join)
@@ -29,7 +30,7 @@ __all__ = ["sdbtype", "SciDBArray", "SciDBDataShape"]
 # Create mappings between scidb and numpy string representations
 # XXX these are partially deprecated, now that nulls/missing values
 # are handled
-_np_typename = lambda s: np.dtype(s).descr[0][1]
+_np_typename = lambda s: _dtype(s).descr[0][1]
 SDB_NP_TYPE_MAP = {'bool': _np_typename('bool'),
                    'float': _np_typename('float32'),
                    'double': _np_typename('float64'),
@@ -86,7 +87,7 @@ def _parse_csv_builtin(txt, dtype):
                  for i, f in enumerate(dtype.descr)]
     if len(new_dtype) == 1:
         new_dtype = new_dtype[0][1]
-    dtype = np.dtype(new_dtype)
+    dtype = _dtype(new_dtype)
 
     return np.array(r, dtype=dtype)
 
@@ -114,7 +115,7 @@ class sdbtype(object):
 
         else:
             try:
-                self.dtype = np.dtype(typecode)
+                self.dtype = _dtype(typecode)
                 self.schema = None
             except:
                 self.schema = self._regularize(typecode)
@@ -215,9 +216,9 @@ class sdbtype(object):
         """
         sdbL = cls._schema_to_list(schema)
         if len(sdbL) == 1:
-            return np.dtype(SDB_NP_TYPE_MAP[sdbL[0][1]])
+            return _dtype(SDB_NP_TYPE_MAP[sdbL[0][1]])
         else:
-            return np.dtype([(s[0], SDB_NP_TYPE_MAP[s[1]]) for s in sdbL])
+            return _dtype([(s[0], SDB_NP_TYPE_MAP[s[1]]) for s in sdbL])
 
     @classmethod
     def _dtype_to_schema(cls, dtype):
@@ -233,11 +234,11 @@ class sdbtype(object):
         schema : string
             a SciDB type schema, for example "<val:double,rank:int32>"
         """
-        dtype = np.dtype(dtype).descr
+        dtype = _dtype(dtype).descr
 
         # Hack: if we re-encode this as a dtype, then de-encode again, numpy
         #       will add default names where they are missing
-        dtype = np.dtype(dtype).descr
+        dtype = _dtype(dtype).descr
         pairs = ["{0}:{1}".format(d[0], _sdb_type(d[1])) for d in dtype]
         return '<{0}>'.format(','.join(pairs))
 
@@ -447,7 +448,7 @@ class SciDBDataShape(object):
         dct = dict(f[:2] for f in self.sdbtype.full_rep)
         types = [SDB_NP_TYPE_MAP[dct.get(key, SDB_IND_TYPE)]
                  for key in keys]
-        return np.dtype(list(zip(map(str, keys), types)))
+        return _dtype(list(zip(keys, types)))
 
 
 class ArrayAlias(object):
@@ -476,8 +477,12 @@ class ArrayAlias(object):
             # exception text copied from Python2.6
             raise AttributeError("%r object has no attribute %r" %
                                  (type(self).__name__, attr))
-
         groups = match.groups()
+
+        if groups[1] == '':
+            raise AttributeError("%r object has no attribute %r" %
+                                 (type(self).__name__, attr))
+
         i = int(groups[1])
 
         if groups[2]:
