@@ -3,7 +3,7 @@ Releasing a new version
 
 1. Make sure the test suite passes
 2. Update ``CHANGES.md`` and ``doc/whats_new.rst`` to document
-   changes
+   changes. Update version references in ``README.md``
 3. Update ``__version__`` in ``__init__.py``
 4. Update the version number in ``doc/conf.py``
 5. Run ``git clean -fxd`` to remove any non-committed files

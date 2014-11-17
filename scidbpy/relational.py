@@ -167,7 +167,7 @@ def merge(left, right, on=None, left_on=None, right_on=None,
     # a join instead of a cross join. SciDB is much faster with this operation
     lidx = [left.dim_names.index(l) for l in left_on]
     ridx = [right.dim_names.index(r) for r in right_on]
-    if lidx == ridx and len(lidx) == left.ndim:
+    if lidx == ridx and len(lidx) == left.ndim and len(ridx) == right.ndim:
         return join(left, right)
 
     if (list(left_on) == list(left.dim_names)) and (list(right_on) == list(right.dim_names)):
