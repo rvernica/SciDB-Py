@@ -51,8 +51,8 @@ To install the latest stable release via the Python Package Index, use
 pip install --upgrade scidb-py
 ```
 
-To download the source code for the 14.8 release, change 'branch:master' to 'tag:v14.8.1' and then click 'download', or
-directly download from https://github.com/Paradigm4/SciDB-py/archive/v14.8.1.zip
+To download the source code for the 14.10 release, change 'branch:master' to 'tag:v14.10.0' and then click 'download', or
+directly download from https://github.com/Paradigm4/SciDB-py/archive/v14.10.0.zip
 
 To install from source after downloading, type
 ```
