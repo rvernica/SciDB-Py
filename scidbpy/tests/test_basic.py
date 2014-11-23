@@ -885,6 +885,23 @@ def test_rename_on_unevaluated():
     x.reap()
 
 
+def test_as_temp():
+    x = sdb.arange(5)
+
+    y = x.as_temp()
+    assert_array_equal(y.toarray(), [0, 1, 2, 3, 4])
+    arrays = sdb.list_arrays()
+
+    # check temporary status
+    assert arrays[x.name][-1] == 'false'
+    assert arrays[y.name][-1] == 'true'
+
+    # y reaped properly
+    assert not y.persistent
+    sdb.reap()
+    assert y.name not in sdb.list_arrays()
+
+
 class TestHead(TestBase):
 
     @needs_pandas

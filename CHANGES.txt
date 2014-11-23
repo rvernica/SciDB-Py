@@ -1,3 +1,8 @@
+Version 14.12.0
+---------------
+- 2014-11-23 rename() operatore evaluates arrays if needed automatically (#71)
+- 2014-11-23 added as_temp() method (#72)
+
 Version 14.10.0
 ---------------
 - 2014-09-06 Integer indexing on multiattribute arrays

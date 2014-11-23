@@ -1093,6 +1093,28 @@ class SciDBArray(object):
         """
         return self.toarray(**kwargs).tolist()
 
+    def as_temp(self, name=None):
+        """
+        Create a SciDB TEMP array, stored in RAM
+
+        Returns
+        -------
+        temp : SciDBArray
+            A new array, stored in-memory in the database
+        """
+        self.eval()
+
+        if not name:
+            name = self.interface._db_array_name()
+
+        schema = self.schema
+
+        self.afl.create_array(name, schema, "'TEMP'").eval(store=False)
+        result = self.interface.wrap_array(name, persistent=False)
+        self.store(result).eval(store=False)
+
+        return result
+
     def _integer_index(self, idx):
         """
         Index using an integer array
