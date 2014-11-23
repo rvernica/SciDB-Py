@@ -874,6 +874,17 @@ def test_index_lookup():
     assert_array_equal(x['tmp'].toarray(), [2, 2, 2, 1, 2, 1, 0])
 
 
+def test_rename_on_unevaluated():
+    # regression test for #71
+
+    x = sdb.zeros(5).apply('a', 1)
+    assert x.query is not None
+
+    x.rename('junk')
+    assert x.name == 'junk'
+    x.reap()
+
+
 class TestHead(TestBase):
 
     @needs_pandas

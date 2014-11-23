@@ -613,6 +613,8 @@ class SciDBArray(object):
         self : SciDBArray
             return a pointer to self
         """
+        self.eval()  # SciDB rename doesn't work on queries, only arrays
+
         new_name = str(new_name)
 
         if new_name in self.interface.list_arrays():
