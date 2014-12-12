@@ -11,6 +11,7 @@ from .interface import _new_attribute_label
 from .scidbarray import NP_SDB_TYPE_MAP, INTEGER_TYPES
 from ._py3k_compat import string_type
 from . import schema_utils as su
+from .robust import join
 from .utils import as_list
 
 __all__ = ['histogram', 'GroupBy']
@@ -109,7 +110,7 @@ def _plot_hist(result, **kwargs):
         y = result['counts'][:-1]
         return plt.bar(x, y, width, **kwargs)
 
-    #histtype = step, stepfilled
+    # histtype = step, stepfilled
     x = result['bins']
     x = np.hstack([[x[0]], x, [x[-1]]])
     y = np.hstack([0, result['counts'], 0])
@@ -144,7 +145,8 @@ class GroupBy(object):
     Notes
     -----
 
-    GroupBy items must be the names of attributes or dimensions
+    GroupBy items can be names of attributes or dimensions,
+    or a single-attribute array whose shape matches the input.
 
     For each non-unsigned integer attribute used in a groupby,
     a new categorical index dimension is created.
@@ -176,10 +178,20 @@ class GroupBy(object):
         array : SciDBArray
            The array to group over
 
-        by : List of strings
-            The names of attributes and dimensions to group by
+        by : List of strings or SciDBArray
+            The names of attributes and dimensions to group by,
+            or a single-attribute grouper array whose values
+            are the Group IDs for each element in array.
 
         """
+        if isinstance(by, SciDBArray):
+            if by.natt != 1:
+                raise ValueError("GroupBy grouper array must have a single attribute")
+            if by.shape is not None and array.shape != None and by.shape != array.shape:
+                raise ValueError("GroupBy grouper array shape must match the input")
+            array = join(array, by)
+            by = array.att_names[-1]
+
         self.by = as_list(by)
         self.columns = columns or (array.att_names + array.dim_names)
 
@@ -211,7 +223,6 @@ class GroupBy(object):
             A new SciDBArray, obtained by applying the aggregations to the
             groups of the input array.
         """
-        dims = list(self.by)
 
         array, mappings = self._validate_mappings(mappings)
 
@@ -279,6 +290,60 @@ class GroupBy(object):
             mappings[i] = re.sub('\((.*?)\)', '(%s)' % new_att, m)
 
         return array, mappings
+
+    def _aggregate_shortcut(self, method):
+        # aggregate method(a) for all attributes
+        return self.aggregate(','.join('%s(%s)' % (method, col)
+                                       for col in self.array.att_names
+                                       if col not in self.by))
+
+    def sum(self):
+        """
+        Compute the sum of all attributes in each group
+        """
+        return self._aggregate_shortcut('sum')
+
+    def approxdc(self):
+        """
+        Compute the approxdc of all attributes in each group
+        """
+        return self._aggregate_shortcut('approxdc')
+
+    def avg(self):
+        """
+        Compute the avg of all attributes in each group
+        """
+        return self._aggregate_shortcut('avg')
+
+    def count(self):
+        """
+        Compute the count of all attributes in each group
+        """
+        return self._aggregate_shortcut('count')
+
+    def max(self):
+        """
+        Compute the max of all attributes in each group
+        """
+        return self._aggregate_shortcut('max')
+
+    def min(self):
+        """
+        Compute the min of all attributes in each group
+        """
+        return self._aggregate_shortcut('min')
+
+    def stdev(self):
+        """
+        Compute the stdev of all attributes in each group
+        """
+        return self._aggregate_shortcut('stdev')
+
+    def var(self):
+        """
+        Compute the var of all attributes in each group
+        """
+        return self._aggregate_shortcut('var')
 
     def __getitem__(self, *key):
         for k in key:

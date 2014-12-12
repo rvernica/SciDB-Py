@@ -129,3 +129,15 @@ class TestGroupBy(TestBase):
     def test_aggregate_on_dimension(self):
         x = self.a.groupby('val').aggregate('max(i) as mi').toarray()
         assert_allclose(x['mi'], [5])
+
+    def test_aggregate_on_other_array(self):
+
+        x = sdb.arange(5)
+        y = x > 2
+        result = x.groupby(y).aggregate('sum(f0)').toarray()
+        assert_allclose(result['f0_sum'], [3, 7])
+
+    @pytest.mark.parametrize('method', ('approxdc', 'avg', 'count', 'max',
+                                        'min', 'sum', 'stdev', 'var'))
+    def test_aggregation_method_calls(self, method):
+        getattr(self.c.groupby('val'), method)().toarray()
