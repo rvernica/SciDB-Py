@@ -996,7 +996,6 @@ class SciDBArray(object):
                                              "and will be removed in a future version"))
             kwargs.pop('transfer_bytes')
 
-        self.eval()  # evaluate if needed, for speed
         return parse.toarray(self, **kwargs)
 
     def eval(self, out=None, store=True, **kwargs):

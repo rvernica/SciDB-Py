@@ -203,6 +203,11 @@ def _attribute_dict(array, compression):
     Download+parse an array into a dict of numpy array attributes
     """
 
+    # for speed, evaluate a query if it contains strings and nonstrings
+    s = [r[1] == 'string' for r in array.sdbtype.full_rep]
+    if any(s) and (not all(s)):
+        array.eval()
+
     # partition string and non-string attributes. Download and process
     # separately for speed
 
