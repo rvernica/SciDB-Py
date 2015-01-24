@@ -430,41 +430,15 @@ class SciDBInterface(object):
         qstring = self._format_query_string(query, *args, **kwargs)
         return self._execute_query(qstring)
 
-    def list_arrays(self, parsed=True, n=0):
+    def list_arrays(self):
         """List the arrays currently in the database
-
-        Parameters
-        ----------
-        parsed : boolean
-            If True (default), then parse the results into a dictionary of
-            array names as keys, schema as values
-        n : integer
-            the maximum number of arrays to list.  If n=0, then list all
-
         Returns
         -------
-        array_list : string or dictionary
-            The list of arrays.  If parsed=True, then the result is returned
-            as a dictionary.
+        array_list : dictionary
+            A mapping of array name -> schema
         """
-        # TODO: more stable way to do this than string parsing?
-        arr_list = self._execute_query("list('arrays')", n=n, response=True)
-        if parsed:
-            if arr_list.strip() == '[]':
-                arr_list = {}
-            else:
-                # find the correct quote char for the output.
-                # Depending on the SciDB version, it could be " or '
-                quotechar = arr_list[2]
-                if quotechar not in ["'", '"']:
-                    raise ValueError("output of list('arrays') "
-                                     "is not in the expected format")
-                R = re.compile(r'\(([^\(\)]*)\)')
-                splits = R.findall(arr_list)
-                arr_list = dict((a[0], a[1:])
-                                for a in csv.reader(splits,
-                                                    quotechar=quotechar))
-        return arr_list
+        result = self.afl.list("'arrays'").toarray()
+        return dict(zip(result['name'], result['schema']))
 
     def ls(self, pattern='*'):
         """

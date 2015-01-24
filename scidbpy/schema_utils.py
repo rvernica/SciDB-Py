@@ -312,12 +312,12 @@ def boundify(array, trim=False):
         return _boundify_trim(array)
 
     # use special scan syntax to get current bounds. eval() required
-    r = array.afl.show("'%s'" % array.eval().scan().query, "'afl'")
-    r = r.eval(store=False, response=True)
-    schema = r[r.index('<'):r.index(']') + 1]
+    dims = array.eval().dimensions().project('low', 'high').toarray()
+    ds = array.datashape.copy()
+    ds.dim_low = tuple(dims['low'])
+    ds.dim_high = tuple(dims['high'])
 
-    if schema != array.schema:
-        array = array.redimension(schema)
+    array = array.redimension(ds.schema)
 
     return array
 
@@ -326,8 +326,7 @@ def coerced_shape(array):
     """
     Return an array shape, even if the array is unbound.
 
-    If the array is unbound, the shape is the smallest set of chunks
-    that contain all the data
+    If the array is unbound, the shape is guaranteed to contain the data
 
     Parameters
     ----------
@@ -342,16 +341,14 @@ def coerced_shape(array):
     if array.shape is not None:
         return array.shape
 
-    # use special scan syntax to get current bounds. eval() required
-    r = array.afl.show("'%s'" % array.eval().scan().query, "'afl'")
-    r = r.eval(store=False, response=True)
-    schema = r[r.index('<'):r.index(']') + 1]
-    schema = "'a%s'" % schema
-    return array.datashape.from_schema(schema).shape
+    r = array.eval().dimensions().project('low', 'high').toarray()
+    shp = tuple(np.maximum(r['high'] - r['low'] + 1, 0))
+    return shp
 
 
 def _boundify_trim(array):
     # actually scan the array to find boundaries
+
     ds = array.datashape.copy()
     idx = _new_attribute_label('_', array)
     bounds = array.unpack(idx).max().toarray()

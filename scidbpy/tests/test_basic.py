@@ -820,10 +820,9 @@ def test_dstack():
 
 def test_ls():
     x = sdb.zeros(5)
-    sdb.ls(x.name) == [x.name]
-    sdb.ls(x.name + '*') == [x.name]
-    sdb.ls('DOES NOT EXIST') == []
-    assert sorted(sdb.ls('*')) == sorted(sdb.list_arrays().keys())
+    assert sdb.ls(x.name) == [x.name]
+    assert sdb.ls(x.name + '*') == [x.name]
+    assert sdb.ls('DOES NOT EXIST') == []
 
 
 def test_remove_array():
@@ -890,11 +889,12 @@ def test_as_temp():
 
     y = x.as_temp()
     assert_array_equal(y.toarray(), [0, 1, 2, 3, 4])
-    arrays = sdb.list_arrays()
 
     # check temporary status
-    assert arrays[x.name][-1] == 'false'
-    assert arrays[y.name][-1] == 'true'
+    a = x.afl.list("'arrays'").toarray()
+    names = a['name'].tolist()
+    assert not a['temporary'][names.index(x.name)]
+    assert a['temporary'][names.index(y.name)]
 
     # y reaped properly
     assert not y.persistent

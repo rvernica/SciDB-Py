@@ -1108,7 +1108,7 @@ class SciDBArray(object):
 
         schema = self.schema
 
-        self.afl.create_array(name, schema, "'TEMP'").eval(store=False)
+        self.afl.create_array(name, schema, True).eval(store=False)
         result = self.interface.wrap_array(name, persistent=False)
         self.store(result).eval(store=False)
 
