@@ -1,4 +1,4 @@
-Aggregation and Join Operaetions
+Aggregation and Join Operations
 ================================
 .. currentmodule:: scidbpy
 
