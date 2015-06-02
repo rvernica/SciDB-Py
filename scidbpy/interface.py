@@ -269,8 +269,7 @@ class SciDBInterface(object):
         else:
             query = "show({0})".format(name)
             #The replace is added to the end in order to get rid of extra backslash when compression is added. 
-            result =  self._execute_query(query, **kwargs).replace('\\','')
-
+        result =  self._execute_query(query, **kwargs).replace('\\','')
         return result
 
     def _array_dimensions(self, name, **kwargs):
