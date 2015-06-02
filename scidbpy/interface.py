@@ -1655,7 +1655,7 @@ class SciDBShimInterface(SciDBInterface):
                 result = self._shim_read_bytes(session_id, n, compressed)
             else:
                 # text format
-                result = self._shim_read_lines(session_id, n, compressed)
+                result = self._shim_read_lines(session_id, n, compressed).replace('\\','')
             self._shim_release_session(session_id, ignore_invalid=True)
         else:
             self._shim_execute_query(session_id, query, release=True)
