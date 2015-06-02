@@ -268,8 +268,10 @@ class SciDBInterface(object):
             query = "show('store({0}, {1})', 'afl')".format(name, tmp)
         else:
             query = "show({0})".format(name)
+            #The replace is added to the end in order to get rid of extra backslash when compression is added. 
+            result =  self._execute_query(query, **kwargs).replace('\\','')
 
-        return self._execute_query(query, **kwargs)
+        return result
 
     def _array_dimensions(self, name, **kwargs):
         """Show the dimensions of the given array"""
@@ -1655,7 +1657,7 @@ class SciDBShimInterface(SciDBInterface):
                 result = self._shim_read_bytes(session_id, n, compressed)
             else:
                 # text format
-                result = self._shim_read_lines(session_id, n, compressed).replace('\\','')
+                result = self._shim_read_lines(session_id, n, compressed)
             self._shim_release_session(session_id, ignore_invalid=True)
         else:
             self._shim_execute_query(session_id, query, release=True)
