@@ -36,14 +36,14 @@ Some (optional) functionality requires SciPy_ and Pandas_.
 Following are a description of these requirements:
 
 NumPy_
-    tested with version 1.6-1.7.
+    tested with version 1.9.
 
 Requests_
-    tested with version 1.2.
+    tested with version 2.7.
     Required for using the Shim interface to SciDB.
 
 Pandas_ (optional)
-    tested with version 0.10.
+    tested with version 0.15.
     Required only for importing/exporting SciDB arrays
     as Pandas Dataframe objects.
 
