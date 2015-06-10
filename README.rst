@@ -23,8 +23,8 @@ NumPy_
     tested with version 1.7.
 
 Requests_
-    tested with version 1.2.
-    (Note: known failures exist when used with requests version < 1.0)
+    tested with version 2.7.
+    (Note: known failures exist when used with requests version < 2)
     Required for using the Shim interface to SciDB.
 
 Pandas_ (optional)
