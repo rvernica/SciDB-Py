@@ -140,7 +140,7 @@ def match_attribute_names(*arrays):
             renames.extend((nm, newname))
             reserved.append(newname)
         if renames:
-            a = a.afl.attribute_rename(a, *renames)
+            a = a.attribute_rename(a, *renames)
         result.append(a)
     return tuple(result)
 
@@ -426,6 +426,25 @@ def dimension_rename(array, *args):
 
     return array
 
+def attribute_rename(array, *args):
+        
+    tuplenouni = [arg.encode('ascii') for arg in reversed(args)] 
+    new = tuplenouni[::2]
+    old = tuplenouni[1::2]
+
+    string_list = new + array.att_names
+    #string_list.sort(key = lambda s: len(s))
+    out = []
+    for s in string_list: 
+        if not any([s in old]): 
+            out.append(s)
+            
+    applystr = str(tuplenouni).replace("'", "").strip('[]').rstrip(',')
+    projstr  = str(out).replace("'", "").strip('[]').rstrip(',')
+    array    = array.apply(applystr).project(projstr)
+
+    return array
+    
 
 def _unique(val, taken):
     if val not in taken:

@@ -20,7 +20,7 @@ from . import parse
 from .utils import (meshgrid, slice_syntax, _is_query,
                     _new_attribute_label, as_list)
 from ._py3k_compat import genfromstr, iteritems, csv_reader, string_type, dtype as _dtype
-from .schema_utils import change_axis_schema, dimension_rename, new_alias_label
+from .schema_utils import change_axis_schema, attribute_rename, dimension_rename, new_alias_label
 from . import schema_utils as su
 from .robust import (join, cumulate, reshape, thin, cross_join)
 
@@ -1349,10 +1349,10 @@ class SciDBArray(object):
         renamed : SciDBArray
             The new array
         """
-
+        
         if len(args) == 0:
             return self
-        return self.afl.attribute_rename(self, *args)
+        return attribute_rename(self, *args)
 
     def relabel(self, renames):
         """

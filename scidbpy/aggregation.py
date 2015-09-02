@@ -83,7 +83,9 @@ def histogram(X, bins=10, att=None, range=None, plot=False, **kwargs):
     q = f.cross_join(X, M)  # val, min, max (Ndata)
     q = f.apply(q, binid, val2bin)  # val, min, max, binid
     q = f.substitute(q, fill2, binid)  # nulls to bin 0
-    q = f.redimension(q, s2, 'count(%s) as counts' % binid)  # group bins
+    #TODO: The aggregates of min and max are calculated because of a bug in redimension in SciDB 15.7. 
+    #These shouldn't need to be calculated. 
+    q = f.redimension(q, s2, 'false, count(%s) as counts' % binid)  # group bins
     q = f.merge(q, fill)  # replace nulls with 0
     q = f.apply(q, 'bins', bin2val)    # compute bin edges
     q = f.project(q, 'bins', 'counts')  # drop min, max

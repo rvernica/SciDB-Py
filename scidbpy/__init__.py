@@ -2,7 +2,7 @@
 # See LICENSE.txt for more information
 from __future__ import absolute_import, print_function, division, unicode_literals
 
-__version__ = "14.12.0.dev"
+__version__ = "15.7.0.dev"
 
 from .interface import *
 from .scidbarray import *

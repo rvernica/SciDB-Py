@@ -21,6 +21,8 @@ class SciDBInvalidQuery(SciDBError):
 class SciDBInvalidSession(SciDBError):
     pass
 
+class SciDBClientError(SciDBError):
+    pass
 
 class SciDBEndOfFile(SciDBError):
     pass
@@ -52,6 +54,7 @@ class SciDBForbidden(SciDBError):
 SHIM_ERROR_DICT = defaultdict(lambda: SciDBUnknownError)
 SHIM_ERROR_DICT[400] = SciDBInvalidQuery
 SHIM_ERROR_DICT[404] = SciDBInvalidSession
+SHIM_ERROR_DICT[405] = SciDBClientError
 SHIM_ERROR_DICT[410] = SciDBEndOfFile
 SHIM_ERROR_DICT[414] = SciDBInvalidRequest
 SHIM_ERROR_DICT[500] = SciDBQueryError
