@@ -151,6 +151,38 @@ def gesvd(array, *args):
     array = su.rechunk(array, chunk_size=32, chunk_overlap=0)
     return array.afl.gesvd(array, *args)
 
+def _thin(array, *args):
+        
+    start = args[::2]
+    step  = args[1::2]
+
+    dim_names = [dimname.encode('ascii') for dimname in (array.dim_names)]
+    origatt = array.att_names
+    
+    filterstr = ""
+    for d,st,sp in zip(dim_names, start, step):  
+        tempstr = " ({0} - {1}) % {2}=0 and".format(d,st, sp)
+        filterstr+=tempstr  
+    filterstr+=(" 1") #TODO: This is kind of lazy, just completes the and.Needs cleaner code
+    
+    applystr   = ""
+    newdimlist = []
+    for d,st,sp in zip(dim_names,start,step):  
+        tempstr = "_{0}_copy,({0}/{2})-{1},".format(d,st,sp)
+        newdimlist.append("_{0}_copy".format(d))
+        applystr+=tempstr  
+    applystr = applystr.rstrip(',')
+    
+    array = array.afl.filter(array, filterstr).apply(applystr)
+    #array = array.afl.filter(array, filterstr)
+    array = su.redimension(array, newdimlist, origatt)
+    
+    dimlist = newdimlist + dim_names
+    dimlist[::2] = newdimlist
+    dimlist[1::2] = dim_names
+    array   = su.dimension_rename(array, *dimlist)
+    
+    return array
 
 def cumulate(array, *args):
     """
@@ -207,7 +239,7 @@ def thin(array, *args):
     if ds != array.datashape:
         array = array.redimension(ds.schema)
 
-    return array.afl.thin(array, *args)
+    return _thin(array, *args)
 
 
 def cross_join(a, b, *dims):
