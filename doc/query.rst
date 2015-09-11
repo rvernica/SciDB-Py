@@ -141,7 +141,7 @@ Many SciDB queries involve nesting several AFL calls, with
 the result of an inner call included as the first argument of an outer call.
 For example::
 
-    afl.filter(afl.project(alf.apply(x, 'y', 'f0+1'), 'y'), 'y > 3')
+    afl.filter(afl.project(afl.apply(x, 'y', 'f0+1'), 'y'), 'y > 3')
 
 SciDB-py includes some syntactic sugar for building queries like this: for
 AFL operators whose names don't collide with another :class:`SciDBArray` method,

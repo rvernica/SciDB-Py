@@ -6,7 +6,7 @@ np.random.seed(42)
 from scidbpy import connect
 sdb = connect()
 
-X = np.arndom.random((5, 4))
+X = np.random.random((5, 4))
 Xsdb = sdb.from_array(X)
 
 

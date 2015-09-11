@@ -287,7 +287,7 @@ This equation involves creating 7 intermediate data products:
  * ``t5 = sdb.cos(C)``
  * ``t6 = t4 * t5``
  * ``t7 = t1 + t2``
- * ``c2 = t7 - t3``
+ * ``c2 = t7 - t6``
 
 If ``a``, ``b``, and ``C`` are large SciDBArrays, this involves many
 round-trip communiciations to the databse, several passes over the data,
