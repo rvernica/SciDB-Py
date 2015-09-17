@@ -2,133 +2,41 @@
 # DO NOT EDIT -- changes will be overwritten!
 operators = [
   {
-    "doc": "adddim( srcArray, newDimName )\n\nProduces a result array with one more dimension than the source array.\n\nParameters\n----------\n\n    - srcArray: a source array with srcAttrs and srcDims.\n    - newDimName: the name of a new dimension.\n\nExamples\n--------\n\n    - Given array A <quantity: uint64, sales:double> [year, item] =\n       year, item, quantity, sales\n       2011, 2, 7, 31.64\n       2011, 3, 6, 19.98\n       2012, 1, 5, 41.65\n       2012, 2, 9, 40.68\n       2012, 3, 8, 26.64\n    - adddim(A, loc) <quantity: uint64, sales: double> [loc, year,\n      item] =\n       loc, year, item, quantity, sales\n       0, 2011, 2, 7, 31.64\n       0, 2011, 3, 6, 19.98\n       0, 2012, 1, 5, 41.65\n       0, 2012, 2, 9, 40.68\n       0, 2012, 3, 8, 26.64", 
-    "name": "adddim", 
-    "signature": [
-      "array", 
-      "dimname"
-    ]
-  }, 
-  {
-    "doc": "aggregate( srcArray {, AGGREGATE_CALL}+ {, groupbyDim}* )\n            AGGREGATE_CALL := AGGREGATE_FUNC(inputAttr) [as resultName]\n            AGGREGATE_FUNC := approxdc | avg | count | max | min | sum | stdev\n           | var | some_use_defined_aggregate_function\n\nCalculates aggregates over groups of values in an array, given the aggregate types and attributes to aggregate on.\n\nParameters\n----------\n\n    - srcArray: a source array with srcAttrs and srcDims.\n    - 1 or more aggregate calls. Each aggregate call has an\n      AGGREGATE_FUNC, an inputAttr and a resultName. The default\n      resultName is inputAttr followed by '_' and then AGGREGATE_FUNC.\n      For instance, the default resultName for sum(sales) is\n      'sales_sum'. The count aggregate may take * as the input\n      attribute, meaning to count all the items in the group including\n      null items. The default resultName for count(*) is 'count'.\n    - 0 or more dimensions that together determines the grouping\n      criteria.\n\nExamples\n--------\n\n    - Given array A <quantity: uint64, sales:double> [year, item] =\n       year, item, quantity, sales\n       2011, 2, 7, 31.64\n       2011, 3, 6, 19.98\n       2012, 1, 5, 41.65\n       2012, 2, 9, 40.68\n       2012, 3, 8, 26.64\n    - aggregate(A, count(*), max(quantity), sum(sales), year) <count:\n      uint64, quantity_max: uint64, sales_sum: double> [year] =\n       year, count, quantity_max, sales_sum\n       2011, 2, 7, 51.62\n       2012, 3, 9, 108.97\n\nNotes\n-----\n\n    - All the aggregate functions ignore null values, except count(*).", 
-    "name": "aggregate", 
+    "doc": "project( srcArray {, selectedAttr}+ )\n\nProduces a result array that includes some attributes of the source array.\n\nParameters\n----------\n\n    - srcArray: the source array with srcAttrs and srcDims.\n    - a list of at least one selectedAttrs from the source array.", 
+    "name": "project", 
     "signature": [
       "array", 
       "args"
     ]
   }, 
   {
-    "doc": "cumulate ( inputArray {, AGGREGATE_ALL}+ [, aggrDim] )\n            AGGREGATE_CALL := AGGREGATE_FUNC ( inputAttribute ) [ AS aliasName\n           ]\n            AGGREGATE_FUNC := approxdc | avg | count | max | min | sum | stdev\n           | var | some_use_defined_aggregate_function\n\nCalculates a running aggregate over some aggregate along some fluxVector (a single dimension of the inputArray).\n\nParameters\n----------\n\n       - inputArray: an input array\n       - 1 or more aggregate calls.\n       - aggrDim: the name of a dimension along with aggregates are computed.\n         Default is the first dimension.\n\nExamples\n--------\n\n      input:         cumulate(input, sum(v) as sum_v, count(*) as cnt, I)\n     +-I->\n    J|     00   01   02   03       00       01       02       03\n     V   +----+----+----+----+        +--------+--------+--------+--------+\n     00  | 01 |    | 02 |    |   00   | (1, 1) |        | (3, 2) |        |\n         +----+----+----+----+        +--------+--------+--------+--------+\n     01  |    | 03 |    | 04 |   01   |        | (3, 1) |        | (7, 2) |\n         +----+----+----+----+        +--------+--------+--------+--------+\n     02  | 05 |    | 06 |    |   02   | (5, 1) |        | (11, 2)|        |\n         +----+----+----+----+        +--------+--------+--------+--------+\n     03  |    | 07 |    | 08 |   03   |        | (7, 1) |        | (15, 2)|\n         +----+----+----+----+        +--------+--------+--------+--------+\n\nNotes\n-----\n\n    - For now, cumulate does NOT handle input array that have overlaps.", 
-    "name": "cumulate", 
+    "doc": "create_array ( array_name, array_schema , temp [, load_array , cells ] )\n\n        or\n\n       CREATE ['TEMP'] ARRAY array_name  array_schema [ [ [cells] ] USING load_array ]\n\nCreates an array with the given name and schema and adds it to the database.\n\nParameters\n----------\n\n    - array_name: an identifier that names the new array.\n    - array_schema: a multidimensional array schema that describes the\n      rank and shape of the array to be created, as well as the types\n      of each its attributes.\n    - temp: a boolean flag, true for a temporary array, false for a db\n      array.\n    - load_array an existing database array whose values are to be used\n      to determine sensible choices for those details of the target\n      dimensions that were elided.\n    - cells the desired number of logical cells per chunk (default is\n      1M)", 
+    "name": "create_array", 
     "signature": [
       "array", 
-      "aggregate", 
-      "args"
-    ]
-  }, 
-  {
-    "doc": "regrid( srcArray {, blockSize}+ {, AGGREGATE_CALL}+ )\n            AGGREGATE_CALL := AGGREGATE_FUNC(inputAttr) [as resultName]\n            AGGREGATE_FUNC := approxdc | avg | count | max | min | sum | stdev\n           | var | some_use_defined_aggregate_function\n\nPartitions the cells in the source array into blocks (with the given blockSize in each dimension), and for each block, calculates the required aggregates.\n\nParameters\n----------\n\n    - srcArray: the source array with srcAttrs and srcDims.\n    - A list of blockSizes, one for each dimension.\n    - 1 or more aggregate calls. Each aggregate call has an\n      AGGREGATE_FUNC, an inputAttr and a resultName. The default\n      resultName is inputAttr followed by '_' and then AGGREGATE_FUNC.\n      For instance, the default resultName for sum(sales) is\n      'sales_sum'. The count aggregate may take * as the input\n      attribute, meaning to count all the items in the group including\n      null items. The default resultName for count(*) is 'count'.\n\nNotes\n-----\n\n    - Regrid does not allow a block to span chunks. So for every\n      dimension, the chunk interval needs to be a multiple of the block\n      size.", 
-    "name": "regrid", 
-    "signature": [
       "array", 
-      "args"
-    ]
-  }, 
-  {
-    "doc": "window( srcArray {, leftEdge, rightEdge}+ {, AGGREGATE_CALL}+ [,\n           METHOD ] )\n            AGGREGATE_CALL := AGGREGATE_FUNC(inputAttr) [as resultName]\n            AGGREGATE_FUNC := approxdc | avg | count | max | min | sum | stdev\n           | var | some_use_defined_aggregate_function\n            METHOD := 'materialize' | 'probe'\n\nProduces a result array with the same size and dimensions as the source array, where each ouput cell stores some aggregate calculated over a window around the corresponding cell in the source array. A pair of window specification values (leftEdge, rightEdge) must exist for every dimension in the source and output array.\n\nParameters\n----------\n\n    - srcArray: a source array with srcAttrs and srcDims.\n    - leftEdge: how many cells to the left of the current cell (in one\n      dimension) are included in the window.\n    - rightEdge: how many cells to the right of the current cell (in\n      one dimension) are included in the window.\n    - 1 or more aggregate calls. Each aggregate call has an\n      AGGREGATE_FUNC, an inputAttr and a resultName. The default\n      resultName is inputAttr followed by '_' and then AGGREGATE_FUNC.\n      For instance, the default resultName for sum(sales) is\n      'sales_sum'. The count aggregate may take * as the input\n      attribute, meaning to count all the items in the group including\n      null items. The default resultName for count(*) is 'count'.\n    - An optional final argument that specifies how the operator is to\n      perform its calculation. At the moment, we support two internal\n      algorithms: 'materialize' (which materializes an entire source\n      chunk before computing the output windows) and 'probe' (which\n      probes the source array for the data in each window). In general,\n      materializing the input is a more efficient strategy, but when\n      we're using thin(...) in conjunction with window(...), we're\n      often better off using probes, rather than materilization. This\n      is a decision that the optimizer needs to make.\n\nExamples\n--------\n\n    - Given array A <quantity: uint64, sales:double> [year, item] =\n       year, item, quantity, sales\n       2011, 2, 7, 31.64\n       2011, 3, 6, 19.98\n       2012, 1, 5, 41.65\n       2012, 2, 9, 40.68\n       2012, 3, 8, 26.64\n    - window(A, 0, 0, 1, 0, sum(quantity)) <quantity_sum: uint64>\n      [year, item] =\n       year, item, quantity_sum\n       2011, 2, 7\n       2011, 3, 13\n       2012, 1, 5\n       2012, 2, 14\n       2012, 3, 17", 
-    "name": "window", 
-    "signature": [
       "array", 
-      "args"
-    ]
-  }, 
-  {
-    "doc": "allversions( srcArray )\n\nCreates a single array containing all versions of an existing array.\n\nParameters\n----------\n\n    - srcArray: a source array with srcAttrs and srcDims.\n\nExamples\n--------\n\n    - Given array A <quantity: uint64, sales:double> [year, item] =\n       year, item, quantity, sales\n       2011, 2, 7, 31.64\n       2011, 3, 6, 19.98\n       2012, 1, 5, 41.65\n       2012, 2, 9, 40.68\n       2012, 3, 8, 26.64\n    - allversions(A) <quantity: uint64, sales:double> [VersionNo, year,\n      item] =\n       VersionNo, year, item, quantity, sales\n       1, 2011, 2, 7, 31.64\n       1, 2011, 3, 6, 19.98\n       1, 2012, 1, 5, 41.65\n       1, 2012, 2, 9, 40.68\n       1, 2012, 3, 8, 26.64", 
-    "name": "allversions", 
-    "signature": [
-      "array"
-    ]
-  }, 
-  {
-    "doc": "analyze( srcArray {, attr}* )\n\nReturns an array describing the following characteristics of the specified attributes (or all the attributes, if no attribute is specified):\n - attribute_name\n - min\n - max\n - distinct_count: approximate count of distinct values.\n - non_null_count: the number of cells with non-null values.\n\nParameters\n----------\n\n    - srcArray: a source array with srcAttrs and srcDims.\n    - 0 or more attributes.\n\nExamples\n--------\n\n    - Given array A <quantity: uint64, sales:double> [year, item] =\n       year, item, quantity, sales\n       2011, 2, 7, 31.64\n       2011, 3, 6, 19.98\n       2012, 1, 5, 41.65\n       2012, 2, 9, 40.68\n       2012, 3, 8, 26.64\n    - analyze(A) <attribute_name:string, min:string, max:string,\n      distinct_count:uint64, non_null_count:uint64> [attribute_number]\n      =\n       attribute_number, attribute_name, min, max, distinct_count,\n      non_null_count\n       0, 'quantity' '5' '9' 5, 5\n       1, 'sales' '19.98' '41.65' 5, 5\n\nNotes\n-----\n\n    - If multiple attributes are specified, the ordering of the\n      attributes in the result array is determined by the ordering of\n      the attributes in srcAttrs.\n    - The value of attribute_number may be different from the number of\n      an attribute in srcAttrs.", 
-    "name": "analyze", 
-    "signature": [
-      "array", 
-      "args"
-    ]
-  }, 
-  {
-    "doc": "apply(srcArray {, newAttr, expression}+)\n\nProduces a result array with new attributes and computes values for them.\n\nParameters\n----------\n\n    - srcArray: a source array with srcAttrs and srcDims.\n    - 1 or more pairs of a new attribute and the expression to compute\n      the values for the attribute.\n\nExamples\n--------\n\n    - Given array A <quantity: uint64, sales:double> [year, item] =\n       year, item, quantity, sales\n       2011, 2, 7, 31.64\n       2011, 3, 6, 19.98\n       2012, 1, 5, 41.65\n       2012, 2, 9, 40.68\n       2012, 3, 8, 26.64\n    - apply(A, unitprice, sales/quantity) <quantity: uint64, sales:\n      double, unitprice: double> [year, item] =\n       year, item, quantity, sales, unitprice\n       2011, 2, 7, 31.64, 4.52\n       2011, 3, 6, 19.98, 3.33\n       2012, 1, 5, 41.65, 8.33\n       2012, 2, 9, 40.68, 4.52\n       2012, 3, 8, 26.64, 3.33", 
-    "name": "apply", 
-    "signature": [
-      "array", 
-      "attribute", 
-      "expression", 
-      "args"
-    ]
-  }, 
-  {
-    "doc": "attribute_rename( srcArray {, srcAttr, newAttr}+ )\n\nProduces a result array the same as srcArray, but with at least one attribute renamed.\n\nParameters\n----------\n\n    - srcArray: a source array with srcAttrs and srcDims.\n    - 1 or more pairs of a source attribute and the new attribute to\n      rename to.\n\nExamples\n--------\n\n    - Given array A <quantity: uint64, sales:double> [year, item] =\n       year, item, quantity, sales\n       2011, 2, 7, 31.64\n       2011, 3, 6, 19.98\n       2012, 1, 5, 41.65\n       2012, 2, 9, 40.68\n       2012, 3, 8, 26.64\n    - attribute_rename(A, sales, totalsales) <quantity: uint64,\n      totalsales:double> [year, item] =\n       year, item, quantity, totalsales\n       2011, 2, 7, 31.64\n       2011, 3, 6, 19.98\n       2012, 1, 5, 41.65\n       2012, 2, 9, 40.68\n       2012, 3, 8, 26.64", 
-    "name": "attribute_rename", 
-    "signature": [
-      "array", 
-      "args"
-    ]
-  }, 
-  {
-    "doc": "attributes( srcArray )\n\nProduces a 1D result array where each cell describes one attribute of the source array.\n\nParameters\n----------\n\n    - srcArray: a source array with srcAttrs and srcDims.\n\nExamples\n--------\n\n    - Given array A <quantity: uint64, sales:double> [year, item] =\n       year, item, quantity, sales\n       2011, 2, 7, 31.64\n       2011, 3, 6, 19.98\n       2012, 1, 5, 41.65\n       2012, 2, 9, 40.68\n       2012, 3, 8, 26.64\n    - attributes(A) <name:string, type_id:string, nullable:bool> [No] =\n       No, name, type_id, nullable\n       0, 'quantity', 'uint64', false\n       1, 'sales', 'double', false", 
-    "name": "attributes", 
-    "signature": [
-      "array"
-    ]
-  }, 
-  {
-    "doc": "bernoulli( srcArray, probability [, seed] )\n\nEvaluates whether to include a cell in the result array by generating a random number and checks if it is less than probability.\n\nParameters\n----------\n\n    - srcArray: a source array with srcAttrs and srcDims.\n    - probability: the probability threshold, in [0..1]\n    - an optional seed for the random number generator.\n\nExamples\n--------\n\n    - Given array A <quantity: uint64, sales:double> [year, item] =\n       year, item, quantity, sales\n       2011, 2, 7, 31.64\n       2011, 3, 6, 19.98\n       2012, 1, 5, 41.65\n       2012, 2, 9, 40.68\n       2012, 3, 8, 26.64\n    - bernoulli(A, 0.5, 100) <quantity: uint64, sales:double> [year,\n      item] =\n       year, item, quantity, sales\n       2011, 3, 6, 19.98\n       2012, 1, 5, 41.65\n       2012, 3, 8, 26.64", 
-    "name": "bernoulli", 
-    "signature": [
-      "array", 
-      "constant", 
-      "args"
-    ]
-  }, 
-  {
-    "doc": "between( srcArray {, lowCoord}+ {, highCoord}+ )\n\nProduces a result array from a specified, contiguous region of a source array.\n\nParameters\n----------\n\n    - srcArray: a source array with srcAttrs and srcDims.\n    - the low coordinates\n    - the high coordinates\n\nExamples\n--------\n\n    - Given array A <quantity: uint64, sales:double> [year, item] =\n       year, item, quantity, sales\n       2011, 2, 7, 31.64\n       2011, 3, 6, 19.98\n       2012, 1, 5, 41.65\n       2012, 2, 9, 40.68\n       2012, 3, 8, 26.64\n    - between(A, 2011, 1, 2012, 2) <quantity: uint64, sales:double>\n      [year, item] =\n       year, item, quantity, sales\n       2011, 2, 7, 31.64\n       2012, 1, 5, 41.65\n       2012, 2, 9, 40.68\n\nNotes\n-----\n\n    - Almost the same as subarray. The only difference is that the\n      dimensions retain the original start/end/boundaries.", 
-    "name": "between", 
-    "signature": [
-      "array", 
-      "args"
-    ]
-  }, 
-  {
-    "doc": "build( schemaArray | schema, expression, mustBeConstant = false )\n\nProduces a result array according to a given schema, and populates values based on the given expression. The schema must have a single attribute.\n\nParameters\n----------\n\n    - schemaArray | schema: an array or a schema, from which attrs and\n      dims will be used by the output array.\n    - expression: the expression which is used to compute values for\n      the output array.\n    - mustBeConstant: whether the expression must be a constant.\n\nExamples\n--------\n\n    - Given array A <quantity: uint64> [year, item] =\n       year, item, quantity\n       2011, 2, 7\n       2011, 3, 6\n       2012, 1, 5\n       2012, 2, 9\n       2012, 3, 8\n    - build(A, 0) <quantity: uint64> [year, item] =\n       year, item, quantity\n       2011, 1, 0\n       2011, 2, 0\n       2011, 3, 0\n       2012, 1, 0\n       2012, 2, 0\n       2012, 3, 0 Note that the cell (2011, 1), which was empty in the\n      source array, is populated.\n\nNotes\n-----\n\n    - The build operator can only take as input bounded dimensions.", 
-    "name": "build", 
-    "signature": [
       "schema", 
-      "expression", 
-      "args"
-    ]
-  }, 
-  {
-    "doc": "cancel( queryId )\n\nCancels a query by ID.\n\nParameters\n----------\n\n    - queryId: the query ID that can be obtained from the SciDB log or\n      via the list() command.\n\nNotes\n-----\n\n    - This operator is designed for internal use.", 
-    "name": "cancel", 
-    "signature": [
       "constant"
     ]
   }, 
   {
-    "doc": "cast( srcArray, schemaArray | schema )\n\nProduces a result array with data from srcArray but with the provided schema. There are three primary purposes:\n - To change names of attributes or dimensions.\n - To change types of attributes\n - To change a non-integer dimension to an integer dimension.\n - To change a nulls-disallowed attribute to a nulls-allowed attribute.\n\nParameters\n----------\n\n    - srcArray: a source array.\n    - schemaArray | schema: an array or a schema, from which attrs and\n      dims will be used by the output array.\n\nExamples\n--------\n\n    - Given array A <quantity: uint64, sales:double> [year, item] =\n       year, item, quantity, sales\n       2011, 2, 7, 31.64\n       2011, 3, 6, 19.98\n       2012, 1, 5, 41.65\n       2012, 2, 9, 40.68\n       2012, 3, 8, 26.64\n    - cast(A, <q:uint64, s:double>[y=2011:2012,2,0, i=1:3,3,0])\n      <q:uint64, s:double> [y, i] =\n       y, i, q, s\n       2011, 2, 7, 31.64\n       2011, 3, 6, 19.98\n       2012, 1, 5, 41.65\n       2012, 2, 9, 40.68\n       2012, 3, 8, 26.64", 
-    "name": "cast", 
+    "doc": "create_array_using ( array_name, array_schema , temp [, load_array , cells ] )\n\n        or\n\n       CREATE ['TEMP'] ARRAY array_name  array_schema [ [ [cells] ] USING load_array ]\n\nCreates an array with the given name and schema and adds it to the database.\n\nParameters\n----------\n\n    - array_name: an identifier that names the new array.\n    - array_schema: a multidimensional array schema that describes the\n      rank and shape of the array to be created, as well as the types\n      of each its attributes.\n    - temp: a boolean flag, true for a temporary array, false for a db\n      array.\n    - load_array an existing database array whose values are to be used\n      to determine sensible choices for those details of the target\n      dimensions that were elided.\n    - cells the desired number of logical cells per chunk (default is\n      1M)", 
+    "name": "create_array_using", 
     "signature": [
       "array", 
-      "schema"
+      "array", 
+      "array", 
+      "schema", 
+      "constant"
     ]
   }, 
   {
-    "doc": "concat( srcArray1, srcArray2 )\n\nProduces a result array as the concatenation of two source arrays. The concatenation is performed by the first dimension.\n\nParameters\n----------\n\n    - srcArray1: the first source array with srcAttrs and srcDims1.\n    - srcArray2: the second source array with srcAttrs and srcDim2,\n      where srcDim2 may differ from srcDims1 only in the start/end of\n      the first dimension.\n\nExamples\n--------\n\n    - Given array A <quantity: uint64, sales:double> [year, item] =\n       year, item, quantity, sales\n       2011, 2, 7, 31.64\n       2011, 3, 6, 19.98\n       2012, 1, 5, 41.65\n       2012, 2, 9, 40.68\n       2012, 3, 8, 26.64\n    - concat(A, A) <quantity: uint64, sales:double> [year, item] =\n       year, item, quantity, sales\n       2011, 2, 7, 31.64\n       2011, 3, 6, 19.98\n       2012, 1, 5, 41.65\n       2012, 2, 9, 40.68\n       2012, 3, 8, 26.64\n       2013, 2, 7, 31.64\n       2013, 3, 6, 19.98\n       2014, 1, 5, 41.65\n       2014, 2, 9, 40.68\n       2014, 3, 8, 26.64", 
-    "name": "concat", 
+    "doc": "sort( srcArray {, attr [asc | desc]}* {, chunkSize}? )\n\nProduces a 1D array by sorting the non-empty cells of a source array.\n\nParameters\n----------\n\n    - srcArray: the source array with srcAttrs and srcDim.\n    - attr: the list of attributes to sort by. If no attribute is\n      provided, the first attribute will be used.\n    - asc | desc: whether ascending or descending order of the\n      attribute should be used. The default is asc.\n    - chunkSize: the size of a chunk in the result array. If not\n      provided, 1M will be used.\n\nNotes\n-----\n\n    Assuming null < NaN < other values", 
+    "name": "sort", 
     "signature": [
       "array", 
-      "array"
+      "args"
     ]
   }, 
   {
@@ -136,80 +44,6 @@ operators = [
     "name": "consume", 
     "signature": [
       "array", 
-      "args"
-    ]
-  }, 
-  {
-    "doc": "*      create_array ( array_name, array_schema )\n       *\n\n        or\n\n       *      CREATE ARRAY   array_name  array_schema\n       *\n\nCreates an array with the given name and schema and adds it to the database.\n\nParameters\n----------\n\n    - array_name: an identifier that names the new array.\n    - array_schema: a multidimensional array schema that describes the\n      rank and shape of the array to be created, as well as the types\n      of each its attributes.", 
-    "name": "create_array", 
-    "signature": [
-      "array", 
-      "schema"
-    ]
-  }, 
-  {
-    "doc": "cross_join( leftArray, rightArray {, attrLeft, attrRight}* )\n\nCalculates the cross product of two arrays, with 0 or more equality conditions on the dimensions. Assume p pairs of equality conditions exist. The result is an (m+n-p) dimensional array. From the coordinates of each cell in the result array, a single cell in leftArray and a single cell in rightArray can be located. The cell in the result array contains the concatenation of the attributes from the two source cells. If a pair of join dimensions have different lengths, the result array uses the smaller of the two.\n\nParameters\n----------\n\n    - leftArray: the left-side source array with leftAttrs and\n      leftDims.\n    - rightArray: the right-side source array with rightAttrs and\n      rightDims.\n    - 0 or more pairs of an attribute from leftArray and an attribute\n      from rightArray.\n\nExamples\n--------\n\n    - Given array A <quantity: uint64, sales:double> [year, item] =\n       year, item, quantity, sales\n       2011, 2, 7, 31.64\n       2011, 3, 6, 19.98\n       2012, 1, 5, 41.65\n       2012, 2, 9, 40.68\n       2012, 3, 8, 26.64\n    - Given array B <v:uint64> [k] =\n       k, v\n       1, 10\n       2, 20\n       3, 30\n       4, 40\n       5, 50\n    - cross_join(A, B, item, k) <quantity: uint64, sales:double,\n      v:uint64> [year, item] =\n       year, item, quantity, sales, v\n       2011, 2, 7, 31.64, 20\n       2011, 3, 6, 19.98, 30\n       2012, 1, 5, 41.65, 10\n       2012, 2, 9, 40.68, 20\n       2012, 3, 8, 26.64, 30\n\nNotes\n-----\n\n    - Joining non-integer dimensions does not work.", 
-    "name": "cross_join", 
-    "signature": [
-      "array", 
-      "array", 
-      "args"
-    ]
-  }, 
-  {
-    "doc": "deldim( srcArray )\n\nProduces a result array with one fewer dimension than the source array, by deleting the first dimension which must have size 1.\n\nParameters\n----------\n\n    - srcArray: a source array with dim1, dim2, ..., dim_kThe first\n      dimension must have size 1.", 
-    "name": "deldim", 
-    "signature": [
-      "array"
-    ]
-  }, 
-  {
-    "doc": "dimensions( srcArray )\n\nList the dimensions of the source array.\n\nParameters\n----------\n\n    - srcArray: a source array.", 
-    "name": "dimensions", 
-    "signature": [
-      "array"
-    ]
-  }, 
-  {
-    "doc": "diskinfo()\n\nChecks disk usage.\n\nNotes\n-----\n\n    - For internal usage.", 
-    "name": "diskinfo", 
-    "signature": []
-  }, 
-  {
-    "doc": "echo( str )\n\nProduces a single-element array containing the input string.\n\nParameters\n----------\n\n    - str: an input string.\n\nNotes\n-----\n\n    - For internal usage.", 
-    "name": "echo", 
-    "signature": [
-      "constant"
-    ]
-  }, 
-  {
-    "doc": "explain_logical( query , language = 'aql' )\n\nProduces a single-element array containing the logical query plan.\n\nParameters\n----------\n\n    - query: a query string.\n    - language: the language string; either 'aql' or 'afl'; default is\n      'aql'\n\nNotes\n-----\n\n    - For internal usage.", 
-    "name": "explain_logical", 
-    "signature": [
-      "constant", 
-      "args"
-    ]
-  }, 
-  {
-    "doc": "explain_physical( query , language = 'aql' )\n\nProduces a single-element array containing the physical query plan.\n\nParameters\n----------\n\n    - query: a query string.\n    - language: the language string; either 'aql' or 'afl'; default is\n      'aql'\n\nNotes\n-----\n\n    - For internal usage.", 
-    "name": "explain_physical", 
-    "signature": [
-      "constant", 
-      "args"
-    ]
-  }, 
-  {
-    "doc": "filter( srcArray, expression )\n\nProduces a result array by filtering out (mark as empty) the cells in the source array for which the expression evaluates to False.\n\nParameters\n----------\n\n    - srcArray: a source array with srcAttrs and srcDims.\n    - expression: an expression which takes a cell in the source array\n      as input and evaluates to either True or False.", 
-    "name": "filter", 
-    "signature": [
-      "array", 
-      "expression"
-    ]
-  }, 
-  {
-    "doc": "help( operator )\n\nProduces a single-element array containing the help information for an operator.\n\nParameters\n----------\n\n    - operator: the name of an operator.", 
-    "name": "help", 
-    "signature": [
       "args"
     ]
   }, 
@@ -224,70 +58,20 @@ operators = [
     ]
   }, 
   {
-    "doc": "input( schemaArray | schema, filename, instance=-2, format='',\n           maxErrors=0, shadowArray='' )\n\nProduces a result array and loads data from a given file, and optionally stores to shadowArray.\n\nParameters\n----------\n\n    - schemaArray | schema: the array schema.\n    - filename: where to load data from.\n    - instance: which instance; default is -2. ??\n    - format: ??\n    - maxErrors: ??\n    - shadowArray: if provided, the result array will be written to it.\n\nNotes\n-----\n\n    - [comment from author] Must be called as\n      INPUT('existing_array_name', '/path/to/file/on/instance'). ??\n      schema not allowed??\n    - This really needs to be modified by the author.", 
-    "name": "input", 
+    "doc": "setopt( option [, newValue] )\n\nGets/Sets a config option at runtime.\n\nParameters\n----------\n\n    - option: the config option.\n    - newValue: an optional new value for the config option. If\n      provided, the option is set. Either way, the option value(s) is\n      returned.", 
+    "name": "setopt", 
     "signature": [
-      "schema", 
       "constant", 
       "args"
     ]
   }, 
   {
-    "doc": "insert( sourceArray, targetArrayName )\n\nInserts all data from left array into the persistent targetArray. targetArray must exist with matching dimensions and attributes. targetArray must also be mutable. The operator shall create a new version of targetArray that contains all data of the array that would have been received by merge(sourceArray, targetArrayName). In other words, new data is inserted between old data and overwrites any overlapping old values. The resulting array is then returned.\n\nParameters\n----------\n\n    - sourceArray the array or query that provides inserted data\n    - targetArrayName: the name of the persistent array inserted into\n\nNotes\n-----\n\n    Some might wonder - if this returns the same result as\n    merge(sourceArray, targetArrayName), then why not use\n    store(merge())? The answer is that\n    1.  this runs a lot faster - it does not perform a full scan of\n        targetArray\n    2.  this also generates less chunk headers", 
-    "name": "insert", 
+    "doc": "", 
+    "name": "build", 
     "signature": [
-      "array", 
-      "array"
-    ]
-  }, 
-  {
-    "doc": "join( leftArray, rightArray )\n\nCombines the attributes of two arrays at matching dimension values. The two arrays must have the same dimension start coordinates, the same chunk size, and the same chunk overlap. The join result has the same dimension names as the first input. The cell in the result array contains the concatenation of the attributes from the two source cells. If a pair of join dimensions have different lengths, the result array uses the smaller of the two.\n\nParameters\n----------\n\n    - leftArray: the left-side source array with leftAttrs and\n      leftDims.\n    - rightArray: the right-side source array with rightAttrs and\n      rightDims.\n\nNotes\n-----\n\n    - join() is a special case of cross_join() with all pairs of\n      dimensions given.", 
-    "name": "join", 
-    "signature": [
-      "array", 
-      "array"
-    ]
-  }, 
-  {
-    "doc": "list( what='arrays', showSystem=false )\n\nProduces a result array and loads data from a given file, and optionally stores to shadowArray. The available things to list include:\n - aggregates: show all the aggregate operators.\n - arrays: show all the arrays.\n - chunk descriptors: show all the chunk descriptors.\n - chunk map: show the chunk map.\n - functions: show all the functions.\n - instances: show all SciDB instances.\n - libraries: show all the libraries that are loaded in the current SciDB session.\n - operators: show all the operators and the libraries in which they reside.\n - types: show all the datatypes that SciDB supports.\n - queries: show all the active queries.\n\nParameters\n----------\n\n    - what: what to list.\n    - showSystem: whether to show systems information.", 
-    "name": "list", 
-    "signature": [
+      "schema", 
+      "expression", 
       "args"
-    ]
-  }, 
-  {
-    "doc": "load( outputArray, filename, instanceId=-2, format='', maxErrors=0,\n           shadowArray='' )\n\nLoads data to an existing outputArray from a given file, and optionally stores to shadowArray.\n\nParameters\n----------\n\n    - outputArray: the output array to store data into.\n    - filename: A path to file where to load data from.\n    - instanceId: positive number means an instance ID on which file\n      will be saved. -1 means to save file on every instance. -2 - on\n      coordinator.\n    - format: format in which file will be stored. Possible values are\n      'store', 'lcsv+', 'lsparse', 'dcsv', 'opaque', '(<custom\n      plugin>=''>)'\n    - maxErrors: a maximum number of errors which can take place due\n      loading. After that exception is raised.\n    - shadowArray: if provided a name of array where error of reading\n      will be specified. The schema of array is the same as output\n      array but all attribute has string data type + attribute\n      [row_offset: int64]. It contains an error or reading every\n      attribute with related name and row_offset - a position in file\n      where an error was detected.\n\nNotes\n-----\n\n    - Must be called as INPUT('existing_array_name',\n      '/path/to/file/on/instance').\n    - This really needs to be checked by the author.", 
-    "name": "load", 
-    "signature": []
-  }, 
-  {
-    "doc": "load_library( library )\n\nLoads a SciDB plugin.\n\nParameters\n----------\n\n    - library: the name of the library to load.\n\nNotes\n-----\n\n    - A library may be unloaded using unload_library()", 
-    "name": "load_library", 
-    "signature": [
-      "constant"
-    ]
-  }, 
-  {
-    "doc": "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n", 
-    "name": "load_module", 
-    "signature": [
-      "constant"
-    ]
-  }, 
-  {
-    "doc": "lookup( coordArray, srcArray )\n\nRetrieves the elements from srcArray, using coordinates stored in coordArray.\n\nParameters\n----------\n\n    - coordArray: coordDims will be used as the dims in the output\n      array, coordAttrs define coordinates in srcArray.\n    - srcArray: srcDims and srcAttrs.", 
-    "name": "lookup", 
-    "signature": [
-      "array", 
-      "array"
-    ]
-  }, 
-  {
-    "doc": "materialize( srcArray, format )\n\nProduces a materialized version of an source array.\n\nParameters\n----------\n\n    - srcArray: the sourcce array with srcDims and srcAttrs.\n    - format: uint32, the materialize format.", 
-    "name": "materialize", 
-    "signature": [
-      "array", 
-      "constant"
     ]
   }, 
   {
@@ -297,177 +81,6 @@ operators = [
       "array", 
       "array", 
       "args"
-    ]
-  }, 
-  {
-    "doc": "mstat()\n\nGathers mallinfo from all the instances.", 
-    "name": "mstat", 
-    "signature": []
-  }, 
-  {
-    "doc": "normalize( srcArray )\n\nProduces a result array by dividing each element of a 1-attribute vector by the square root of the sum of squares of the elements.\n\nParameters\n----------\n\n    - srcArray: the source array with srcAttrs and srcDims. There\n      should be exactly one attribute (of double type) and exactly one\n      dimension.", 
-    "name": "normalize", 
-    "signature": [
-      "array"
-    ]
-  }, 
-  {
-    "doc": "project( srcArray {, selectedAttr}+ )\n\nProduces a result array that includes some attributes of the source array.\n\nParameters\n----------\n\n    - srcArray: the source array with srcAttrs and srcDims.\n    - a list of at least one selectedAttrs from the source array.", 
-    "name": "project", 
-    "signature": [
-      "array", 
-      "args"
-    ]
-  }, 
-  {
-    "doc": "avg_rank( srcArray [, attr {, groupbyDim}*] )\n\nRanks the array elements, where each element is ranked as the average of the upper bound (UB) and lower bound (LB) rankings. The LB ranking of an element E is the number of elements less than E, plus 1. The UB ranking of an element E is the number of elements less than or equal to E, plus 1.\n\nParameters\n----------\n\n    - srcArray: a source array with srcAttrs and srcDims.\n    - 0 or 1 attribute to rank with. If no attribute is provided, the\n      first attribute is used.\n    - an optional list of groupbyDims used to group the elements, such\n      that the rankings are calculated within each group. If no\n      groupbyDim is provided, the whole array is treated as one group.\n\nExamples\n--------\n\n    - Given array A <quantity: uint64, sales:double> [year, item] =\n       year, item, quantity, sales\n       2011, 2, 7, 31.64\n       2011, 3, 6, 19.98\n       2012, 1, 5, 41.65\n       2012, 2, 9, 40.68\n       2012, 3, 8, 26.64\n    - avg_rank(A, sales, year) <sales:double, sales_rank: uint64>\n      [year, item] =\n       year, item, sales, sales_rank\n       2011, 2, 31.64, 2\n       2011, 3, 19.98, 1\n       2012, 1, 41.65, 3\n       2012, 2, 40.68, 2\n       2012, 3, 26.64, 1\n\nNotes\n-----\n\n    - For any element with a distinct value, its UB ranking and LB\n      ranking are equal.", 
-    "name": "avg_rank", 
-    "signature": [
-      "array", 
-      "args"
-    ]
-  }, 
-  {
-    "doc": "quantile( srcArray, numQuantiles [, attr {, groupbyDim}*] )\n\nComputes the quantiles of an array, based on the ordering of attr (within each group as specified by groupbyDim, if specified). If groupbyDim is not specified, global ordering will be performed. If attr is not specified, the first attribute will be used.\n\nParameters\n----------\n\n    - srcArray: the source array with srcAttrs and srcDims.\n    - numQuantiles: the number of quantiles.\n    - attr: which attribute to sort on. The default is the first\n      attribute.\n    - groupbyDim: if provided, the ordering will be performed among the\n      records in the same group.", 
-    "name": "quantile", 
-    "signature": [
-      "array", 
-      "constant", 
-      "args"
-    ]
-  }, 
-  {
-    "doc": "rank( srcArray [, attr {, groupbyDim}*] )\n\nComputes the rankings of an array, based on the ordering of attr (within each group as specified by the list of groupbyDims, if provided). If groupbyDims is not specified, global ordering will be performed. If attr is not specified, the first attribute will be used.\n\nParameters\n----------\n\n    - srcArray: the source array with srcAttrs and srcDims.\n    - attr: which attribute to sort on. The default is the first\n      attribute.\n    - groupbyDim: if provided, the ordering will be performed among the\n      records in the same group.", 
-    "name": "rank", 
-    "signature": [
-      "array", 
-      "args"
-    ]
-  }, 
-  {
-    "doc": "redimension( srcArray, schemaArray | schema {, AGGREGATE_CALL}* )\n            AGGREGATE_CALL := AGGREGATE_FUNC(inputAttr) [as resultName]\n            AGGREGATE_FUNC := approxdc | avg | count | max | min | sum | stdev\n           | var | some_use_defined_aggregate_function\n\nProduces a array using some or all of the variables of a source array, potentially changing some or all of those variables from dimensions to attributes or vice versa, and optionally calculating aggregates to be included in the new array.\n\nParameters\n----------\n\n    - srcArray: a source array with srcAttrs and srcDims.\n    - schemaArray | schema: an array or schema from which outputAttrs\n      and outputDims can be acquired. All the dimensions in outputDims\n      must exist either in srcAttrs or in srcDims, with one exception.\n      One new dimension called the synthetic dimension is allowed. All\n      the attributes in outputAttrs, which is not the result of an\n      aggregate, must exist either in srcAttrs or in srcDims.\n    - 0 or more aggregate calls. Each aggregate call has an\n      AGGREGATE_FUNC, an inputAttr and a resultName. The default\n      resultName is inputAttr followed by '_' and then AGGREGATE_FUNC.\n      The resultNames must already exist in outputAttrs.\n\nNotes\n-----\n\n    - The synthetic dimension cannot co-exist with aggregates. That is,\n      if there exists at least one aggregate call, the synthetic\n      dimension must not exist.\n    - When multiple values are 'redimensioned' into the same cell in\n      the output array, the collision handling depends on the schema:\n      (a) If there exists a synthetic dimension, all the values are\n      retained in a vector along the synthetic dimension. (b)\n      Otherwise, for an aggregate attribute, the aggregate result of\n      the values is stored. (c) Otherwise, an arbitrary value is picked\n      and the rest are discarded.\n    - Current redimension() does not support Non-integer dimensions or\n      data larger than memory.", 
-    "name": "redimension", 
-    "signature": [
-      "array", 
-      "schema", 
-      "args"
-    ]
-  }, 
-  {
-    "doc": "reduce_distro( replicatedArray, partitioningSchema )\n\nMakes a replicated array appear as if it has the required partitioningSchema.\n\nParameters\n----------\n\n    - replicatedArray: an source array which is replicated across all\n      the instances.\n    - partitioningSchema: the desired partitioning schema.", 
-    "name": "reduce_distro", 
-    "signature": [
-      "array", 
-      "constant"
-    ]
-  }, 
-  {
-    "doc": "remove( arrayToRemove )\n\nDrops an array.\n\nParameters\n----------\n\n    - arrayToRemove: the array to drop.", 
-    "name": "remove", 
-    "signature": [
-      "array"
-    ]
-  }, 
-  {
-    "doc": "remove_versions( targetArray, oldestVersionToSave )\n\nRemoves all versions of targetArray that are older than oldestVersionToSave\n\nParameters\n----------\n\n    - targetArray: the array which is targeted.\n    - oldestVersionToSave: the version, prior to which all versions\n      will be removed.", 
-    "name": "remove_versions", 
-    "signature": [
-      "array", 
-      "constant"
-    ]
-  }, 
-  {
-    "doc": "rename( oldArray, newArray )\n\nChanges the name of an array.\n\nParameters\n----------\n\n    - oldArray: an existing array.\n    - newArray: the new name of the array.", 
-    "name": "rename", 
-    "signature": [
-      "array", 
-      "array"
-    ]
-  }, 
-  {
-    "doc": "repart( srcArray, schema )\n\nProduces a result array similar to the source array, but with different chunk sizes, different chunk overlaps, or both.\n\nParameters\n----------\n\n    - srcArray: the source array with srcAttrs and srcDims.\n    - schema: the desired schema.", 
-    "name": "repart", 
-    "signature": [
-      "array", 
-      "schema"
-    ]
-  }, 
-  {
-    "doc": "reshape( srcArray, schema )\n\nProduces a result array containing the same cells as, but a different shape from, the source array.\n\nParameters\n----------\n\n    - srcArray: the source array with srcAttrs and srcDims.\n    - schema: the desired schema, with the same attributes as srcAttrs,\n      but with different size and/or number of dimensions. The\n      restriction is that the product of the dimension sizes is equal\n      to the number of cells in srcArray.", 
-    "name": "reshape", 
-    "signature": [
-      "array", 
-      "schema"
-    ]
-  }, 
-  {
-    "doc": "reverse( srcArray )\n\nProduces a result array, where the values of every dimension is reversed.\n\nParameters\n----------\n\n    - srcArray: the source array with srcAttrs and srcDims.", 
-    "name": "reverse", 
-    "signature": [
-      "array"
-    ]
-  }, 
-  {
-    "doc": "save( srcArray, file, instanceId = -2, format = 'store' )\n\nSaves the data in an array to a file.\n\nParameters\n----------\n\n    - srcArray: the source array to save from.\n    - file: the file to save to.\n    - instanceId: positive number means an instance ID on which file\n      will be saved. -1 means to save file on every instance. -2 - on\n      coordinator.\n    - format: ArrayWriter format in which file will be stored\n\nNotes\n-----\n\n    n/a Must be called as SAVE('existing_array_name',\n    '/path/to/file/on/instance')", 
-    "name": "save", 
-    "signature": [
-      "array", 
-      "constant", 
-      "args"
-    ]
-  }, 
-  {
-    "doc": "scan( srcArray )\n\nProduces a result array that is equivalent to a stored array.\n\nParameters\n----------\n\n    - srcArray: the array to scan, with srcAttrs and srcDims", 
-    "name": "scan", 
-    "signature": [
-      "array"
-    ]
-  }, 
-  {
-    "doc": "setopt( option [, newValue] )\n\nGets/Sets a config option at runtime.\n\nParameters\n----------\n\n    - option: the config option.\n    - newValue: an optional new value for the config option. If\n      provided, the option is set. Either way, the option value(s) is\n      returned.", 
-    "name": "setopt", 
-    "signature": [
-      "constant", 
-      "args"
-    ]
-  }, 
-  {
-    "doc": "sg( srcArray, partitionSchema, instanceId=-1, outputArray='',\n           isStore=true, offsetVector=null)\n\nSCATTER/GATHER distributes array chunks over the instances of a cluster. The result array is returned. It is the only operator that uses the network manager. Typically this operator is inserted by the optimizer into the physical plan.\n\nParameters\n----------\n\n    - srcArray: the source array, with srcAttrs and srcDims.\n    - partitionSchema:\n       0 = psReplication,\n       1 = psHashPartitioned,\n       2 = psLocalInstance,\n       3 = psByRow,\n       4 = psByCol,\n       5 = psUndefined.\n    - instanceId:\n       -2 = to coordinator (same with 0),\n       -1 = all instances participate,\n       0..#instances-1 = to a particular instance.\n       [TO-DO: The usage of instanceId, in calculating which instance a\n      chunk should go to, requires further documentation.]\n    - outputArray: if not empty, the result will be stored into this\n      array\n    - isStore: whether to store into the specified outputArray.\n       [TO-DO: Donghui believes this parameter is not needed and should\n      be removed.]\n    - offsetVector: a vector of #dimensions values.\n       To calculate which instance a chunk belongs, the chunkPos is\n      augmented with the offset vector before calculation.", 
-    "name": "sg", 
-    "signature": [
-      "array", 
-      "constant", 
-      "args"
-    ]
-  }, 
-  {
-    "doc": "show( schemaArray | schema | queryString [, 'aql' | 'afl'] )\n\nShows the schema of an array.\n\nParameters\n----------\n\n    - schemaArray | schema | queryString: an array where the schema is\n      used, the schema itself or arbitrary query string\n    o", 
-    "name": "show", 
-    "signature": [
-      "args"
-    ]
-  }, 
-  {
-    "doc": "slice( srcArray {, dim, dimValue}* )\n\nProduces a 'slice' of the source array, by holding zero or more dimension values constant. The result array does not include the dimensions that are used for slicing.\n\nParameters\n----------\n\n    - srcArray: the source array with srcAttrs and srcDims.\n    - dim: one of the dimensions to be used for slicing.\n    - dimValue: the constant value in the dimension to slice.", 
-    "name": "slice", 
-    "signature": [
-      "array", 
-      "args"
-    ]
-  }, 
-  {
-    "doc": "sort( srcArray {, attr [asc | desc]}* {, chunkSize}? )\n\nProduces a 1D array by sorting the non-empty cells of a source array.\n\nParameters\n----------\n\n    - srcArray: the source array with srcAttrs and srcDim.\n    - attr: the list of attributes to sort by. If no attribute is\n      provided, the first attribute will be used.\n    - asc | desc: whether ascending or descending order of the\n      attribute should be used. The default is asc.\n    - chunkSize: the size of a chunk in the result array. If not\n      provided, 1M will be used.\n\nNotes\n-----\n\n    Assuming null < NaN < other values", 
-    "name": "sort", 
-    "signature": [
-      "array", 
-      "args"
-    ]
-  }, 
-  {
-    "doc": "sort( srcArray {, attr [asc | desc]}* {, chunkSize}? )\n\nProduces a 1D array by sorting the non-empty cells of a source array.\n\nParameters\n----------\n\n    - srcArray: the source array with srcAttrs and srcDim.\n    - attr: the list of attributes to sort by. If no attribute is\n      provided, the first attribute will be used.\n    - asc | desc: whether ascending or descending order of the\n      attribute should be used. The default is asc.\n    - chunkSize: the size of a chunk in the result array. If not\n      provided, 1M will be used.\n\nNotes\n-----\n\n    Assuming null < NaN < other values", 
-    "name": "sort2", 
-    "signature": [
-      "array"
     ]
   }, 
   {
@@ -487,23 +100,6 @@ operators = [
     ]
   }, 
   {
-    "doc": "substitute( srcArray, substituteArray {, attr}* )\n\nProduces a result array the same as srcArray, but with null values (of selected attributes) substituted using the values in substituteArray.\n\nParameters\n----------\n\n    - srcArray: a source array with srcAttrs and srcDims, that may\n      contain null values.\n    - substituteArray: the array from which the values may be used to\n      substitute the null values in srcArray. It must have a single\n      dimension which starts at 0, and a single attribute.\n    - An optional list of attributes to substitute. The default is to\n      substitute all nullable attributes.", 
-    "name": "substitute", 
-    "signature": [
-      "array", 
-      "array", 
-      "args"
-    ]
-  }, 
-  {
-    "doc": "thin( srcArray {, start, step}+ )\n\nSelects regularly-spaced elements of the source array in each dimension. A (start, step) pair must be provided for every dimension.\n\nParameters\n----------\n\n    - srcArray: a source array with srcAttrs and srcDims.\n    - start: the starting coordinate of a dimension.\n    - step: how many coordinates to advance to the next coordinate to\n      select. A step of 1 means to select everything.", 
-    "name": "thin", 
-    "signature": [
-      "array", 
-      "args"
-    ]
-  }, 
-  {
     "doc": "transpose( srcArray )\n\nProduces an array with the same data in srcArray but with the list of dimensions reversd.\n\nParameters\n----------\n\n    - srcArray: a source array with srcAttrs and srcDims.", 
     "name": "transpose", 
     "signature": [
@@ -511,33 +107,122 @@ operators = [
     ]
   }, 
   {
-    "doc": "unfold( array )\n\nComplicated input data are often loaded into table-like 1-d multi- attribute arrays. Sometimes we want to assemble uniformly-typed subsets of the array attributes into a matrix, for example to compute correlations or regressions. unfold will transform the input array into a 2-d matrix whose columns correspond to the input array attributes. The output matrix row dimension will have a chunk size equal to the input array, and column chunk size equal to the number of columns.\n\nParameters\n----------\n\n    - array: the array to consume\n\nExamples\n--------\n\n    unfold(apply(build(<v:double>[i=0:9,3,0],i),w,i+0.5))", 
-    "name": "unfold", 
-    "signature": [
-      "array"
-    ]
-  }, 
-  {
-    "doc": "uniq (input_array [,'chunk_size=CHUNK_SIZE'] )\n\nThe input array must have a single attribute of any type and a single dimension. The data in the input array must be sorted and dense. The operator is built to accept the output produced by sort() with a single attribute. The output array shall have the same attribute with the dimension i starting at 0 and chunk size of 1 million. An optional chunk_size parameter may be used to set a different output chunk size. Data is compared using a simple bitwise comparison of underlying memory. Null values are discarded from the output.\n\nParameters\n----------\n\n     array <single_attribute: INPUT_ATTRIBUTE_TYPE> [single_dimension=\n    *]\n\nExamples\n--------\n\n     uniq (sorted_array)\n     store ( uniq ( sort ( project (big_array, string_attribute) ),\n    'chuk_size=100000'), string_attribute_index )", 
-    "name": "uniq", 
+    "doc": "rank( srcArray [, attr {, groupbyDim}*] )\n\nComputes the rankings of an array, based on the ordering of attr (within each group as specified by the list of groupbyDims, if provided). If groupbyDims is not specified, global ordering will be performed. If attr is not specified, the first attribute will be used.\n\nParameters\n----------\n\n    - srcArray: the source array with srcAttrs and srcDims.\n    - attr: which attribute to sort on. The default is the first\n      attribute.\n    - groupbyDim: if provided, the ordering will be performed among the\n      records in the same group.", 
+    "name": "rank", 
     "signature": [
       "array", 
       "args"
     ]
   }, 
   {
-    "doc": "unload_library( library )\n\nUnloads a SciDB plugin.\n\nParameters\n----------\n\n    - library: the name of the library to unload.\n\nNotes\n-----\n\n    - This operator is the reverse of load_library().", 
-    "name": "unload_library", 
+    "doc": "avg_rank( srcArray [, attr {, groupbyDim}*] )\n\nRanks the array elements, where each element is ranked as the average of the upper bound (UB) and lower bound (LB) rankings. The LB ranking of an element E is the number of elements less than E, plus 1. The UB ranking of an element E is the number of elements less than or equal to E, plus 1.\n\nParameters\n----------\n\n    - srcArray: a source array with srcAttrs and srcDims.\n    - 0 or 1 attribute to rank with. If no attribute is provided, the\n      first attribute is used.\n    - an optional list of groupbyDims used to group the elements, such\n      that the rankings are calculated within each group. If no\n      groupbyDim is provided, the whole array is treated as one group.\n\nExamples\n--------\n\n    - Given array A <quantity: uint64, sales:double> [year, item] =\n       year, item, quantity, sales\n       2011, 2, 7, 31.64\n       2011, 3, 6, 19.98\n       2012, 1, 5, 41.65\n       2012, 2, 9, 40.68\n       2012, 3, 8, 26.64\n    - avg_rank(A, sales, year) <sales:double, sales_rank: uint64>\n      [year, item] =\n       year, item, sales, sales_rank\n       2011, 2, 31.64, 2\n       2011, 3, 19.98, 1\n       2012, 1, 41.65, 3\n       2012, 2, 40.68, 2\n       2012, 3, 26.64, 1\n\nNotes\n-----\n\n    - For any element with a distinct value, its UB ranking and LB\n      ranking are equal.", 
+    "name": "avg_rank", 
+    "signature": [
+      "array", 
+      "args"
+    ]
+  }, 
+  {
+    "doc": "quantile( srcArray, numQuantiles [, attr {, groupbyDim}*] )\n\nComputes the quantiles of an array, based on the ordering of attr (within each group as specified by groupbyDim, if specified). If groupbyDim is not specified, global ordering will be performed. If attr is not specified, the first attribute will be used.\n\nParameters\n----------\n\n    - srcArray: the source array with srcAttrs and srcDims.\n    - numQuantiles: the number of quantiles.\n    - attr: which attribute to sort on. The default is the first\n      attribute.\n    - groupbyDim: if provided, the ordering will be performed among the\n      records in the same group.\n\nExamples\n--------\n\n    - Given array A <v:int64> [i=0:5,3,0] =\n       i, v\n       0, 0\n       1, 1\n       2, 2\n       3, 3\n       4, 4\n       5, 5\n    - quantile(A, 2) <percentage, v_quantile>[quantile=0:2,3,0] =\n       {quantile} percentage, v_quantile\n       {0} 0, 0\n       {1} 0.5, 2\n       {2} 1, 5", 
+    "name": "quantile", 
+    "signature": [
+      "array", 
+      "constant", 
+      "args"
+    ]
+  }, 
+  {
+    "doc": "list( what='arrays', showSystem=false )\n\nProduces a result array and loads data from a given file, and optionally stores to shadowArray. The available things to list include:\n - aggregates: show all the aggregate operators.\n - arrays: show all the arrays.\n - chunk descriptors: show all the chunk descriptors.\n - chunk map: show the chunk map.\n - functions: show all the functions.\n - instances: show all SciDB instances.\n - libraries: show all the libraries that are loaded in the current SciDB session.\n - operators: show all the operators and the libraries in which they reside.\n - types: show all the datatypes that SciDB supports.\n - queries: show all the active queries.\n - datastores: show information about each datastore\n - counters: (undocumented) dump info from performance counters\n\nParameters\n----------\n\n    - what: what to list.\n    - showSystem: whether to show systems information.", 
+    "name": "list", 
+    "signature": [
+      "args"
+    ]
+  }, 
+  {
+    "doc": "input( schemaArray | schema, filename, instance=-2, format='',\n           maxErrors=0, shadowArray='', isStrict=false )\n\nProduces a result array and loads data from a given file, and optionally stores to shadowArray.\n\nParameters\n----------\n\n    - schemaArray | schema: the array schema.\n    - filename: where to load data from.\n    - instance: which instance; default is -2. ??\n    - format: ??\n    - maxErrors: ??\n    - shadowArray: if provided, the result array will be written to it.\n    - isStrict if true, enables the data integrity checks such as for\n      data collisions and out-of-order input chunks, defualt=false.\n\nNotes\n-----\n\n    - [comment from author] Must be called as\n      INPUT('existing_array_name', '/path/to/file/on/instance'). ??\n      schema not allowed??\n    - This really needs to be modified by the author.", 
+    "name": "input", 
+    "signature": [
+      "schema", 
+      "constant", 
+      "args"
+    ]
+  }, 
+  {
+    "doc": "apply(srcArray {, newAttr, expression}+)\n\nProduces a result array with new attributes and computes values for them.\n\nParameters\n----------\n\n    - srcArray: a source array with srcAttrs and srcDims.\n    - 1 or more pairs of a new attribute and the expression to compute\n      the values for the attribute.\n\nExamples\n--------\n\n    - Given array A <quantity: uint64, sales:double> [year, item] =\n       year, item, quantity, sales\n       2011, 2, 7, 31.64\n       2011, 3, 6, 19.98\n       2012, 1, 5, 41.65\n       2012, 2, 9, 40.68\n       2012, 3, 8, 26.64\n    - apply(A, unitprice, sales/quantity) <quantity: uint64, sales:\n      double, unitprice: double> [year, item] =\n       year, item, quantity, sales, unitprice\n       2011, 2, 7, 31.64, 4.52\n       2011, 3, 6, 19.98, 3.33\n       2012, 1, 5, 41.65, 8.33\n       2012, 2, 9, 40.68, 4.52\n       2012, 3, 8, 26.64, 3.33", 
+    "name": "apply", 
+    "signature": [
+      "array", 
+      "attribute", 
+      "expression", 
+      "args"
+    ]
+  }, 
+  {
+    "doc": "xgrid( srcArray {, scale}+ )\n\nProduces a result array by 'scaling up' the source array. Within each dimension, the operator duplicates each cell a specified number of times before moving to the next cell. A scale must be provided for every dimension.\n\nParameters\n----------\n\n    - srcArray: a source array with srcAttrs and srcDims.\n    - scale: for each dimension, a scale is provided telling how much\n      larger the dimension should grow.\n\nExamples\n--------\n\n    - Given array A <quantity: uint64, sales:double> [year, item] =\n       year, item, quantity, sales\n       2011, 2, 7, 31.64\n       2011, 3, 6, 19.98\n       2012, 1, 5, 41.65\n       2012, 2, 9, 40.68\n       2012, 3, 8, 26.64\n    - xgrid(A, 1, 2) <quantity: uint64, sales:double> [year, item] =\n       year, item, quantity, sales\n       2011, 3, 7, 31.64\n       2011, 4, 7, 31.64\n       2011, 5, 6, 19.98\n       2011, 6, 6, 19.98\n       2012, 1, 5, 41.65\n       2012, 2, 5, 41.65\n       2012, 3, 9, 40.68\n       2012, 4, 9, 40.68\n       2012, 5, 8, 26.64\n       2012, 6, 8, 26.64", 
+    "name": "xgrid", 
+    "signature": [
+      "array", 
+      "args"
+    ]
+  }, 
+  {
+    "doc": "filter( srcArray, expression )\n\nThe filter operator returns an array the with the same schema as the input array. The result is identical to the input except that those cells for which the expression evaluates either false or null are marked as being empty.\n\nParameters\n----------\n\n    - srcArray: a source array with srcAttrs and srcDims.\n    - expression: an expression which takes a cell in the source array\n      as input and evaluates to either True or False.", 
+    "name": "filter", 
+    "signature": [
+      "array", 
+      "expression"
+    ]
+  }, 
+  {
+    "doc": "cross_between( srcArray, rangesArray )\n\nProduces a result array by cutting out data in one of the rectangular ranges specified in rangesArray.\n\nParameters\n----------\n\n    - srcArray: a source array with srcAttrs and srcDims.\n    - rangesArray: an array with (|srcDims| * 2) attributes all having\n      type int64.\n\nExamples\n--------\n\n    - Given array A <quantity: uint64, sales:double> [year, item] =\n       year, item, quantity, sales\n       2011, 2, 7, 31.64\n       2011, 3, 6, 19.98\n       2012, 1, 5, 41.65\n       2012, 2, 9, 40.68\n       2012, 3, 8, 26.64\n    - Given array R <year_low, item_low, year_high, item_high>[i] =\n       i, year_low, item_low, year_high, item_high\n       0, 2011, 3, 2011, 3\n       1, 2012, 1, 2012, 2\n    - cross_between(A, R) <quantity: uint64, sales:double> [year, item]\n      =\n       year, item, quantity, sales\n       2011, 3, 6, 19.98\n       2012, 1, 5, 41.65\n       2012, 2, 9, 40.68\n\nNotes\n-----\n\n    - Similar to between().\n    - The operator only works if the size of the rangesArray is very\n      small.", 
+    "name": "cross_between", 
+    "signature": [
+      "array", 
+      "array"
+    ]
+  }, 
+  {
+    "doc": "between( srcArray {, lowCoord}+ {, highCoord}+ )\n\nProduces a result array from a specified, contiguous region of a source array.\n\nParameters\n----------\n\n    - srcArray: a source array with srcAttrs and srcDims.\n    - the low coordinates\n    - the high coordinates\n\nExamples\n--------\n\n    - Given array A <quantity: uint64, sales:double> [year, item] =\n       year, item, quantity, sales\n       2011, 2, 7, 31.64\n       2011, 3, 6, 19.98\n       2012, 1, 5, 41.65\n       2012, 2, 9, 40.68\n       2012, 3, 8, 26.64\n    - between(A, 2011, 1, 2012, 2) <quantity: uint64, sales:double>\n      [year, item] =\n       year, item, quantity, sales\n       2011, 2, 7, 31.64\n       2012, 1, 5, 41.65\n       2012, 2, 9, 40.68\n\nNotes\n-----\n\n    - Almost the same as subarray. The only difference is that the\n      dimensions retain the original start/end/boundaries.", 
+    "name": "between", 
+    "signature": [
+      "array", 
+      "args"
+    ]
+  }, 
+  {
+    "doc": "cast( srcArray, schemaArray | schema )\n\nProduces a result array with data from srcArray but with the provided schema. There are three primary purposes:\n - To change names of attributes or dimensions.\n - To change types of attributes\n - To change a non-integer dimension to an integer dimension.\n - To change a nulls-disallowed attribute to a nulls-allowed attribute.\n\nParameters\n----------\n\n    - srcArray: a source array.\n    - schemaArray | schema: an array or a schema, from which attrs and\n      dims will be used by the output array.\n\nExamples\n--------\n\n    - Given array A <quantity: uint64, sales:double> [year, item] =\n       year, item, quantity, sales\n       2011, 2, 7, 31.64\n       2011, 3, 6, 19.98\n       2012, 1, 5, 41.65\n       2012, 2, 9, 40.68\n       2012, 3, 8, 26.64\n    - cast(A, <q:uint64, s:double>[y=2011:2012,2,0, i=1:3,3,0])\n      <q:uint64, s:double> [y, i] =\n       y, i, q, s\n       2011, 2, 7, 31.64\n       2011, 3, 6, 19.98\n       2012, 1, 5, 41.65\n       2012, 2, 9, 40.68\n       2012, 3, 8, 26.64", 
+    "name": "cast", 
+    "signature": [
+      "array", 
+      "schema"
+    ]
+  }, 
+  {
+    "doc": "cancel( queryId )\n\nCancels a query by ID.\n\nParameters\n----------\n\n    - queryId: the query ID that can be obtained from the SciDB log or\n      via the list() command.\n\nNotes\n-----\n\n    - This operator is designed for internal use.", 
+    "name": "cancel", 
     "signature": [
       "constant"
     ]
   }, 
   {
-    "doc": "unpack( srcArray, newDim )\n\nUnpacks a multi-dimensional array into a single-dimensional array, creating new attributes to represent the dimensions in the source array.\n\nParameters\n----------\n\n    - srcArray: a source array with srcAttrs and srcDims.\n    - newDim: the name of the dimension in the result 1D array.", 
-    "name": "old_unpack", 
+    "doc": "diskinfo()\n\nChecks disk usage.\n\nNotes\n-----\n\n    - For internal usage.", 
+    "name": "_diskinfo", 
+    "signature": []
+  }, 
+  {
+    "doc": "slice( srcArray {, dim, dimValue}* )\n\nProduces a 'slice' of the source array, by holding zero or more dimension values constant. The result array does not include the dimensions that are used for slicing.\n\nParameters\n----------\n\n    - srcArray: the source array with srcAttrs and srcDims.\n    - dim: one of the dimensions to be used for slicing.\n    - dimValue: the constant value in the dimension to slice.", 
+    "name": "slice", 
     "signature": [
       "array", 
-      "dimname"
+      "args"
+    ]
+  }, 
+  {
+    "doc": "explain_logical( query , language = 'aql' )\n\nProduces a single-element array containing the logical query plan.\n\nParameters\n----------\n\n    - query: a query string.\n    - language: the language string; either 'aql' or 'afl'; default is\n      'aql'\n\nNotes\n-----\n\n    - For internal usage.", 
+    "name": "_explain_logical", 
+    "signature": [
+      "constant", 
+      "args"
     ]
   }, 
   {
@@ -562,6 +247,101 @@ operators = [
     ]
   }, 
   {
+    "doc": "reduce_distro( replicatedArray, partitioningSchema )\n\nMakes a replicated array appear as if it has the required partitioningSchema.\n\nParameters\n----------\n\n    - replicatedArray: an source array which is replicated across all\n      the instances.\n    - partitioningSchema: the desired partitioning schema.", 
+    "name": "_reduce_distro", 
+    "signature": [
+      "array", 
+      "constant"
+    ]
+  }, 
+  {
+    "doc": "cross_join( leftArray, rightArray {, attrLeft, attrRight}* )\n\nCalculates the cross product of two arrays, with 0 or more equality conditions on the dimensions. Assume p pairs of equality conditions exist. The result is an (m+n-p) dimensional array. From the coordinates of each cell in the result array, a single cell in leftArray and a single cell in rightArray can be located. The cell in the result array contains the concatenation of the attributes from the two source cells. If a pair of join dimensions have different lengths, the result array uses the smaller of the two.\n\nParameters\n----------\n\n    - leftArray: the left-side source array with leftAttrs and\n      leftDims.\n    - rightArray: the right-side source array with rightAttrs and\n      rightDims.\n    - 0 or more pairs of an attribute from leftArray and an attribute\n      from rightArray.\n\nExamples\n--------\n\n    - Given array A <quantity: uint64, sales:double> [year, item] =\n       year, item, quantity, sales\n       2011, 2, 7, 31.64\n       2011, 3, 6, 19.98\n       2012, 1, 5, 41.65\n       2012, 2, 9, 40.68\n       2012, 3, 8, 26.64\n    - Given array B <v:uint64> [k] =\n       k, v\n       1, 10\n       2, 20\n       3, 30\n       4, 40\n       5, 50\n    - cross_join(A, B, item, k) <quantity: uint64, sales:double,\n      v:uint64> [year, item] =\n       year, item, quantity, sales, v\n       2011, 2, 7, 31.64, 20\n       2011, 3, 6, 19.98, 30\n       2012, 1, 5, 41.65, 10\n       2012, 2, 9, 40.68, 20\n       2012, 3, 8, 26.64, 30\n\nNotes\n-----\n\n    - Joining non-integer dimensions does not work.", 
+    "name": "cross_join", 
+    "signature": [
+      "array", 
+      "array", 
+      "args"
+    ]
+  }, 
+  {
+    "doc": "help( operator )\n\nProduces a single-element array containing the help information for an operator.\n\nParameters\n----------\n\n    - operator: the name of an operator.", 
+    "name": "help", 
+    "signature": [
+      "args"
+    ]
+  }, 
+  {
+    "doc": "rename( oldArray, newArray )\n\nChanges the name of an array.\n\nParameters\n----------\n\n    - oldArray: an existing array.\n    - newArray: the new name of the array.", 
+    "name": "rename", 
+    "signature": [
+      "array", 
+      "array"
+    ]
+  }, 
+  {
+    "doc": "insert( sourceArray, targetArrayName )\n\nInserts all data from left array into the persistent targetArray. targetArray must exist with matching dimensions and attributes. targetArray must also be mutable. The operator shall create a new version of targetArray that contains all data of the array that would have been received by merge(sourceArray, targetArrayName). In other words, new data is inserted between old data and overwrites any overlapping old values. The resulting array is then returned.\n\nParameters\n----------\n\n    - sourceArray the array or query that provides inserted data\n    - targetArrayName: the name of the persistent array inserted into\n\nNotes\n-----\n\n    Some might wonder - if this returns the same result as\n    merge(sourceArray, targetArrayName), then why not use\n    store(merge())? The answer is that\n    1.  this runs a lot faster - it does not perform a full scan of\n        targetArray\n    2.  this also generates less chunk headers", 
+    "name": "insert", 
+    "signature": [
+      "array", 
+      "array"
+    ]
+  }, 
+  {
+    "doc": "remove_versions( targetArray, oldestVersionToSave )\n\nRemoves all versions of targetArray that are older than oldestVersionToSave\n\nParameters\n----------\n\n    - targetArray: the array which is targeted.\n    - oldestVersionToSave: the version, prior to which all versions\n      will be removed.", 
+    "name": "remove_versions", 
+    "signature": [
+      "array", 
+      "constant"
+    ]
+  }, 
+  {
+    "doc": "remove( arrayToRemove )\n\nDrops an array.\n\nParameters\n----------\n\n    - arrayToRemove: the array to drop.", 
+    "name": "remove", 
+    "signature": [
+      "array"
+    ]
+  }, 
+  {
+    "doc": "reshape( srcArray, schema )\n\nProduces a result array containing the same cells as, but a different shape from, the source array.\n\nParameters\n----------\n\n    - srcArray: the source array with srcAttrs and srcDims.\n    - schema: the desired schema, with the same attributes as srcAttrs,\n      but with different size and/or number of dimensions. The\n      restriction is that the product of the dimension sizes is equal\n      to the number of cells in srcArray.", 
+    "name": "reshape", 
+    "signature": [
+      "array", 
+      "schema"
+    ]
+  }, 
+  {
+    "doc": "repart( srcArray, schema )\n\nProduces a result array similar to the source array, but with different chunk sizes, different chunk overlaps, or both.\n\nParameters\n----------\n\n    - srcArray: the source array with srcAttrs and srcDims.\n    - schema: the desired schema.", 
+    "name": "repart", 
+    "signature": [
+      "array", 
+      "schema"
+    ]
+  }, 
+  {
+    "doc": "redimension( srcArray, schemaArray | schema , isStrict=true | {,\n           AGGREGATE_CALL}* )\n            AGGREGATE_CALL := AGGREGATE_FUNC(inputAttr) [as resultName]\n            AGGREGATE_FUNC := approxdc | avg | count | max | min | sum | stdev\n           | var | some_use_defined_aggregate_function\n\nProduces a array using some or all of the variables of a source array, potentially changing some or all of those variables from dimensions to attributes or vice versa, and optionally calculating aggregates to be included in the new array.\n\nParameters\n----------\n\n    - srcArray: a source array with srcAttrs and srcDims.\n    - schemaArray | schema: an array or schema from which outputAttrs\n      and outputDims can be acquired. All the dimensions in outputDims\n      must exist either in srcAttrs or in srcDims, with one exception.\n      One new dimension called the synthetic dimension is allowed. All\n      the attributes in outputAttrs, which is not the result of an\n      aggregate, must exist either in srcAttrs or in srcDims.\n    - isStrict if true, enables the data integrity checks such as for\n      data collisions and out-of-order input chunks, defualt=false. In\n      case of aggregates, isStrict requires that the aggreates be\n      specified for all source array attributes which are also\n      attributes in the new array. In case of synthetic dimension,\n      isStrict has no effect.\n    - 0 or more aggregate calls. Each aggregate call has an\n      AGGREGATE_FUNC, an inputAttr and a resultName. The default\n      resultName is inputAttr followed by '_' and then AGGREGATE_FUNC.\n      The resultNames must already exist in outputAttrs.\n\nNotes\n-----\n\n    - The synthetic dimension cannot co-exist with aggregates. That is,\n      if there exists at least one aggregate call, the synthetic\n      dimension must not exist.\n    - When multiple values are 'redimensioned' into the same cell in\n      the output array, the collision handling depends on the schema:\n      (a) If there exists a synthetic dimension, all the values are\n      retained in a vector along the synthetic dimension. (b)\n      Otherwise, for an aggregate attribute, the aggregate result of\n      the values is stored. (c) Otherwise, an arbitrary value is picked\n      and the rest are discarded.\n    - Current redimension() does not support Non-integer dimensions or\n      data larger than memory.", 
+    "name": "redimension", 
+    "signature": [
+      "array", 
+      "schema", 
+      "args"
+    ]
+  }, 
+  {
+    "doc": "join( leftArray, rightArray )\n\nCombines the attributes of two arrays at matching dimension values. The two arrays must have the same dimension start coordinates, the same chunk size, and the same chunk overlap. The join result has the same dimension names as the first input. The cell in the result array contains the concatenation of the attributes from the two source cells. If a pair of join dimensions have different lengths, the result array uses the smaller of the two.\n\nParameters\n----------\n\n    - leftArray: the left-side source array with leftAttrs and\n      leftDims.\n    - rightArray: the right-side source array with rightAttrs and\n      rightDims.\n\nNotes\n-----\n\n    - join() is a special case of cross_join() with all pairs of\n      dimensions given.", 
+    "name": "join", 
+    "signature": [
+      "array", 
+      "array"
+    ]
+  }, 
+  {
+    "doc": "unload_library( library )\n\nUnloads a SciDB plugin.\n\nParameters\n----------\n\n    - library: the name of the library to unload.\n\nNotes\n-----\n\n    - This operator is the reverse of load_library().", 
+    "name": "unload_library", 
+    "signature": [
+      "constant"
+    ]
+  }, 
+  {
     "doc": "versions( srcArray )\n\nLists all versions of an array in the database.\n\nParameters\n----------\n\n    - srcArray: a source array.", 
     "name": "versions", 
     "signature": [
@@ -569,11 +349,157 @@ operators = [
     ]
   }, 
   {
-    "doc": "xgrid( srcArray {, scale}+ )\n\nProduces a result array by 'scaling up' the source array. Within each dimension, the operator duplicates each cell a specified number of times before moving to the next cell. A scale must be provided for every dimension.\n\nParameters\n----------\n\n    - srcArray: a source array with srcAttrs and srcDims.\n    - scale: for each dimension, a scale is provided telling how much\n      larger the dimension should grow.\n\nExamples\n--------\n\n    - Given array A <quantity: uint64, sales:double> [year, item] =\n       year, item, quantity, sales\n       2011, 2, 7, 31.64\n       2011, 3, 6, 19.98\n       2012, 1, 5, 41.65\n       2012, 2, 9, 40.68\n       2012, 3, 8, 26.64\n    - xgrid(A, 1, 2) <quantity: uint64, sales:double> [year, item] =\n       year, item, quantity, sales\n       2011, 3, 7, 31.64\n       2011, 4, 7, 31.64\n       2011, 5, 6, 19.98\n       2011, 6, 6, 19.98\n       2012, 1, 5, 41.65\n       2012, 2, 5, 41.65\n       2012, 3, 9, 40.68\n       2012, 4, 9, 40.68\n       2012, 5, 8, 26.64\n       2012, 6, 8, 26.64", 
-    "name": "xgrid", 
+    "doc": "save( srcArray, file, instanceId = -2, format = 'store' )\n\nSaves the data in an array to a file.\n\nParameters\n----------\n\n    - srcArray: the source array to save from.\n    - file: the file to save to.\n    - instanceId: positive number means an instance ID on which file\n      will be saved. -1 means to save file on every instance. -2 - on\n      coordinator.\n    - format: ArrayWriter format in which file will be stored\n\nNotes\n-----\n\n    n/a Must be called as SAVE('existing_array_name',\n    '/path/to/file/on/instance')", 
+    "name": "save", 
+    "signature": [
+      "array", 
+      "constant", 
+      "args"
+    ]
+  }, 
+  {
+    "doc": "save( srcArray, file, instanceId = -2, format = 'store' )\n\nSaves the data in an array to a file.\n\nParameters\n----------\n\n    - srcArray: the source array to save from.\n    - file: the file to save to.\n    - instanceId: positive number means an instance ID on which file\n      will be saved. -1 means to save file on every instance. -2 - on\n      coordinator.\n    - format: ArrayWriter format in which file will be stored\n\nNotes\n-----\n\n    n/a Must be called as SAVE('existing_array_name',\n    '/path/to/file/on/instance')", 
+    "name": "_save_old", 
+    "signature": [
+      "array", 
+      "constant", 
+      "args"
+    ]
+  }, 
+  {
+    "doc": "sg( srcArray, partitionSchema, instanceId=-1, outputArray='',\n           isStrict=false, offsetVector=null)\n\nSCATTER/GATHER distributes array chunks over the instances of a cluster. The result array is returned. It is the only operator that uses the network manager. Typically this operator is inserted by the optimizer into the physical plan.\n\nParameters\n----------\n\n    - srcArray: the source array, with srcAttrs and srcDims.\n    - partitionSchema:\n       0 = psReplication,\n       1 = psHashPartitioned,\n       2 = psLocalInstance,\n       3 = psByRow,\n       4 = psByCol,\n       5 = psUndefined.\n    - instanceId:\n       -2 = to coordinator (same with 0),\n       -1 = all instances participate,\n       0..#instances-1 = to a particular instance.\n       [TO-DO: The usage of instanceId, in calculating which instance a\n      chunk should go to, requires further documentation.]\n    - outputArray: if not empty, the result will be stored into this\n      array\n    - isStrict if true, enables the data integrity checks such as for\n      data collisions and out-of-order input chunks, defualt=false.\n    - offsetVector: a vector of #dimensions values.\n       To calculate which instance a chunk belongs, the chunkPos is\n      augmented with the offset vector before calculation.", 
+    "name": "_sg", 
+    "signature": [
+      "array", 
+      "constant", 
+      "args"
+    ]
+  }, 
+  {
+    "doc": "bernoulli( srcArray, probability [, seed] )\n\nEvaluates whether to include a cell in the result array by generating a random number and checks if it is less than probability.\n\nParameters\n----------\n\n    - srcArray: a source array with srcAttrs and srcDims.\n    - probability: the probability threshold, in [0..1]\n    - an optional seed for the random number generator.\n\nExamples\n--------\n\n    - Given array A <quantity: uint64, sales:double> [year, item] =\n       year, item, quantity, sales\n       2011, 2, 7, 31.64\n       2011, 3, 6, 19.98\n       2012, 1, 5, 41.65\n       2012, 2, 9, 40.68\n       2012, 3, 8, 26.64\n    - bernoulli(A, 0.5, 100) <quantity: uint64, sales:double> [year,\n      item] =\n       year, item, quantity, sales\n       2011, 3, 6, 19.98\n       2012, 1, 5, 41.65\n       2012, 3, 8, 26.64", 
+    "name": "bernoulli", 
+    "signature": [
+      "array", 
+      "constant", 
+      "args"
+    ]
+  }, 
+  {
+    "doc": "explain_physical( query , language = 'aql' )\n\nProduces a single-element array containing the physical query plan.\n\nParameters\n----------\n\n    - query: a query string.\n    - language: the language string; either 'aql' or 'afl'; default is\n      'aql'\n\nNotes\n-----\n\n    - For internal usage.", 
+    "name": "_explain_physical", 
+    "signature": [
+      "constant", 
+      "args"
+    ]
+  }, 
+  {
+    "doc": "scan( srcArray [, ifTrim] )\n\nProduces a result array that is equivalent to a stored array.\n\nParameters\n----------\n\n    - srcArray: the array to scan, with srcAttrs and srcDims.\n    - ifTrim: whether to turn an unbounded array to a bounded array.\n      Default value is false.", 
+    "name": "scan", 
+    "signature": [
+      "array", 
+      "array", 
+      "array", 
+      "args"
+    ]
+  }, 
+  {
+    "doc": "load_library( library )\n\nLoads a SciDB plugin.\n\nParameters\n----------\n\n    - library: the name of the library to load.\n\nNotes\n-----\n\n    - A library may be unloaded using unload_library()", 
+    "name": "load_library", 
+    "signature": [
+      "constant"
+    ]
+  }, 
+  {
+    "doc": "unfold( array )\n\nComplicated input data are often loaded into table-like 1-d multi- attribute arrays. Sometimes we want to assemble uniformly-typed subsets of the array attributes into a matrix, for example to compute correlations or regressions. unfold will transform the input array into a 2-d matrix whose columns correspond to the input array attributes. The output matrix row dimension will have a chunk size equal to the input array, and column chunk size equal to the number of columns.\n\nParameters\n----------\n\n    - array: the array to consume\n\nExamples\n--------\n\n    unfold(apply(build(<v:double>[i=0:9,3,0],i),w,i+0.5))", 
+    "name": "unfold", 
+    "signature": [
+      "array"
+    ]
+  }, 
+  {
+    "doc": "dimensions( srcArray )\n\nList the dimensions of the source array.\n\nParameters\n----------\n\n    - srcArray: a source array.", 
+    "name": "dimensions", 
+    "signature": [
+      "array"
+    ]
+  }, 
+  {
+    "doc": "show( schemaArray | schema | queryString [, 'aql' | 'afl'] )\n\nShows the schema of an array.\n\nParameters\n----------\n\n    - schemaArray | schema | queryString: an array where the schema is\n      used, the schema itself or arbitrary query string\n    o", 
+    "name": "show", 
+    "signature": [
+      "args"
+    ]
+  }, 
+  {
+    "doc": "substitute( srcArray, substituteArray {, attr}* )\n\nProduces a result array the same as srcArray, but with null values (of selected attributes) substituted using the values in substituteArray.\n\nParameters\n----------\n\n    - srcArray: a source array with srcAttrs and srcDims, that may\n      contain null values.\n    - substituteArray: the array from which the values may be used to\n      substitute the null values in srcArray. It must have a single\n      dimension which starts at 0, and a single attribute.\n    - An optional list of attributes to substitute. The default is to\n      substitute all nullable attributes.", 
+    "name": "substitute", 
+    "signature": [
+      "array", 
+      "array", 
+      "args"
+    ]
+  }, 
+  {
+    "doc": "attributes( srcArray )\n\nProduces a 1D result array where each cell describes one attribute of the source array.\n\nParameters\n----------\n\n    - srcArray: a source array with srcAttrs and srcDims.\n\nExamples\n--------\n\n    - Given array A <quantity: uint64, sales:double> [year, item] =\n       year, item, quantity, sales\n       2011, 2, 7, 31.64\n       2011, 3, 6, 19.98\n       2012, 1, 5, 41.65\n       2012, 2, 9, 40.68\n       2012, 3, 8, 26.64\n    - attributes(A) <name:string, type_id:string, nullable:bool> [No] =\n       No, name, type_id, nullable\n       0, 'quantity', 'uint64', false\n       1, 'sales', 'double', false", 
+    "name": "attributes", 
+    "signature": [
+      "array"
+    ]
+  }, 
+  {
+    "doc": "", 
+    "name": "load_module", 
+    "signature": [
+      "constant"
+    ]
+  }, 
+  {
+    "doc": "window( srcArray {, leftEdge, rightEdge}+ {, AGGREGATE_CALL}+ [,\n           METHOD ] )\n            AGGREGATE_CALL := AGGREGATE_FUNC(inputAttr) [as resultName]\n            AGGREGATE_FUNC := approxdc | avg | count | max | min | sum | stdev\n           | var | some_use_defined_aggregate_function\n            METHOD := 'materialize' | 'probe'\n\nProduces a result array with the same size and dimensions as the source array, where each ouput cell stores some aggregate calculated over a window around the corresponding cell in the source array. A pair of window specification values (leftEdge, rightEdge) must exist for every dimension in the source and output array.\n\nParameters\n----------\n\n    - srcArray: a source array with srcAttrs and srcDims.\n    - leftEdge: how many cells to the left of the current cell (in one\n      dimension) are included in the window.\n    - rightEdge: how many cells to the right of the current cell (in\n      one dimension) are included in the window.\n    - 1 or more aggregate calls. Each aggregate call has an\n      AGGREGATE_FUNC, an inputAttr and a resultName. The default\n      resultName is inputAttr followed by '_' and then AGGREGATE_FUNC.\n      For instance, the default resultName for sum(sales) is\n      'sales_sum'. The count aggregate may take * as the input\n      attribute, meaning to count all the items in the group including\n      null items. The default resultName for count(*) is 'count'.\n    - An optional final argument that specifies how the operator is to\n      perform its calculation. At the moment, we support two internal\n      algorithms: 'materialize' (which materializes an entire source\n      chunk before computing the output windows) and 'probe' (which\n      probes the source array for the data in each window). In general,\n      materializing the input is a more efficient strategy, but when\n      we're using thin(...) in conjunction with window(...), we're\n      often better off using probes, rather than materilization. This\n      is a decision that the optimizer needs to make.\n\nExamples\n--------\n\n    - Given array A <quantity: uint64, sales:double> [year, item] =\n       year, item, quantity, sales\n       2011, 2, 7, 31.64\n       2011, 3, 6, 19.98\n       2012, 1, 5, 41.65\n       2012, 2, 9, 40.68\n       2012, 3, 8, 26.64\n    - window(A, 0, 0, 1, 0, sum(quantity)) <quantity_sum: uint64>\n      [year, item] =\n       year, item, quantity_sum\n       2011, 2, 7\n       2011, 3, 13\n       2012, 1, 5\n       2012, 2, 14\n       2012, 3, 17", 
+    "name": "window", 
     "signature": [
       "array", 
       "args"
+    ]
+  }, 
+  {
+    "doc": "regrid( srcArray {, blockSize}+ {, AGGREGATE_CALL}+ {, chunkSize}*\n           )\n            AGGREGATE_CALL := AGGREGATE_FUNC(inputAttr) [as resultName]\n            AGGREGATE_FUNC := approxdc | avg | count | max | min | sum | stdev\n           | var | some_use_defined_aggregate_function\n\nPartitions the cells in the source array into blocks (with the given blockSize in each dimension), and for each block, calculates the required aggregates.\n\nParameters\n----------\n\n    - srcArray: the source array with srcAttrs and srcDims.\n    - A list of blockSizes, one for each dimension.\n    - 1 or more aggregate calls. Each aggregate call has an\n      AGGREGATE_FUNC, an inputAttr and a resultName. The default\n      resultName is inputAttr followed by '_' and then AGGREGATE_FUNC.\n      For instance, the default resultName for sum(sales) is\n      'sales_sum'. The count aggregate may take * as the input\n      attribute, meaning to count all the items in the group including\n      null items. The default resultName for count(*) is 'count'.\n    - 0 or numDims chunk sizes. If no chunk size is given, the chunk\n      sizes from the input dims will be used. If at least one chunk\n      size is given, the number of chunk sizes must be equal to the\n      number of dimensions, and the specified chunk sizes will be used.\n\nNotes\n-----\n\n    - Regrid does not allow a block to span chunks. So for every\n      dimension, the chunk interval needs to be a multiple of the block\n      size.", 
+    "name": "regrid", 
+    "signature": [
+      "array", 
+      "args"
+    ]
+  }, 
+  {
+    "doc": "aggregate( srcArray {, AGGREGATE_CALL}+ {, groupbyDim}* {,\n           chunkSize}* )\n            AGGREGATE_CALL := AGGREGATE_FUNC(inputAttr) [as resultName]\n            AGGREGATE_FUNC := approxdc | avg | count | max | min | sum | stdev\n           | var | some_use_defined_aggregate_function\n\nCalculates aggregates over groups of values in an array, given the aggregate types and attributes to aggregate on.\n\nParameters\n----------\n\n    - srcArray: a source array with srcAttrs and srcDims.\n    - 1 or more aggregate calls. Each aggregate call has an\n      AGGREGATE_FUNC, an inputAttr and a resultName. The default\n      resultName is inputAttr followed by '_' and then AGGREGATE_FUNC.\n      For instance, the default resultName for sum(sales) is\n      'sales_sum'. The count aggregate may take * as the input\n      attribute, meaning to count all the items in the group including\n      null items. The default resultName for count(*) is 'count'.\n    - 0 or more dimensions that together determines the grouping\n      criteria.\n    - 0 or numGroupbyDims chunk sizes. If no chunk size is given, the\n      groupby dims will inherit chunk sizes from the input array. If at\n      least one chunk size is given, the number of chunk sizes must be\n      equal to the number of groupby dimensions, and the groupby\n      dimensions will use the specified chunk sizes.\n\nExamples\n--------\n\n    - Given array A <quantity: uint64, sales:double> [year, item] =\n       year, item, quantity, sales\n       2011, 2, 7, 31.64\n       2011, 3, 6, 19.98\n       2012, 1, 5, 41.65\n       2012, 2, 9, 40.68\n       2012, 3, 8, 26.64\n    - aggregate(A, count(*), max(quantity), sum(sales), year) <count:\n      uint64, quantity_max: uint64, sales_sum: double> [year] =\n       year, count, quantity_max, sales_sum\n       2011, 2, 7, 51.62\n       2012, 3, 9, 108.97\n\nNotes\n-----\n\n    - All the aggregate functions ignore null values, except count(*).", 
+    "name": "aggregate", 
+    "signature": [
+      "array", 
+      "args"
+    ]
+  }, 
+  {
+    "doc": "cumulate ( inputArray {, AGGREGATE_ALL}+ [, aggrDim] )\n            AGGREGATE_CALL := AGGREGATE_FUNC ( inputAttribute ) [ AS aliasName\n           ]\n            AGGREGATE_FUNC := approxdc | avg | count | max | min | sum | stdev\n           | var | some_use_defined_aggregate_function\n\nCalculates a running aggregate over some aggregate along some fluxVector (a single dimension of the inputArray).\n\nParameters\n----------\n\n       - inputArray: an input array\n       - 1 or more aggregate calls.\n       - aggrDim: the name of a dimension along with aggregates are computed.\n         Default is the first dimension.\n\nExamples\n--------\n\n      input:         cumulate(input, sum(v) as sum_v, count(*) as cnt, I)\n     +-I->\n    J|     00   01   02   03       00       01       02       03\n     V   +----+----+----+----+        +--------+--------+--------+--------+\n     00  | 01 |    | 02 |    |   00   | (1, 1) |        | (3, 2) |        |\n         +----+----+----+----+        +--------+--------+--------+--------+\n     01  |    | 03 |    | 04 |   01   |        | (3, 1) |        | (7, 2) |\n         +----+----+----+----+        +--------+--------+--------+--------+\n     02  | 05 |    | 06 |    |   02   | (5, 1) |        | (11, 2)|        |\n         +----+----+----+----+        +--------+--------+--------+--------+\n     03  |    | 07 |    | 08 |   03   |        | (7, 1) |        | (15, 2)|\n         +----+----+----+----+        +--------+--------+--------+--------+\n\nNotes\n-----\n\n    - For now, cumulate does NOT handle input array that have overlaps.", 
+    "name": "cumulate", 
+    "signature": [
+      "array", 
+      "aggregate", 
+      "args"
+    ]
+  }, 
+  {
+    "doc": "uniq (input_array [,'chunk_size=CHUNK_SIZE'] )\n\nThe input array must have a single attribute of any type and a single dimension. The data in the input array must be sorted and dense. The operator is built to accept the output produced by sort() with a single attribute. The output array shall have the same attribute with the dimension i starting at 0 and chunk size of 1 million. An optional chunk_size parameter may be used to set a different output chunk size. Data is compared using a simple bitwise comparison of underlying memory. Null values are discarded from the output.\n\nParameters\n----------\n\n     array <single_attribute: INPUT_ATTRIBUTE_TYPE> [single_dimension=\n    *]\n\nExamples\n--------\n\n     uniq (sorted_array)\n     store ( uniq ( sort ( project (big_array, string_attribute) ),\n    'chuk_size=100000'), string_attribute_index )", 
+    "name": "uniq", 
+    "signature": [
+      "array", 
+      "args"
+    ]
+  }, 
+  {
+    "doc": "materialize( srcArray, format )\n\nProduces a materialized version of an source array.\n\nParameters\n----------\n\n    - srcArray: the sourcce array with srcDims and srcAttrs.\n    - format: uint32, the materialize format.", 
+    "name": "_materialize", 
+    "signature": [
+      "array", 
+      "constant"
     ]
   }
 ]

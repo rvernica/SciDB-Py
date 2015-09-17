@@ -4,9 +4,11 @@ from __future__ import absolute_import, print_function, division, unicode_litera
 
 import sys
 import threading
+import subprocess
+import re
 
 from . import SciDBArray
-from .afldb import operators
+from .afldb import operators as operatorsDocStr
 from ._py3k_compat import string_type
 
 _mod = sys.modules[__name__]
@@ -170,7 +172,14 @@ class AFLNamespace(object):
         return self.store(self.redimension(arr_in, arr_out),
                           arr_out)
 
-
+# Start filling up the AFL namespace in the following manner:
+#	- manual input of infix_functions
+#	- manual input of scalar functions
+#	- manual input of functions from other libraries
+# 	- automated addition of iquery supported macros
+#	- automated addition of iquery supported operators (and also fill in DocStrings info from
+#			corresponding afldb.py entry if available) 	
+operators = []
 # tuple of (python AFL name, scidb token) for binary infix functions
 infix_functions = [('as_', 'as'), ('add', '+'),
                    ('sub', '-'), ('mul', '*'), ('div', '/'),
@@ -199,6 +208,33 @@ for f in functions:
 for op in ['gemm', 'gesvd']:
     operators.append(dict(name=op, signature=[], doc=''))
 
+# add the AFL macros by running the following query:
+# iquery -aq "list('macros')"
+iqout = subprocess.check_output("iquery -aq \"list('macros')\"", shell=True, stderr=subprocess.STDOUT)
+regex = r" *'([^']*)' *, *.*"		# regular expression to extract the first occurence with single 
+					#	... quotes 'asdf'
+macros = re.findall(regex, iqout)	# store regex matches in a list
+for macro in macros:
+    operators.append(dict(name=macro, signature=[], doc=''))
+
+# add the AFL operators by running the following query:
+# iquery -aq "list('operators')"
+iqout = subprocess.check_output("iquery -aq \"list('operators')\"", \
+				shell=True, stderr=subprocess.STDOUT)
+regex = r" *'([^']*)' *, *.*"		# regular expression to extract the first occurence with single 
+					#	... quotes 'asdf'
+operatorList = re.findall(regex, iqout)	# store regex matches in a list
+for opname in operatorList:
+    # now check if there is a DocString existing for this particular operator
+    found = False
+    for entry in operatorsDocStr:
+        if entry['name'] == opname:
+            operators.append(dict(name=opname, signature=entry['signature'], doc=entry['doc']))
+            found = True
+            continue
+    
+    if found != True:	# if DocString was not found in `afldb.py`
+        operators.append(dict(name=opname, signature=[], doc=''))
 
 # for documentation purposes, create operator classes
 # unattached to references. These aren't generally useful, but
