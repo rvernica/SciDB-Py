@@ -8,7 +8,7 @@ import subprocess
 import re
 
 from . import SciDBArray
-from .afldb import operators as operatorsDocStr
+from .afldb import operators as operators_doc_str
 from ._py3k_compat import string_type
 
 _mod = sys.modules[__name__]
@@ -172,13 +172,15 @@ class AFLNamespace(object):
         return self.store(self.redimension(arr_in, arr_out),
                           arr_out)
 
-# Start filling up the AFL namespace in the following manner:
-#	- manual input of infix_functions
-#	- manual input of scalar functions
-#	- manual input of functions from other libraries
-# 	- automated addition of iquery supported macros
-#	- automated addition of iquery supported operators (and also fill in DocStrings info from
-#			corresponding afldb.py entry if available) 	
+'''
+ Start filling up the AFL namespace in the following manner:
+	- manual input of infix_functions
+	- manual input of scalar functions
+	- manual input of functions from other libraries
+ 	- automated addition of iquery supported macros
+	- automated addition of iquery supported operators (and also fill in DocStrings info from
+			corresponding afldb.py entry if available) 	
+'''
 operators = []
 # tuple of (python AFL name, scidb token) for binary infix functions
 infix_functions = [('as_', 'as'), ('add', '+'),
@@ -189,8 +191,10 @@ infix_functions = [('as_', 'as'), ('add', '+'),
 # Functions that are no longer supported
 DEPRECATED = set()
 
-# scalar functions
-# TODO grab docstrings from these somewhere?
+'''
+ scalar functions
+ TODO grab docstrings from these somewhere?
+'''
 functions = ['abs', 'acos', 'and', 'append_offset', 'apply_offset', 'asin',
              'atan', 'ceil', 'cos', 'day_of_week', 'exp', 'first_index',
              'floor', 'format', 'get_offset', 'high', 'hour_of_day',
@@ -203,13 +207,17 @@ for f in functions:
     operators.append(dict(name=f, signature=[],
                           doc='The scalar function %s' % f))
 
-# add in some missing operators from other libraries
-# TODO add these to afldb.py
+'''
+ add in some missing operators from other libraries
+ TODO add these to afldb.py
+'''
 for op in ['gemm', 'gesvd']:
     operators.append(dict(name=op, signature=[], doc=''))
 
-# add the AFL macros by running the following query:
-# iquery -aq "list('macros')"
+'''
+ add the AFL macros by running the following query:
+ iquery -aq "list('macros')"
+'''
 iqout = subprocess.check_output("iquery -aq \"list('macros')\"", shell=True, stderr=subprocess.STDOUT)
 regex = r" *'([^']*)' *, *.*"		# regular expression to extract the first occurence with single 
 					#	... quotes 'asdf'
@@ -217,17 +225,19 @@ macros = re.findall(regex, iqout)	# store regex matches in a list
 for macro in macros:
     operators.append(dict(name=macro, signature=[], doc=''))
 
-# add the AFL operators by running the following query:
-# iquery -aq "list('operators')"
+'''
+ add the AFL operators by running the following query:
+ iquery -aq "list('operators')"
+'''
 iqout = subprocess.check_output("iquery -aq \"list('operators')\"", \
 				shell=True, stderr=subprocess.STDOUT)
 regex = r" *'([^']*)' *, *.*"		# regular expression to extract the first occurence with single 
 					#	... quotes 'asdf'
-operatorList = re.findall(regex, iqout)	# store regex matches in a list
-for opname in operatorList:
+operator_list = re.findall(regex, iqout)	# store regex matches in a list
+for opname in operator_list:
     # now check if there is a DocString existing for this particular operator
     found = False
-    for entry in operatorsDocStr:
+    for entry in operators_doc_str:
         if entry['name'] == opname:
             operators.append(dict(name=opname, signature=entry['signature'], doc=entry['doc']))
             found = True
@@ -236,9 +246,11 @@ for opname in operatorList:
     if found != True:	# if DocString was not found in `afldb.py`
         operators.append(dict(name=opname, signature=[], doc=''))
 
-# for documentation purposes, create operator classes
-# unattached to references. These aren't generally useful, but
-# this lets sphinx find and document each class
+'''
+ for documentation purposes, create operator classes
+ unattached to references. These aren't generally useful, but
+ this lets sphinx find and document each class
+'''
 for op in operators:
     setattr(_mod, op['name'], register_operator(op))
     __all__.append(op['name'])
