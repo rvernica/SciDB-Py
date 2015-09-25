@@ -1884,4 +1884,19 @@ def connect(url=None, username=None, password=None):
     if password is None:
         password = os.environ.get('SCIDB_PASSWORD', None)
 
-    return SciDBShimInterface(url, user=username, password=password)
+    result = SciDBShimInterface(url, user=username, password=password)
+    curList = dir(result.afl)                           # store the list of AFL operators and infix functions that have been imported through afldb.py
+    opList = result.afl.list("'operators'").toarray()   # query the connected SciDB engine to view the currently supported list of operators 
+                                                                # (e.g. operators added through custom plugins will be viewable here)
+    macroList = result.afl.list("'macros'").toarray()   # query the connected SciDB engine to view the list of SciDB macros
+    ops = [op for op, source in opList]
+    macros = [macro for macro, source in macroList]
+
+    for op in ops+macros:
+        if op in curList:
+            continue
+        opEntry = dict(name=op, signature=[], doc='')
+        from .afl import register_operator
+        setattr(result.afl, op, register_operator(opEntry, result))
+
+    return result
