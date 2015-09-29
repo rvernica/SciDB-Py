@@ -1606,6 +1606,36 @@ apply(
         result = (result[:q.size] * w + result[q.size:] * (1 - w))
         return result
 
+    def _refresh_afl(self):
+        """
+        Updates list of operators and macros by querying SciDB
+
+        The SciDB interface object comes preloaded with a basic (static) set of operators.
+        These are imported from <scidbpy/afldb.py>
+        Using this function, an instantiated SciDB interface is updated with the current 
+        set of operators and macros by running list('operators') and list ('macros') queries to SciDB
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+        """
+        op_list = self.afl.list("'operators'").toarray()   # query the connected SciDB engine to view the currently supported list of operators 
+                                                                # (e.g. operators added through custom plugins will be viewable here)
+        macro_list = self.afl.list("'macros'").toarray()   # query the connected SciDB engine to view the list of SciDB macros
+        ops = [op for op, source in op_list]
+        macros = [macro for macro, source in macro_list]
+
+        for op in ops+macros:
+            if hasattr(self.afl, op):
+                continue
+            op_entry = dict(name=op, signature=[], doc='')
+            from .afl import register_operator
+            setattr(self.afl, op, register_operator(op_entry, self))
+
 
 class SciDBShimInterface(SciDBInterface):
 
@@ -1672,6 +1702,8 @@ class SciDBShimInterface(SciDBInterface):
         except Exception as e:
             raise ValueError("Could not connect to a SciDB instance at {0}. {1}"
                              .format(self.hostname, e))
+
+        self._refresh_afl()
 
     def login(self, user, password):
         """
@@ -1885,18 +1917,5 @@ def connect(url=None, username=None, password=None):
         password = os.environ.get('SCIDB_PASSWORD', None)
 
     result = SciDBShimInterface(url, user=username, password=password)
-    curList = dir(result.afl)                           # store the list of AFL operators and infix functions that have been imported through afldb.py
-    opList = result.afl.list("'operators'").toarray()   # query the connected SciDB engine to view the currently supported list of operators 
-                                                                # (e.g. operators added through custom plugins will be viewable here)
-    macroList = result.afl.list("'macros'").toarray()   # query the connected SciDB engine to view the list of SciDB macros
-    ops = [op for op, source in opList]
-    macros = [macro for macro, source in macroList]
-
-    for op in ops+macros:
-        if op in curList:
-            continue
-        opEntry = dict(name=op, signature=[], doc='')
-        from .afl import register_operator
-        setattr(result.afl, op, register_operator(opEntry, result))
 
     return result
