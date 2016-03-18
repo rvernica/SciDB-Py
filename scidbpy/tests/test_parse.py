@@ -28,8 +28,8 @@ class TestScalar(TestBase):
 
     def scalar(self, typ, value, null):
         # build a single-element array
-        if null:
-            typ = typ + ' NULL'
+        if not null:
+            typ = typ + ' NOT NULL'
         return sdb.afl.build('<x: %s>[i=0:0,10,0]' % typ, value)
 
     def check_scalar(self, typ, value, null, expected=None):
@@ -38,11 +38,11 @@ class TestScalar(TestBase):
         self.check(self.scalar(typ, value, null), expected)
 
     def check_null(self, typ):
-        x = sdb.afl.build('<x: %s NULL>[i=0:0,10,0]' % typ, 'null')
+        x = sdb.afl.build('<x: %s>[i=0:0,10,0]' % typ, 'null')
         self.check(x, [NULLS[typ]])
 
     def test_scalar_numbers(self):
-        for typ, cases in [('float', (-1.0, 0.0, 1.0, 1e100)),
+        for typ, cases in [('float', (-1.0, 0.0, 1.0, 3e35)), # FLT_MIN      = 1.175494e-38, FLT_MAX      = 3.402823e+38
                            ('double', (-1, 0, 1, 1e100, 1e900)),
                            ('int8', (0, 17, -5)),
                            ('uint8', (0, 17, 255)),
@@ -110,23 +110,23 @@ class TestMultiAttributeArrays(object):
         assert_allclose(y['y'], rng * 2)
 
     def test_numbers_with_nulls(self):
-        x = sdb.afl.join(sdb.afl.build('<x:float NULL>[i=0:3,10,0]', 'iif(i>0, i, null)'),
-                         sdb.afl.build('<y:uint8>[i=0:3,10,0]', '2*i'))
+        x = sdb.afl.join(sdb.afl.build('<x:float>[i=0:3,10,0]', 'iif(i>0, i, null)'),
+                         sdb.afl.build('<y:uint8 NOT NULL>[i=0:3,10,0]', '2*i'))
         y = toarray(x)
         assert_allclose(y['x'], [np.nan, 1., 2., 3.])
         assert_array_equal(y['y'], [0, 2, 4, 6])
 
     def test_numbers_string(self):
-        x = sdb.afl.join(sdb.afl.build('<x:float>[i=0:3,10,0]', 'i'),
-                         sdb.afl.build('<y:string>[i=0:3,10,0]', "'abc'"))
+        x = sdb.afl.join(sdb.afl.build('<x:float NOT NULL>[i=0:3,10,0]', 'i'),
+                         sdb.afl.build('<y:string NOT NULL>[i=0:3,10,0]', "'abc'"))
 
         y = toarray(x)
         assert_allclose(y['x'], [0, 1, 2, 3])
         assert_array_equal(y['y'], ['abc', 'abc', 'abc', 'abc'])
 
     def test_double_string(self):
-        x = sdb.afl.join(sdb.afl.build('<x:string>[i=0:3,10,0]', "'aaa'"),
-                         sdb.afl.build('<y:string NULL>[i=0:3,10,0]', "iif(i>0, 'b', null)"))
+        x = sdb.afl.join(sdb.afl.build('<x:string NOT NULL>[i=0:3,10,0]', "'aaa'"),
+                         sdb.afl.build('<y:string>[i=0:3,10,0]', "iif(i>0, 'b', null)"))
         y = toarray(x)
         assert_array_equal(y['x'], ['aaa', 'aaa', 'aaa', 'aaa'])
         assert_array_equal(y['y'], [None, 'b', 'b', 'b'])
@@ -134,9 +134,9 @@ class TestMultiAttributeArrays(object):
 
 def test_array():
 
-    a = sdb.afl.build('<a: int32>[i=0:2,10,0]', 'i*5')
-    b = sdb.afl.build('<b: string>[i=0:2,10,0]', "'b'")
-    c = sdb.afl.build('<c: float NULL>[i=0:2,10,0]', 'iif(i>0, i/2.0, null)')
+    a = sdb.afl.build('<a: int32 NOT NULL>[i=0:2,10,0]', 'i*5')
+    b = sdb.afl.build('<b: string NOT NULL>[i=0:2,10,0]', "'b'")
+    c = sdb.afl.build('<c: float>[i=0:2,10,0]', 'iif(i>0, i/2.0, null)')
     d = sdb.join(a, b, c)
 
     result = toarray(d)
@@ -147,21 +147,21 @@ def test_array():
 
 def test_nonzero_origin():
 
-    a = sdb.afl.build('<a:int8>[i=1:5,10,0]', 'i')
+    a = sdb.afl.build('<a:int8 NOT NULL>[i=1:5,10,0]', 'i')
     assert_array_equal(toarray(a), [1, 2, 3, 4, 5])
 
 
 def test_unbounded():
 
-    a = sdb.afl.build('<a:int8>[i=0:4,10,0]', 'i')
-    a = a.redimension('<a:int8>[i=0:*,10,0]')
+    a = sdb.afl.build('<a:int8 NOT NULL>[i=0:4,10,0]', 'i')
+    a = a.redimension('<a:int8 NOT NULL>[i=0:*,10,0]')
     assert_array_equal(toarray(a), [0, 1, 2, 3, 4])
     assert toarray(a).dtype == np.int8
 
 
 def test_sparse():
-    x = sdb.afl.build('<a:int8>[i=0:1,10,0]', 10)
-    x = x.redimension('<a:int8>[i=0:2,10,0]')
+    x = sdb.afl.build('<a:int8 NOT NULL>[i=0:1,10,0]', 10)
+    x = x.redimension('<a:int8 NOT NULL>[i=0:2,10,0]')
     assert_array_equal(toarray(x), [10, 10, 0])
 
 
@@ -188,7 +188,7 @@ def test_auto_compression_options():
 
 
 def test_dense():
-    x = sdb.afl.build('<a:int8>[i=0:100,7,3, j=0:100,10,2]', 'i+j')
+    x = sdb.afl.build('<a:int8 NOT NULL>[i=0:100,7,3, j=0:100,10,2]', 'i+j')
 
     assert_array_equal(x.toarray(method='sparse'), x.toarray(method='dense'))
 

@@ -117,8 +117,8 @@ def test_sparse_mischunked():
     def check_join_op(op):
         A = rand(3, 4, density=0.5)
         B = rand(3, 4, density=0.5)
-        Asdb = sdb.from_sparse(A).redimension('<f0:double>[i0=0:2,10,0,i1=0:3,10,0]')
-        Bsdb = sdb.from_sparse(B).redimension('<f0:double>[i0=0:2,2,1,i1=0:3,2,1]')
+        Asdb = sdb.from_sparse(A).redimension('<f0:double NOT NULL>[i0=0:2,10,0,i1=0:3,10,0]')
+        Bsdb = sdb.from_sparse(B).redimension('<f0:double NOT NULL>[i0=0:2,2,1,i1=0:3,2,1]')
         C = op(Asdb, Bsdb)
         expected = op(A.toarray(), B.toarray())
         assert_allclose(C.toarray(), expected, rtol=RTOL)
@@ -131,8 +131,8 @@ def test_sparse_mischunked():
 def test_dense_mischunked():
 
     def check_join_op(op):
-        A = sdb.random((3, 4)).redimension('<f0:double>[i0=0:2,10,0,i1=0:3,10,0]')
-        B = sdb.random((3, 4)).redimension('<f0:double>[i0=0:2,2,1,i1=0:3,2,1]')
+        A = sdb.random((3, 4)).redimension('<f0:double NOT NULL>[i0=0:2,10,0,i1=0:3,10,0]')
+        B = sdb.random((3, 4)).redimension('<f0:double NOT NULL>[i0=0:2,2,1,i1=0:3,2,1]')
         C = op(A, B)
         expected = op(A.toarray(), B.toarray())
         assert_allclose(C.toarray(), expected, rtol=RTOL)

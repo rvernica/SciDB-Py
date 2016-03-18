@@ -166,7 +166,7 @@ class sdbtype(object):
     @classmethod
     def from_full_rep(cls, rep):
         schema = '<%s>' % (','.join('%s: %s %s' %
-                                    (nm, typ, 'NULL' if null else '')
+                                    (nm, typ, '' if null else 'NOT NULL')
                                     for nm, typ, null in rep))
         return cls(schema)
 
@@ -195,7 +195,7 @@ class sdbtype(object):
 
         names = [str(s[0]) for s in sdbL]
         dtypes = [s[1].split()[0] for s in sdbL]
-        nullable = ['null' in (''.join(s[1].split()[1:])).lower()
+        nullable = ['not null' not in (' '.join(s[1].split()[1:])).lower()
                     for s in sdbL]
         return list(zip(names, dtypes, nullable))
 
@@ -222,7 +222,7 @@ class sdbtype(object):
 
     @classmethod
     def _dtype_to_schema(cls, dtype):
-        """Convert a scidb type schema to a numpy dtype
+        """Convert a numpy dtype schema to a scidb type
 
         Parameters
         ----------
@@ -239,7 +239,7 @@ class sdbtype(object):
         # Hack: if we re-encode this as a dtype, then de-encode again, numpy
         #       will add default names where they are missing
         dtype = _dtype(dtype).descr
-        pairs = ["{0}:{1}".format(d[0], _sdb_type(d[1])) for d in dtype]
+        pairs = ["{0}:{1} NOT NULL".format(d[0], _sdb_type(d[1])) for d in dtype]
         return '<{0}>'.format(','.join(pairs))
 
 
