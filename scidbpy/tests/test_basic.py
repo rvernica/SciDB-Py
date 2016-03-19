@@ -321,9 +321,11 @@ def test_svd():
     U, S, VT = sdb.svd(A)
     U2, S2, VT2 = np.linalg.svd(A.toarray(), full_matrices=False)
 
-    assert_allclose(U.toarray(), U2, rtol=RTOL)
-    assert_allclose(S.toarray(), S2, rtol=RTOL)
-    assert_allclose(VT.toarray(), VT2, rtol=RTOL)
+    assert_allclose(np.mat(U.toarray()) * np.diag(S.toarray()) * np.mat(VT.toarray()), np.mat(A.toarray()), rtol=RTOL)
+
+    assert_allclose(np.absolute(U.toarray()), np.absolute(U2), rtol=RTOL)
+    assert_allclose(np.absolute(S.toarray()), np.absolute(S2), rtol=RTOL)
+    assert_allclose(np.absolute(VT.toarray()), np.absolute(VT2), rtol=RTOL)
 
 
 def test_abs():
