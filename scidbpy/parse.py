@@ -190,7 +190,7 @@ def _nonstring_attribute_dict(array, **kwargs):
             result[nm] = att
         else:
             good = att['mask'] == 255
-            result[nm] = np.where(good, att['data'], NULLS[typ])
+            result[nm] = np.where(good, att['data'], NULLS[typ]).astype(typemap[typ])
 
         if typ == 'datetimetz':
             result[nm] = result[nm]['time'] - result[nm]['tz']
