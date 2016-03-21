@@ -1,3 +1,7 @@
+Version 15.12.0
+---------------
+- 2016-03-21 master branch now supports SciDB15.12; use branch `scidb15.7` for use with SciDB15.7  
+
 Version 14.12.0
 ---------------
 - 2014-11-23 rename() operatore evaluates arrays if needed automatically (#71)

@@ -9,7 +9,7 @@ allow users to utilize the power of SciDB_ from Python, using a familiar
 and intuitive numpy-like syntax.  For more information, see the
 SciDB Documentation_.
 
-- Authors: Jake VanderPlas <jakevdp@cs.washington.edu>, Chris Beaumont <cbeaumont@cfa.harvard.edu>
+- Authors: Jake VanderPlas <jakevdp@cs.washington.edu>, Chris Beaumont <cbeaumont@cfa.harvard.edu>, Kriti Sen Sharma <ksen@paradigm4.com>
 - License: Simplified BSD
 - Documentation: http://scidb-py.readthedocs.org/en/latest/
 
