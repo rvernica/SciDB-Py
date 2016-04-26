@@ -1,13 +1,13 @@
 NOTE for different versions of SciDB
 ------------------------------------
-The master branch of this repository tracks the latest release of SciDB. To get a version of SciDB-Py that works with SciDB version 15.7 or older, choose the `scidb15.7` branch.
+The master branch of this repository tracks the latest release of SciDB. To get a version of SciDB-Py that works with SciDB version 15.7 or older, choose the ``scidb15.7`` branch.
 
 SciDB-py: Python Interface to SciDB
 ===================================
 SciDB-py is a full-featuered Python interface to SciDB.  Its goal is to
 allow users to utilize the power of SciDB_ from Python, using a familiar
 and intuitive numpy-like syntax.  For more information, see the
-SciDB Documentation_.
+SciDB-Py Documentation_.
 
 - Authors: Jake VanderPlas <jakevdp@cs.washington.edu>, Chris Beaumont <cbeaumont@cfa.harvard.edu>, Kriti Sen Sharma <ksen@paradigm4.com>
 - License: Simplified BSD
@@ -79,7 +79,7 @@ Paradigm4_.
 .. _SciPy: http://www.scipy.org
 .. _Pandas: http://pandas.pydata.org/
 .. _Shim: http://github.com/paradigm4/shim
-.. _SciDB: http://scidb.org/
+.. _SciDB: http://paradigm4.com/
 .. _Documentation: http://scidb-py.readthedocs.org/
 .. _Source: http://github.com/paradigm4/SciDB-py
 .. _Mock: http://www.voidspace.org.uk/python/mock/
