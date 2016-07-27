@@ -51,12 +51,17 @@ To get a version of SciDB-Py that works with SciDB version 15.7 or older, choose
 
 Installation steps
 
-git clone https://github.com/Paradigm4/SciDB-Py.git
+The latest release of ``scidb-py`` can be installed from the Python package index::
+ 
+   pip install scidb-py
+ 
+Install the development package directly from Github with::
 
-To install from source after cloning from github, type
-```
-python setup.py install
-```
+    pip install git+http://github.com/paradigm4/scidb-py.git
+
+The latest release of ``scidb-py`` can be installed from the github "http://github.com/paradigm4/scidb-py", "master" branch by downloading the code and typing::
+
+    python setup.py install
 
 Depending on how your Python installation is set up, you
 may need root privileges for this.
