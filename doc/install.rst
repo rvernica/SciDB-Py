@@ -55,13 +55,8 @@ SciPy_ (optional)
 
 SciDB-Py Package Installation
 -----------------------------
-The latest release of ``scidb-py`` can be installed from the Python
-package index::
+The latest release of ``scidb-py`` can be installed from the github "http://github.com/paradigm4/scidb-py" "master" branch. 
 
-    pip install scidb-py
-
-The development version can be found on github at
-http://github.com/paradigm4/scidb-py.
 Install the development package directly from Github with::
 
     pip install git+http://github.com/paradigm4/scidb-py.git
