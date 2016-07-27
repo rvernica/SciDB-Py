@@ -1,15 +1,17 @@
 NOTE for different versions of SciDB
 ------------------------------------
-The master branch of this repository tracks the latest release of SciDB. To get a version of SciDB-Py that works with SciDB version 15.7 or older, choose the ``scidb15.7`` branch.
+The master branch of this repository tracks the latest release of SciDB. 
+
+To get a version of SciDB-Py that works with SciDB version 15.7 or older, choose the ``scidb15.7`` branch.
 
 SciDB-py: Python Interface to SciDB
 ===================================
-SciDB-py is a full-featuered Python interface to SciDB.  Its goal is to
+SciDB-py is a full-featuered Python interface to SciDB.  It's goal is to
 allow users to utilize the power of SciDB_ from Python, using a familiar
 and intuitive numpy-like syntax.  For more information, see the
 SciDB-Py Documentation_.
 
-- Authors: Jake VanderPlas <jakevdp@cs.washington.edu>, Chris Beaumont <cbeaumont@cfa.harvard.edu>, Kriti Sen Sharma <ksen@paradigm4.com>
+- Authors: Jake VanderPlas <jakevdp@cs.washington.edu>, Chris Beaumont <cbeaumont@cfa.harvard.edu>, Kriti Sen Sharma <ksen@paradigm4.com>, Jonathan Rivers<jrivers@paradigm4.com>
 - License: Simplified BSD
 - Documentation: http://scidb-py.readthedocs.org/en/latest/
 
@@ -48,17 +50,10 @@ Mock_
 
 Installation
 ------------
-For full installation information, please see the Documentation_.
 
-To install the latest stable release via the Python Package Index, use
-```
-pip install --upgrade scidb-py
-```
+git clone https://github.com/Paradigm4/SciDB-Py.git
 
-To download the source code for the 14.10 release, change 'branch:master' to 'tag:v14.10.0' and then click 'download', or
-directly download from https://github.com/Paradigm4/SciDB-py/archive/v14.10.0.zip
-
-To install from source after downloading, type
+To install from source after cloning from github, type
 ```
 python setup.py install
 ```
