@@ -1,9 +1,3 @@
-NOTE for different versions of SciDB
-------------------------------------
-The master branch of this repository tracks the latest release of SciDB. 
-
-To get a version of SciDB-Py that works with SciDB version 15.7 or older, choose the ``scidb15.7`` branch.
-
 SciDB-py: Python Interface to SciDB
 ===================================
 SciDB-py is a full-featuered Python interface to SciDB.  It's goal is to
@@ -50,6 +44,12 @@ Mock_
 
 Installation
 ------------
+
+NOTE for different versions of SciDB
+The master branch of this repository tracks the latest release of SciDB. 
+To get a version of SciDB-Py that works with SciDB version 15.7 or older, choose the ``scidb15.7`` branch.
+
+Installation steps
 
 git clone https://github.com/Paradigm4/SciDB-Py.git
 
