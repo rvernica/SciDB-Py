@@ -356,22 +356,22 @@ class SciDBDataShape(object):
         This function uses a series of regular expressions to take an input
         schema such as::
 
-            schema = "not empty myarray<val:double> [i0=0:3,4,0,i1=0:4,5,0]"
+            schema = "not empty myarray<val:double> [i0=0:3:0:4;i1=0:4:0:5]"
 
         parse it, and return a SciDBDataShape object.
         """
         # First split out the array name, data types, and shapes.  e.g.
         #
-        #   "myarray<val:double,rank:int32> [i=0:4,5,0,j=0:9,5,0]"
+        #   "myarray<val:double,rank:int32> [i=0:4:0:5;j=0:9:0:5]"
         #
         # will become
         #
         #   dict(arrname = "myarray"
         #        dtypes  = "val:double,rank:int32"
-        #        dshapes = "i=0:9,5,0,j=0:9,5,0")
+        #        dshapes = "i=0:9:0:5;j=0:9:0:5")
         #
         R = re.compile(r'(?P<arrname>[\s\S]+)\<(?P<schema>[\S\s]*?)\>(?:\s*)'
-                       '\[(?P<dshapes>\S+)\]')
+                       '\[(?P<dshapes>[\s\S]+)\]')
         schema = schema.lstrip('schema').strip()
         match = R.search(schema)
         try:
@@ -383,14 +383,14 @@ class SciDBDataShape(object):
             raise ValueError("no match for schema: {0}".format(schema))
 
         # split dshapes.  TODO: correctly handle '*' dimensions
-        R = re.compile(r'(\S*?)=(\S*?):([\S\*]*?),(\S*?),(\S*?),')
-        dshapes = R.findall(dshapes + ',')  # note added trailing comma
+        R = re.compile(r'(\S*?)=(\S*?):([\S\*]*?):(\S*?):(\S*?);')
+        dshapes = R.findall(dshapes + ';')  # note added trailing comma
 
         return cls(None,
                    typecode=schema,
                    dim_names=[d[0] for d in dshapes],
-                   chunk_size=[int(d[3]) for d in dshapes],
-                   chunk_overlap=[int(d[4]) for d in dshapes],
+                   chunk_overlap=[int(d[3]) for d in dshapes],
+                   chunk_size=[int(d[4]) for d in dshapes],
                    dim_low=[d[1] for d in dshapes],
                    dim_high=[d[2] for d in dshapes])
 
@@ -428,14 +428,14 @@ class SciDBDataShape(object):
         """
         The dimension part of the schema
         """
-        result = ','.join(['{0}={1}:{2},{3},{4}'.format(d, l,
+        result = ';'.join(['{0}={1}:{2}:{3}:{4}'.format(d, l,
                                                         h if h is not None else '*',
-                                                        cs, co)
-                           for (d, l, h, cs, co) in zip(self.dim_names,
+                                                        co, cs)
+                           for (d, l, h, co, cs) in zip(self.dim_names,
                                                         self.dim_low,
                                                         self.dim_high,
-                                                        self.chunk_size,
-                                                        self.chunk_overlap)])
+                                                        self.chunk_overlap,
+                                                        self.chunk_size)])
         return '[%s]' % result
 
     @property
@@ -1349,7 +1349,7 @@ class SciDBArray(object):
         renamed : SciDBArray
             The new array
         """
-        
+
         if len(args) == 0:
             return self
         return attribute_rename(self, *args)
