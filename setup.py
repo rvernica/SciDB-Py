@@ -48,6 +48,7 @@ setup(name=NAME,
       download_url=DOWNLOAD_URL,
       license=LICENSE,
       packages=['scidbpy', 'scidbpy.tests'],
+      install_requires=['numpy', 'requests'],
       classifiers=[
           'Development Status :: 4 - Beta',
           'Environment :: Console',
