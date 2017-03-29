@@ -63,7 +63,8 @@ class TestScalar(TestBase):
                        '2520-12-31 11:59:59']] +
 
         ## DateTimeTZ Scalar
-        [('datetimetz', "'{}'".format(value), [np.datetime64(expect)])
+        [pytest.mark.skip('SciDB 16.9 issue https://github.com/Paradigm4/SciDB/issues/9')(
+            ('datetimetz', "'{}'".format(value), [np.datetime64(expect)]))
          for value, expect in [
                  ('1970-01-02 00:00:00 +00:30', '1970-01-02 00:00:00+0030'),
                  ('1970-01-02 00:00:00 -01:30', '1970-01-02 00:00:00-0130')]] +
@@ -96,7 +97,8 @@ class TestScalar(TestBase):
          'uint64',
          'bool',
          'datetime',
-         'datetimetz',
+         pytest.mark.skip('SciDB 16.9 issue https://github.com/Paradigm4/SciDB/issues/9')(
+             'datetimetz'),
          'char',
          'string'])
     def test_null(self, typ):
