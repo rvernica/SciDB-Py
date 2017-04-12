@@ -33,7 +33,7 @@ class DB(object):
     >>> DB()
     DB('http://localhost:8080', None, None, None, None)
 
-    >> print(DB)
+    >>> print(DB())
     scidb_url  = 'http://localhost:8080'
     scidb_auth = None
     http_auth  = None
@@ -128,7 +128,7 @@ namespace  = {}'''.format(self.scidb_url,
             buf_meta.append(meta)
 
         # Extract values using (offset, size) metadata
-        # Build NumPy record array
+        # Create and populate  NumPy record array
         ar = numpy.empty((len(buf_meta), ), dtype=sch.atts_dtype)
         pos = 0
         for meta in buf_meta:
