@@ -315,6 +315,10 @@ class Schema(object):
  Attribute('y', 'double', False, None, None)), \
 (Dimension('i', 0, '*', None, None), Dimension('j', -100, 0, 0, 10)))
 
+    >>> Schema.fromstring('foo@1<x:int64> [i=0:2:0:1000000]')
+    Schema('foo@1', (Attribute('x', 'int64', False, None, None),), \
+(Dimension('i', 0, 2, 0, 1000000),))
+
 
     >>> Schema._regex_atts.match('<x:int64,y:double>').group(1).split(',')
     ['x:int64', 'y:double']
@@ -323,7 +327,7 @@ class Schema(object):
     ['i=0:*', 'j=-100:0:0:10']
     """
 
-    _regex_name = re.compile('\s* (?P<name> \w+ )', re.VERBOSE)
+    _regex_name = re.compile('\s* (?P<name> [\w@]+ )', re.VERBOSE)
 
     _regex_atts = re.compile(
         '\s*  < ( [^,>]+  \s* (?: , \s* [^,>]+  \s* )* )  >', re.VERBOSE)
