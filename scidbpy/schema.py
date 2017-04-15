@@ -144,19 +144,25 @@ class Attribute(object):
         return null_size + Attribute._length_dtype.itemsize + value_size
 
     def frombytes(self, buf, offset=0, size=None):
-        if self.not_null:
-            if self.val_dtype == numpy.object:
-                if self.type_name == 'string':
-                    return buf[offset + Attribute._length_dtype.itemsize:
-                               offset + size - 1].decode()
-                else:
-                    return buf[offset + Attribute._length_dtype.itemsize:
-                               offset + size]
+        null_size = 0 if self.not_null else 1
+
+        if self.val_dtype == numpy.object:
+            if self.type_name == 'string':
+                val = buf[offset + null_size +
+                          Attribute._length_dtype.itemsize:
+                          offset + size - 1].decode()
             else:
-                return numpy.frombuffer(buf, self.val_dtype, 1, offset)[0]
+                val = buf[offset + null_size +
+                          Attribute._length_dtype.itemsize:
+                          offset + size]
         else:
-            # TODO
-            return None
+            val = numpy.frombuffer(
+                buf, self.val_dtype, 1, offset + null_size)[0]
+
+        if self.not_null:
+            return val
+        else:
+            return (struct.unpack('B', buf[offset:offset + null_size])[0], val)
 
     @classmethod
     def fromstring(cls, string):
