@@ -25,6 +25,8 @@ before_install:
   - docker ps --all
 
 install:
-  - pip install --only-binary=scipy numpy requests pandas scipy mock pytest
+  - pip install --only-binary=scipy requests numpy pep8 pytest
 
-script: pytest --doctest-modules
+script:
+  - pep8 scidbpy
+  - pytest --doctest-modules
