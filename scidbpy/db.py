@@ -12,8 +12,9 @@ role       = None
 namespace  = None
 
 
+# iquery examples with store, scan, and remove
+
 >>> iquery(db, 'store(build(<x:int64>[i=0:2], i), foo)')
->>> iquery(db, 'scan(foo)')
 
 >>> iquery(db, 'scan(foo)', fetch=True) # doctest: +NORMALIZE_WHITESPACE
 array([((255, 0), 0), ((255, 1), 1), ((255, 2), 2)],
@@ -26,6 +27,8 @@ array([((255, 0),), ((255, 1),), ((255, 2),)],
 
 >>> iquery(db, 'remove(foo)')
 
+
+# iquery examples with build (atts_only, schema)
 
 >>> iquery(db, 'build(<x:int64 not null>[i=0:2], i)', True)
 ... # doctest: +NORMALIZE_WHITESPACE
@@ -127,7 +130,17 @@ namespace  = {}'''.format(self.scidb_url,
                           self.namespace)
 
     def iquery(self, query, fetch=False, atts_only=False, schema=None):
-        """Execute query in SciDB"""
+        """Execute query in SciDB
+
+        >>> DB().iquery('build(<x:int64>[i=0:1; j=0:1], i + j)', fetch=True)
+        ... # doctest: +ELLIPSIS +NORMALIZE_WHITESPACE
+        array([((255, 0), 0, 0),
+               ((255, 1), 0, 1),
+               ((255, 1), 1, 0),
+               ((255, 2), 1, 1)],
+              dtype=[('x', [('null', 'u1'), ('val', '<i8')]),
+                     ('i', '<i8'), ('j', '<i8')])
+        """
         id = self._shim(Shim.new_session).text
 
         if fetch:
