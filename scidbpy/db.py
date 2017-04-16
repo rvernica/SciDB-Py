@@ -36,6 +36,25 @@ array([(0, 0), (1, 1), (2, 2)],
 ... # doctest: +NORMALIZE_WHITESPACE
 array([(0,), (1,), (2,)],
       dtype=[('x', '<i8')])
+
+>>> iquery(db,                                                                \
+           'build(<x:int64 not null>[i=0:2], i)',                             \
+           fetch=True,                                                        \
+           schema=Schema('build',                                             \
+                         (Attribute('x', 'int64', not_null=True),),           \
+                         (Dimension('i', 0, 2),)))
+... # doctest: +NORMALIZE_WHITESPACE
+array([(0, 0), (1, 1), (2, 2)],
+      dtype=[('x', '<i8'), ('i', '<i8')])
+
+>>> iquery(db,                                                                \
+           'build(<x:int64 not null>[i=0:2], i)',                             \
+           fetch=True,                                                        \
+           atts_only=True,                                                    \
+           schema=Schema.fromstring('build<x:int64 not null>[i=0:2]'))
+... # doctest: +NORMALIZE_WHITESPACE
+array([(0,), (1,), (2,)],
+      dtype=[('x', '<i8')])
 """
 
 import enum
@@ -46,7 +65,7 @@ import re
 import requests
 import requests.compat
 
-import schema
+from schema import Attribute, Dimension, Schema
 
 
 class Shim(enum.Enum):
@@ -107,24 +126,28 @@ namespace  = {}'''.format(self.scidb_url,
                           self.role,
                           self.namespace)
 
-    def iquery(self, query, fetch=False, atts_only=False):
+    def iquery(self, query, fetch=False, atts_only=False, schema=None):
         """Execute query in SciDB"""
         id = self._shim(Shim.new_session).text
 
         if fetch:
-            # Execute 'show(...)' and Download text
-            self._shim(
-                Shim.execute_query,
-                id=id,
-                query=DB._show_query.format(query),
-                save='text')
-            sch_str = DB._one_attr_regex.match(
-                self._shim(Shim.read_bytes, id=id, n=0).text).group(1)
+            # Use provided schema or get schema from SciDB
+            if schema:
+                sch = schema
+            else:
+                # Execute 'show(...)' and Download text
+                self._shim(
+                    Shim.execute_query,
+                    id=id,
+                    query=DB._show_query.format(query),
+                    save='text')
+                sch_str = DB._one_attr_regex.match(
+                    self._shim(Shim.read_bytes, id=id, n=0).text).group(1)
 
-            # Parse Schema
-            logging.debug(sch_str)
-            sch = schema.Schema.fromstring(sch_str)
-            logging.debug(sch)
+                # Parse Schema
+                logging.debug(sch_str)
+                sch = Schema.fromstring(sch_str)
+                logging.debug(sch)
 
             # Unpack
             if not atts_only:
@@ -132,11 +155,11 @@ namespace  = {}'''.format(self.scidb_url,
                     query,
                     ', '.join('{0}, {0}'.format(d.name) for d in sch.dims))
 
-                sch = schema.Schema(
+                sch = Schema(
                     sch.name,
                     itertools.chain(
                         sch.atts,
-                        (schema.Attribute(d.name, 'int64', True)
+                        (Attribute(d.name, 'int64', True)
                          for d in sch.dims)),
                     sch.dims)
                 logging.debug(sch)
