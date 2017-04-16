@@ -16,6 +16,14 @@ namespace  = None
 
 >>> iquery(db, 'store(build(<x:int64>[i=0:2], i), foo)')
 
+# IPython: db.arrays.<TAB>
+>>> db.arrays.foo # doctest: +ELLIPSIS +NORMALIZE_WHITESPACE
+Schema(...'foo', (Attribute(...'x', ...'int64', False, None, None),),         \
+(Dimension(...'i', 0, 2, 0, 1000000),))
+
+>>> print(db.arrays.foo)
+foo<x:int64 NULL> [i=0:2:0:1000000]
+
 >>> iquery(db, 'scan(foo)', fetch=True) # doctest: +NORMALIZE_WHITESPACE
 array([((255, 0), 0), ((255, 1), 1), ((255, 2), 2)],
       dtype=[('x', [('null', 'u1'), ('val', '<i8')]), ('i', '<i8')])
@@ -108,6 +116,8 @@ class DB(object):
         self.role = role
         self.namespace = namespace
 
+        self._update_arrays()
+
     def __repr__(self):
         return '{}({!r}, {!r}, {!r}, {!r}, {!r})'.format(
             type(self).__name__,
@@ -129,7 +139,12 @@ namespace  = {}'''.format(self.scidb_url,
                           self.role,
                           self.namespace)
 
-    def iquery(self, query, fetch=False, atts_only=False, schema=None):
+    def iquery(self,
+               query,
+               fetch=False,
+               atts_only=False,
+               schema=None,
+               update=True):
         """Execute query in SciDB
 
         >>> DB().iquery('build(<x:int64>[i=0:1; j=0:1], i + j)', fetch=True)
@@ -205,11 +220,15 @@ namespace  = {}'''.format(self.scidb_url,
                              for (att, (off, sz)) in zip(sch.atts, meta)))
                 pos += 1
 
-            return ar
+            ret = ar
 
         else:                   # fetch=False
-            self._shim(Shim.execute_query, id=id, query=query)
-            self._shim(Shim.release_session, id=id)
+            self._shim(Shim.execute_query, id=id, query=query, release=1)
+            ret = None
+
+        if update:
+            self._update_arrays()
+        return ret
 
     def _shim(self, endpoint, **kwargs):
         """Make request on Shim endpoint."""
@@ -219,14 +238,12 @@ namespace  = {}'''.format(self.scidb_url,
         req.raise_for_status()
         return req
 
-    def _arrays(self):
-        """Download the list of SciDB arrays, i.e., 'list()'.
+    def _update_arrays(self):
+        """Download the list of SciDB arrays. Use 'project(list(), name,
+        schema)' to download only names and schemas
 
-        >>> DB()._arrays() # doctest: +ELLIPSIS +NORMALIZE_WHITESPACE
-        array([...],
-              dtype=[('name', 'O'), ('schema', 'O')])
         """
-        return self.iquery(
+        ar = self.iquery(
             'project(list(), name, schema)',
             fetch=True,
             atts_only=True,
@@ -234,7 +251,23 @@ namespace  = {}'''.format(self.scidb_url,
                 'list',
                 (Attribute('name', 'string', not_null=True),
                  Attribute('schema', 'string', not_null=True)),
-                (Dimension('i'),)))
+                (Dimension('i'),)),
+            update=False)
+        self.arrays = Arrays(ar)
+
+
+class Arrays(object):
+    """Access to arrays available in SciDB"""
+    def __init__(self, arrays):
+        self.array_map = dict(
+            ((n, Schema.fromstring(s))
+             for (n, s) in zip(arrays['name'], arrays['schema'])))
+
+    def __getattr__(self, name):
+        return self.array_map[name]
+
+    def __dir__(self):
+        return self.array_map.keys()
 
 
 connect = DB
