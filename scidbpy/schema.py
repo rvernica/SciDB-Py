@@ -101,6 +101,9 @@ class Attribute(object):
         self.compression = compression
 
         self.val_dtype = type_map.get(self.type_name, numpy.object)
+        # >>> numpy.dtype([(u"a", int)])
+        # TypeError: data type not understood
+        # https://github.com/numpy/numpy/issues/2407
         if self.not_null:
             self.dtype = numpy.dtype([(str(self.name), self.val_dtype)])
         else:
