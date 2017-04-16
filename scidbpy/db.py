@@ -211,11 +211,17 @@ namespace  = {}'''.format(self.scidb_url,
 
         >>> DB()._arrays() # doctest: +ELLIPSIS +NORMALIZE_WHITESPACE
         array([...],
-              dtype=[('name', 'O'), ('uaid', '<i8'), ('aid', '<i8'), \
-                     ('schema', 'O'), ('availability', '?'), \
-                     ('temporary', '?')])
+              dtype=[('name', 'O'), ('schema', 'O')])
         """
-        return self.iquery('list()', True, True)
+        return self.iquery(
+            'project(list(), name, schema)',
+            fetch=True,
+            atts_only=True,
+            schema=Schema(
+                'list',
+                (Attribute('name', 'string', not_null=True),
+                 Attribute('schema', 'string', not_null=True)),
+                (Dimension('i'),)))
 
 
 connect = DB
