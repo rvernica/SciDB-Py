@@ -1,5 +1,14 @@
 """
+Connect to SciDB
+----------------
+
+Connect to SciDB using "connect()" or "DB()":
+
 >>> db = connect()
+>>> db = DB()
+
+
+Display information about the "db" object:
 
 >>> db
 DB('http://localhost:8080', None, None, None, None)
@@ -12,21 +21,49 @@ role       = None
 namespace  = None
 
 
-# iquery examples with store, scan, and remove
+Access SciDB Arrays
+-------------------
+
+Access SciDB arrays using "db.arrays":
+
+>>> iquery(db, 'create array foo<x:int64>[i=0:2]')
+>>> db.arrays.foo
+... # doctest: +ELLIPSIS +NORMALIZE_WHITESPACE
+Schema(...'foo',                                                              \
+       (Attribute(...'x', ...'int64', False, None, None),),                   \
+       (Dimension(...'i', 0, 2, 0, ...'*'),))
+
+>>> print(db.arrays.foo)
+foo<x:int64 NULL> [i=0:2:0:*]
+
+>>> iquery(db, 'remove(foo)')
+>>> db.arrays.foo
+Traceback (most recent call last):
+  ...
+KeyError: 'foo'
+
+In IPython, you can use <TAB> for auto-completion of array names:
+
+# In []: db.arrays.<TAB>
+# In []: db.arrays.foo
+
+
+Use "iquery" function
+---------------------
+
+Use "iquery" to execute queries:
 
 >>> iquery(db, 'store(build(<x:int64>[i=0:2], i), foo)')
 
-# IPython: db.arrays.<TAB>
->>> db.arrays.foo # doctest: +ELLIPSIS +NORMALIZE_WHITESPACE
-Schema(...'foo', (Attribute(...'x', ...'int64', False, None, None),),         \
-(Dimension(...'i', 0, 2, 0, 1000000),))
 
->>> print(db.arrays.foo)
-foo<x:int64 NULL> [i=0:2:0:1000000]
+Use "iquery" to download array data:
 
->>> iquery(db, 'scan(foo)', fetch=True) # doctest: +NORMALIZE_WHITESPACE
+>>> iquery(db, 'scan(foo)', fetch=True)
+... # doctest: +NORMALIZE_WHITESPACE
 array([((255, 0), 0), ((255, 1), 1), ((255, 2), 2)],
       dtype=[('x', [('null', 'u1'), ('val', '<i8')]), ('i', '<i8')])
+
+Optionally, download only the attributes:
 
 >>> iquery(db, 'scan(foo)', fetch=True, atts_only=True)
 ... # doctest: +NORMALIZE_WHITESPACE
@@ -36,17 +73,22 @@ array([((255, 0),), ((255, 1),), ((255, 2),)],
 >>> iquery(db, 'remove(foo)')
 
 
-# iquery examples with build (atts_only, schema)
+Download operator output directly:
 
 >>> iquery(db, 'build(<x:int64 not null>[i=0:2], i)', True)
 ... # doctest: +NORMALIZE_WHITESPACE
 array([(0, 0), (1, 1), (2, 2)],
       dtype=[('x', '<i8'), ('i', '<i8')])
 
+Optionally, download only the attributes:
+
 >>> iquery(db, 'build(<x:int64 not null>[i=0:2], i)', True, True)
 ... # doctest: +NORMALIZE_WHITESPACE
 array([(0,), (1,), (2,)],
       dtype=[('x', '<i8')])
+
+
+If schema is known, it can be provided to "iquery":
 
 >>> iquery(db,                                                                \
            'build(<x:int64 not null>[i=0:2], i)',                             \
@@ -275,6 +317,6 @@ iquery = DB.iquery
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
+    # logging.basicConfig(level=logging.DEBUG)
     import doctest
     doctest.testmod(optionflags=doctest.REPORT_ONLY_FIRST_FAILURE)
