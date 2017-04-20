@@ -336,7 +336,7 @@ class Schema(object):
     ['i=0:*', 'j=-100:0:0:10']
     """
 
-    _regex_name = re.compile('\s* (?P<name> [\w@]+ )', re.VERBOSE)
+    _regex_name = re.compile('\s* (?P<name> [\w@]+ )?', re.VERBOSE)
 
     _regex_atts = re.compile(
         '\s*  < ( [^,>]+  \s* (?: , \s* [^,>]+  \s* )* )  >', re.VERBOSE)
