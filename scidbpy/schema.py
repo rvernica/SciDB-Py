@@ -367,9 +367,9 @@ class Schema(object):
 
     def __str__(self):
         return '{}<{}> [{}]'.format(
-            self.name,
-            ', '.join(str(a) for a in self.atts),
-            ';'.join(str(d) for d in self.dims))
+            self.name if self.name else '',
+            ','.join(str(a) for a in self.atts),
+            '; '.join(str(d) for d in self.dims))
 
     @classmethod
     def fromstring(cls, string):
