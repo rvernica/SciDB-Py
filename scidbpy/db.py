@@ -302,8 +302,8 @@ class Arrays(object):
     """Access to arrays available in SciDB"""
     def __init__(self, arrays):
         self.array_map = dict(
-            ((n, Schema.fromstring(s))
-             for (n, s) in zip(arrays['name'], arrays['schema'])))
+            ((a['name'], Schema.fromstring(a['schema']))
+             for a in arrays))
 
     def __getattr__(self, name):
         return self.array_map[name]
