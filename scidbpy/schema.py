@@ -129,10 +129,10 @@ class Attribute(object):
             type(self).__name__, *self)
 
     def __str__(self):
-        return '{}:{}{} NULL{}{}'.format(
+        return '{}:{}{}{}{}'.format(
             self.name,
             self.type_name,
-            ' NOT' if self.not_null else '',
+            ' NOT NULL' if self.not_null else '',
             ' DEFAULT {}'.format(self.default) if self.default else '',
             ' COMPRESSION {}'.format(self.compression)
             if self.compression else '')

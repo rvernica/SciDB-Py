@@ -34,7 +34,7 @@ Schema(...'foo',
        (Dimension(...'i', 0, 2, 0, ...'*'),))
 
 >>> print(db.arrays.foo)
-foo<x:int64 NULL> [i=0:2:0:*]
+foo<x:int64> [i=0:2:0:*]
 
 >>> iquery(db, 'remove(foo)')
 >>> db.arrays.foo
