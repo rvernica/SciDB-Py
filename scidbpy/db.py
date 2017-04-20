@@ -229,7 +229,7 @@ namespace  = {}'''.format(self.scidb_url,
                     sch.name,
                     itertools.chain(
                         sch.atts,
-                        (Attribute(d.name, 'int64', True)
+                        (Attribute(d.name, 'int64', not_null=True)
                          for d in sch.dims)),
                     sch.dims)
                 logging.debug(sch)
