@@ -29,8 +29,8 @@ Access SciDB arrays using "db.arrays":
 >>> iquery(db, 'create array foo<x:int64>[i=0:2]')
 >>> db.arrays.foo
 ... # doctest: +ELLIPSIS +NORMALIZE_WHITESPACE
-Schema(...'foo',                                                              \
-       (Attribute(...'x', ...'int64', False, None, None),),                   \
+Schema(...'foo',
+       (Attribute(...'x', ...'int64', False, None, None),),
        (Dimension(...'i', 0, 2, 0, ...'*'),))
 
 >>> print(db.arrays.foo)
@@ -90,21 +90,21 @@ array([(0,), (1,), (2,)],
 
 If schema is known, it can be provided to "iquery":
 
->>> iquery(db,                                                                \
-           'build(<x:int64 not null>[i=0:2], i)',                             \
-           fetch=True,                                                        \
-           schema=Schema('build',                                             \
-                         (Attribute('x', 'int64', not_null=True),),           \
-                         (Dimension('i', 0, 2),)))
+>>> iquery(db,
+...        'build(<x:int64 not null>[i=0:2], i)',
+...        fetch=True,
+...        schema=Schema('build',
+...                      (Attribute('x', 'int64', not_null=True),),
+...                      (Dimension('i', 0, 2),)))
 ... # doctest: +NORMALIZE_WHITESPACE
 array([(0, 0), (1, 1), (2, 2)],
       dtype=[('x', '<i8'), ('i', '<i8')])
 
->>> iquery(db,                                                                \
-           'build(<x:int64 not null>[i=0:2], i)',                             \
-           fetch=True,                                                        \
-           atts_only=True,                                                    \
-           schema=Schema.fromstring('build<x:int64 not null>[i=0:2]'))
+>>> iquery(db,
+...        'build(<x:int64 not null>[i=0:2], i)',
+...        fetch=True,
+...        atts_only=True,
+...        schema=Schema.fromstring('build<x:int64 not null>[i=0:2]'))
 ... # doctest: +NORMALIZE_WHITESPACE
 array([(0,), (1,), (2,)],
       dtype=[('x', '<i8')])
