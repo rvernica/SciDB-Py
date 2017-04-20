@@ -29,52 +29,25 @@ type_map = dict(
 
 
 class Attribute(object):
-    """Store SciDB array attribute
+    """Represent SciDB array attribute
 
-    >>> Attribute('foo', 'int64', True)
+    Construct an attribute using Attribute constructor:
+
+    >>> Attribute('foo', 'int64', not_null=True)
     Attribute('foo', 'int64', True, None, None)
 
-    >>> Attribute('bar', 'float', default=3.14, compression='zlib')
-    Attribute('bar', 'float', False, 3.14, 'zlib')
+    >>> Attribute('foo', 'int64', default=100, compression='zlib')
+    Attribute('foo', 'int64', False, 100, 'zlib')
 
-    >>> Attribute('foo', 'int64', default=100)
-    Attribute('foo', 'int64', False, 100, None)
 
-    >>> Attribute('foo', 'int64', compression='zlib')
-    Attribute('foo', 'int64', False, None, 'zlib')
-
+    Construct an attribute from a string:
 
     >>> Attribute.fromstring('foo:int64')
     Attribute('foo', 'int64', False, None, None)
 
-    >>> Attribute.fromstring(' foo : int64 ')
-    Attribute('foo', 'int64', False, None, None)
-
-    >>> Attribute.fromstring('bar : float NOT NULL')
-    Attribute('bar', 'float', True, None, None)
-
-    >>> Attribute.fromstring('foo : int64 DEFAULT -10')
-    Attribute('foo', 'int64', False, '-10', None)
-
-    >>> Attribute.fromstring('taz : string compression bzlib')
-    Attribute('taz', 'string', False, None, 'bzlib')
-
-
-    >>> sorted(Attribute._regex.search('foo : int64').groupdict().items())
-    [('compression', None), ('default', None), ('name', 'foo'), \
-('not_null', None), ('type_name', 'int64')]
-
-    >>> sorted(
-    ...     Attribute._regex.search('i : float not null').groupdict().items())
-    [('compression', None), ('default', None), ('name', 'i'), \
-('not_null', 'not'), ('type_name', 'float')]
-
-    >>> sorted(
-    ...     Attribute._regex.search(
-    ...         "foo : string NULL DEFAULT '' COMPRESSION zlib"
-    ...     ).groupdict().items())
-    [('compression', 'zlib'), ('default', "''"), ('name', 'foo'), \
-('not_null', None), ('type_name', 'string')]
+    >>> Attribute.fromstring(
+    ...     "taz : string NOT null DEFAULT '' compression bzlib")
+    Attribute('taz', 'string', True, "''", 'bzlib')
     """
 
     _regex = re.compile('''
@@ -173,61 +146,24 @@ class Attribute(object):
 
 
 class Dimension(object):
-    """Store SciDB array dimension
+    """Represent SciDB array dimension
+
+    Construct a dimension using the Dimension constructor:
 
     >>> Dimension('foo')
     Dimension('foo', None, None, None, None)
-
-    >>> Dimension('foo', 0, '*')
-    Dimension('foo', 0, '*', None, None)
-
-    >>> Dimension('foo', '?', '10')
-    Dimension('foo', '?', 10, None, None)
-
-    >>> Dimension('foo', '?', '10', '?')
-    Dimension('foo', '?', 10, '?', None)
 
     >>> Dimension('foo', -100, '10', '?', '1000')
     Dimension('foo', -100, 10, '?', 1000)
 
 
+    Construct a dimension from a string:
+
     >>> Dimension.fromstring('foo')
     Dimension('foo', None, None, None, None)
 
-    >>> Dimension.fromstring('foo = ? : *')
-    Dimension('foo', '?', '*', None, None)
-
-    >>> Dimension.fromstring('foo = 0 : 10')
-    Dimension('foo', 0, 10, None, None)
-
-    >>> Dimension.fromstring('foo = ? : * : 100')
-    Dimension('foo', '?', '*', 100, None)
-
-    >>> Dimension.fromstring(' foo = ? : * : ? : 1000 ')
-    Dimension('foo', '?', '*', '?', 1000)
-
-    >>> Dimension.fromstring('foo=-100:100:0:10')
-    Dimension('foo', -100, 100, 0, 10)
-
-
-    >>> sorted(Dimension._regex.search('foo').groupdict().items())
-    [('chunk_length', None), ('chunk_overlap', None), \
-('high_value', None), ('low_value', None), ('name', 'foo')]
-
-    >>> sorted(Dimension._regex.search('foo = 1 : 22').groupdict().items())
-    [('chunk_length', None), ('chunk_overlap', None), \
-('high_value', '22'), ('low_value', '1'), ('name', 'foo')]
-
-    >>> sorted(
-    ...     Dimension._regex.search('foo = 1 : 22 : 333').groupdict().items())
-    [('chunk_length', None), ('chunk_overlap', '333'), \
-('high_value', '22'), ('low_value', '1'), ('name', 'foo')]
-
-    >>> sorted(
-    ...     Dimension._regex.search(
-    ...         'foo = 1 : 22 : 333 : 4444').groupdict().items())
-    [('chunk_length', '4444'), ('chunk_overlap', '333'), \
-('high_value', '22'), ('low_value', '1'), ('name', 'foo')]
+    >>> Dimension.fromstring('foo=-100:*:?:10')
+    Dimension('foo', -100, '*', '?', 10)
     """
 
     _regex = re.compile('''
@@ -301,39 +237,47 @@ class Dimension(object):
 
 
 class Schema(object):
-    """Store SciDB array schema
+    """Represent SciDB array schema
+
+    Cunstruct a schema using Schema, Attribute, and Dimension
+    constructors:
 
     >>> Schema('foo', (Attribute('x', 'int64'),), (Dimension('i', 0, 10),))
-    Schema('foo', (Attribute('x', 'int64', False, None, None),), \
-(Dimension('i', 0, 10, None, None),))
-
-    >>> Schema('foo', (Attribute.fromstring('x:int64'),), \
-(Dimension.fromstring('i=0:10'),))
-    Schema('foo', (Attribute('x', 'int64', False, None, None),), \
-(Dimension('i', 0, 10, None, None),))
+    ... # doctest: +NORMALIZE_WHITESPACE
+    Schema('foo',
+           (Attribute('x', 'int64', False, None, None),),
+           (Dimension('i', 0, 10, None, None),))
 
 
-    >>> Schema.fromstring('foo<x:int64>[i=0:*]')
-    Schema('foo', (Attribute('x', 'int64', False, None, None),), \
-(Dimension('i', 0, '*', None, None),))
+    Construct a schema using Schema constructor and fromstring methods
+    of Attribute and Dimension:
 
-    >>> Schema.fromstring('foo<x:int64 not null, y:double>' + \
-'[i=0:*; j=-100:0:0:10]')
-    Schema('foo', \
-(Attribute('x', 'int64', True, None, None),\
- Attribute('y', 'double', False, None, None)), \
-(Dimension('i', 0, '*', None, None), Dimension('j', -100, 0, 0, 10)))
-
-    >>> Schema.fromstring('foo@1<x:int64> [i=0:2:0:1000000]')
-    Schema('foo@1', (Attribute('x', 'int64', False, None, None),), \
-(Dimension('i', 0, 2, 0, 1000000),))
+    >>> Schema('foo',
+    ...        (Attribute.fromstring('x:int64'),),
+    ...        (Dimension.fromstring('i=0:10'),))
+    ... # doctest: +NORMALIZE_WHITESPACE
+    Schema('foo',
+           (Attribute('x', 'int64', False, None, None),),
+           (Dimension('i', 0, 10, None, None),))
 
 
-    >>> Schema._regex_atts.match('<x:int64,y:double>').group(1).split(',')
-    ['x:int64', 'y:double']
+    Construct a schema from a string:
 
-    >>> Schema._regex_dims.match('[i=0:*;j=-100:0:0:10]').group(1).split(';')
-    ['i=0:*', 'j=-100:0:0:10']
+    >>> Schema.fromstring(
+    ...     'foo@1<x:int64 not null, y:double>[i=0:*; j=-100:0:0:10]')
+    ... # doctest: +NORMALIZE_WHITESPACE
+    Schema('foo@1',
+           (Attribute('x',  'int64',  True, None, None),
+            Attribute('y', 'double', False, None, None)),
+           (Dimension('i',    0, '*', None, None),
+            Dimension('j', -100,   0,    0, 10)))
+
+
+    Print a schema constructed from a string:
+
+    >>> print(Schema.fromstring('<x:int64,y:float> [i=0:2:0:1000000; j=0:*]'))
+    ... # doctest: +NORMALIZE_WHITESPACE
+    <x:int64,y:float> [i=0:2:0:1000000; j=0:*]
     """
 
     _regex_name = re.compile('\s* (?P<name> [\w@]+ )?', re.VERBOSE)
