@@ -93,7 +93,7 @@ If schema is known, it can be provided to "iquery":
 >>> iquery(db,
 ...        'build(<x:int64 not null>[i=0:2], i)',
 ...        fetch=True,
-...        schema=Schema('build',
+...        schema=Schema(None,
 ...                      (Attribute('x', 'int64', not_null=True),),
 ...                      (Dimension('i', 0, 2),)))
 ... # doctest: +NORMALIZE_WHITESPACE
@@ -104,7 +104,7 @@ array([(0, 0), (1, 1), (2, 2)],
 ...        'build(<x:int64 not null>[i=0:2], i)',
 ...        fetch=True,
 ...        atts_only=True,
-...        schema=Schema.fromstring('build<x:int64 not null>[i=0:2]'))
+...        schema=Schema.fromstring('<x:int64 not null>[i=0:2]'))
 ... # doctest: +NORMALIZE_WHITESPACE
 array([(0,), (1,), (2,)],
       dtype=[('x', '<i8')])
@@ -290,7 +290,7 @@ namespace  = {}'''.format(self.scidb_url,
             fetch=True,
             atts_only=True,
             schema=Schema(
-                'list',
+                None,
                 (Attribute('name', 'string', not_null=True),
                  Attribute('schema', 'string', not_null=True)),
                 (Dimension('i'),)),
