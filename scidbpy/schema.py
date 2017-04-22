@@ -293,11 +293,7 @@ class Schema(object):
         self.name = name
         self.atts = tuple(atts)
         self.dims = tuple(dims)
-        self.atts_dtype = numpy.dtype(
-            list(
-                itertools.chain.from_iterable(
-                    a.dtype.descr for a in self.atts)))
-        self.atts_fmt = '({})'.format(', '.join(a.fmt for a in self.atts))
+        self._update_atts_meta()
 
     def __iter__(self):
         return (i for i in (self.name, ) + self.atts + self.dims)
@@ -314,6 +310,73 @@ class Schema(object):
             self.name if self.name else '',
             ','.join(str(a) for a in self.atts),
             '; '.join(str(d) for d in self.dims))
+
+    def make_dims_unique(self):
+        """Check attributes and dimensions form a list with unique names. If
+        not, rename diemsnions. Return True is any dimension was
+        renamed.
+
+        >>> s = Schema(None, (Attribute('i', 'bool'),), (Dimension('i'),))
+        >>> print(s)
+        <i:bool> [i]
+        >>> s.make_dims_unique()
+        True
+        >>> print(s)
+        <i:bool> [i_1]
+
+        >>> s = Schema.fromstring('<i:bool>[i;i_1]')
+        >>> s.make_dims_unique()
+        True
+        >>> print(s)
+        <i:bool> [i_2; i_1]
+        """
+        all_names = set(itertools.chain((a.name for a in self.atts),
+                                        (d.name for d in self.dims)))
+        if len(all_names) < len(self.atts) + len(self.dims):
+            # Rename dimensions
+            atts_names = set(a.name for a in self.atts)
+            new_dims_names = []
+            for d in self.dims:
+                # Check if dimension name collides with any attribute
+                # name
+                if d.name in atts_names:
+                    count = 1
+                    new_dim_name = '{}_{}'.format(d.name, count)
+                    while new_dim_name in all_names:
+                        count += 1
+                        new_dim_name = '{}_{}'.format(d.name, count)
+                    d.name = new_dim_name
+            return True
+        else:
+            return False
+
+    def make_dims_attr(self):
+        """Make attributes from dimensions and append them to the attributes
+        list.
+
+        >>> s = Schema(None, (Attribute('x', 'bool'),), (Dimension('i'),))
+        >>> print(s)
+        <x:bool> [i]
+        >>> s.make_dims_attr()
+        >>> print(s)
+        <x:bool,i:int64 NOT NULL> [i]
+
+        >>> s = Schema.fromstring('<x:bool>[i;j]')
+        >>> s.make_dims_attr()
+        >>> print(s)
+        <x:bool,i:int64 NOT NULL,j:int64 NOT NULL> [i; j]
+        """
+        self.atts = tuple(itertools.chain(
+            self.atts,
+            (Attribute(d.name, 'int64', not_null=True) for d in self.dims)))
+        self._update_atts_meta()
+
+    def _update_atts_meta(self):
+        self.atts_dtype = numpy.dtype(
+            list(
+                itertools.chain.from_iterable(
+                    a.dtype.descr for a in self.atts)))
+        self.atts_fmt = '({})'.format(', '.join(a.fmt for a in self.atts))
 
     @classmethod
     def fromstring(cls, string):
