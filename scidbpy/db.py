@@ -281,6 +281,7 @@ namespace  = {}'''.format(self.scidb_url,
         req = requests.get(
             requests.compat.urljoin(self.scidb_url, endpoint.value),
             params=kwargs)
+        req.reason = req.content
         req.raise_for_status()
         return req
 
