@@ -278,6 +278,13 @@ class Schema(object):
     >>> print(Schema.fromstring('<x:int64,y:float> [i=0:2:0:1000000; j=0:*]'))
     ... # doctest: +NORMALIZE_WHITESPACE
     <x:int64,y:float> [i=0:2:0:1000000; j=0:*]
+
+
+    Format Schema object to only print the schema part without the
+    array name:
+
+    >>> '{:h}'.format(Schema.fromstring('foo<x:int64>[i]'))
+    '<x:int64> [i]'
     """
 
     _regex_name = re.compile('\s* (?P<name> [\w@]+ )?', re.VERBOSE)
@@ -306,8 +313,14 @@ class Schema(object):
             type(self).__name__, self.name, self.atts, self.dims)
 
     def __str__(self):
+        return self._render()
+
+    def __format__(self, fmt_spec=''):
+        return self._render(no_name='h' in fmt_spec)
+
+    def _render(self, no_name=False):
         return '{}<{}> [{}]'.format(
-            self.name if self.name else '',
+            self.name if not no_name and self.name else '',
             ','.join(str(a) for a in self.atts),
             '; '.join(str(d) for d in self.dims))
 
