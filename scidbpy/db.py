@@ -1,5 +1,4 @@
-"""
-Connect to SciDB
+"""Connect to SciDB
 ----------------
 
 Connect to SciDB using "connect()" or "DB()":
@@ -27,20 +26,22 @@ Access SciDB Arrays
 Access SciDB arrays using "db.arrays":
 
 >>> iquery(db, 'create array foo<x:int64>[i=0:2]')
->>> db.arrays.foo
-... # doctest: +ELLIPSIS +NORMALIZE_WHITESPACE
-Schema(...'foo',
-       (Attribute(...'x', ...'int64', False, None, None),),
-       (Dimension(...'i', 0, 2, 0, ...'*'),))
 
->>> print(db.arrays.foo)
-foo<x:int64> [i=0:2:0:*]
+>>> dir(db.arrays)
+... # doctest: +ELLIPSIS
+[...'foo']
 
 >>> iquery(db, 'remove(foo)')
+
+>>> dir(db.arrays)
+[]
+
+Arrays specified explicitly are not checked:
+
 >>> db.arrays.foo
-Traceback (most recent call last):
-  ...
-KeyError: 'foo'
+'foo'
+>>> db.arrays.bar
+'bar'
 
 In IPython, you can use <TAB> for auto-completion of array names:
 
@@ -158,7 +159,7 @@ class DB(object):
         self.role = role
         self.namespace = namespace
 
-        self._update_arrays()
+        self.arrays = Arrays(self)
 
     def __repr__(self):
         return '{}({!r}, {!r}, {!r}, {!r}, {!r})'.format(
@@ -185,8 +186,7 @@ namespace  = {}'''.format(self.scidb_url,
                query,
                fetch=False,
                atts_only=False,
-               schema=None,
-               update=True):
+               schema=None):
         """Execute query in SciDB
 
         >>> DB().iquery('build(<x:int64>[i=0:1; j=0:1], i + j)', fetch=True)
@@ -262,15 +262,10 @@ namespace  = {}'''.format(self.scidb_url,
                              for (att, (off, sz)) in zip(sch.atts, meta)))
                 pos += 1
 
-            ret = ar
+            return ar
 
         else:                   # fetch=False
             self._shim(Shim.execute_query, id=id, query=query, release=1)
-            ret = None
-
-        if update:
-            self._update_arrays()
-        return ret
 
     def _shim(self, endpoint, **kwargs):
         """Make request on Shim endpoint."""
@@ -280,36 +275,28 @@ namespace  = {}'''.format(self.scidb_url,
         req.raise_for_status()
         return req
 
-    def _update_arrays(self):
-        """Download the list of SciDB arrays. Use 'project(list(), name,
-        schema)' to download only names and schemas
-
-        """
-        ar = self.iquery(
-            'project(list(), name, schema)',
-            fetch=True,
-            atts_only=True,
-            schema=Schema(
-                None,
-                (Attribute('name', 'string', not_null=True),
-                 Attribute('schema', 'string', not_null=True)),
-                (Dimension('i'),)),
-            update=False)
-        self.arrays = Arrays(ar)
-
 
 class Arrays(object):
     """Access to arrays available in SciDB"""
-    def __init__(self, arrays):
-        self.array_map = dict(
-            ((a['name'], Schema.fromstring(a['schema']))
-             for a in arrays))
+    def __init__(self, db):
+        self._db = db
+        self._schema = Schema(
+            None,
+            (Attribute('name', 'string', not_null=True),),
+            (Dimension('i'),))
 
     def __getattr__(self, name):
-        return self.array_map[name]
+        return str(name)
 
     def __dir__(self):
-        return self.array_map.keys()
+        """Download the list of SciDB arrays. Use 'project(list(), name)' to
+        download only names and schemas
+        """
+        return self._db.iquery(
+            'project(list(), name)',
+            fetch=True,
+            atts_only=True,
+            schema=self._schema)['name'].tolist()
 
 
 connect = DB
