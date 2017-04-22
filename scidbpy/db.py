@@ -89,6 +89,15 @@ array([(0,), (1,), (2,)],
       dtype=[('x', '<i8')])
 
 
+If dimension names collide with attribute names, unique dimension
+names are created:
+
+>>> iquery(db, 'apply(build(<x:int64 not null>[i=0:2], i), i, i)', True)
+... # doctest: +NORMALIZE_WHITESPACE
+array([(0, 0, 0), (1, 1, 1), (2, 2, 2)],
+      dtype=[('x', '<i8'), ('i', '<i8'), ('i_1', '<i8')])
+
+
 If schema is known, it can be provided to "iquery":
 
 >>> iquery(db,
@@ -221,17 +230,17 @@ namespace  = {}'''.format(self.scidb_url,
 
             # Unpack
             if not atts_only:
+                if sch.make_dims_unique():
+                    # Dimensions renamed due to collisions. Need to
+                    # cast.
+                    query = 'cast({}, {:h})'.format(query, sch)
+
                 query = 'apply({}, {})'.format(
                     query,
                     ', '.join('{0}, {0}'.format(d.name) for d in sch.dims))
 
-                sch = Schema(
-                    sch.name,
-                    itertools.chain(
-                        sch.atts,
-                        (Attribute(d.name, 'int64', not_null=True)
-                         for d in sch.dims)),
-                    sch.dims)
+                sch.make_dims_attr()
+                logging.debug(query)
                 logging.debug(sch)
 
             # Execute Query and Download content
