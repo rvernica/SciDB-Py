@@ -170,14 +170,17 @@ class DB(object):
 
         self.arrays = Arrays(self)
 
-    def __repr__(self):
-        return '{}({!r}, {!r}, {!r}, {!r}, {!r})'.format(
-            type(self).__name__,
+    def __iter__(self):
+        return (i for i in (
             self.scidb_url,
             self.scidb_auth,
             self.http_auth,
             self.role,
-            self.namespace)
+            self.namespace))
+
+    def __repr__(self):
+        return '{}({!r}, {!r}, {!r}, {!r}, {!r}, {!r})'.format(
+            type(self).__name__, *self)
 
     def __str__(self):
         return '''\
@@ -185,11 +188,7 @@ scidb_url  = '{}'
 scidb_auth = {}
 http_auth  = {}
 role       = {}
-namespace  = {}'''.format(self.scidb_url,
-                          self.scidb_auth,
-                          self.http_auth,
-                          self.role,
-                          self.namespace)
+namespace  = {}'''.format(*self)
 
     def iquery(self,
                query,
