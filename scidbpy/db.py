@@ -149,7 +149,6 @@ import logging
 import numpy
 import re
 import requests
-import requests.compat
 
 from schema import Attribute, Dimension, Schema
 
