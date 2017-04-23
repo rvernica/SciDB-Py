@@ -33,9 +33,6 @@ role       = None
 namespace  = None
 verify     = False
 
->>> dir(db_ssl.arrays)
-[]
-
 See Python "requests" library SSL Cert Verification section [1] for
 details on the "verify" parameter.
 
