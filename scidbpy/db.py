@@ -10,7 +10,7 @@ Connect to SciDB using "connect()" or "DB()":
 Display information about the "db" object:
 
 >>> db
-DB('http://localhost:8080', None, None, None, None)
+DB('http://localhost:8080', None, None, None, None, None)
 
 >>> print(db)
 scidb_url  = 'http://localhost:8080'
@@ -18,6 +18,29 @@ scidb_auth = None
 http_auth  = None
 role       = None
 namespace  = None
+verify     = None
+
+
+Use SSL:
+
+>>> db_ssl = connect('https://localhost:8083', verify=False)
+
+>>> print(db_ssl)
+scidb_url  = 'https://localhost:8083'
+scidb_auth = None
+http_auth  = None
+role       = None
+namespace  = None
+verify     = False
+
+>>> dir(db_ssl.arrays)
+[]
+
+See Python "requests" library SSL Cert Verification section [1] for
+details on the "verify" parameter.
+
+[1] http://docs.python-requests.org/en/master/user/advanced/
+    #ssl-cert-verification
 
 
 Access SciDB Arrays
@@ -142,7 +165,7 @@ class DB(object):
     """SciDB Shim connection object.
 
     >>> DB()
-    DB('http://localhost:8080', None, None, None, None)
+    DB('http://localhost:8080', None, None, None, None, None)
 
     >>> print(DB())
     scidb_url  = 'http://localhost:8080'
@@ -150,6 +173,7 @@ class DB(object):
     http_auth  = None
     role       = None
     namespace  = None
+    verify     = None
     """
 
     _show_query = "show('{}', 'afl')"
@@ -161,12 +185,14 @@ class DB(object):
             scidb_auth=None,
             http_auth=None,
             role=None,
-            namespace=None):
+            namespace=None,
+            verify=None):
         self.scidb_url = scidb_url
         self.scidb_auth = scidb_auth
         self.http_auth = http_auth
         self.role = role
         self.namespace = namespace
+        self.verify = verify
 
         self.arrays = Arrays(self)
 
@@ -176,7 +202,8 @@ class DB(object):
             self.scidb_auth,
             self.http_auth,
             self.role,
-            self.namespace))
+            self.namespace,
+            self.verify))
 
     def __repr__(self):
         return '{}({!r}, {!r}, {!r}, {!r}, {!r}, {!r})'.format(
@@ -188,7 +215,8 @@ scidb_url  = '{}'
 scidb_auth = {}
 http_auth  = {}
 role       = {}
-namespace  = {}'''.format(*self)
+namespace  = {}
+verify     = {}'''.format(*self)
 
     def iquery(self,
                query,
@@ -279,7 +307,8 @@ namespace  = {}'''.format(*self)
         """Make request on Shim endpoint."""
         req = requests.get(
             requests.compat.urljoin(self.scidb_url, endpoint.value),
-            params=kwargs)
+            params=kwargs,
+            verify=self.verify)
         req.reason = req.content
         req.raise_for_status()
         return req
