@@ -21,6 +21,27 @@ namespace  = None
 verify     = None
 
 
+Provide Shim credentials:
+
+>>> db_ha = connect(http_auth=('foo', 'bar'))
+
+>>> db_ha
+DB('http://localhost:8080', None, ('foo', PASSWORD_PROVIDED), None, None, None)
+
+>>> print(db_ha)
+scidb_url  = 'http://localhost:8080'
+scidb_auth = None
+http_auth  = ('foo', PASSWORD_PROVIDED)
+role       = None
+namespace  = None
+verify     = None
+
+To prompt the user for the password, use:
+
+# >>> import getpass
+# >>> db_ha = connect(http_auth=('foo', getpass.getpass()))
+
+
 Use SSL:
 
 >>> db_ssl = connect('https://localhost:8083', verify=False)
@@ -157,6 +178,11 @@ class Shim(enum.Enum):
     read_bytes = 'read_bytes'
 
 
+class Password_Placeholder(object):
+    def __repr__(self):
+        return 'PASSWORD_PROVIDED'
+
+
 class DB(object):
     """SciDB Shim connection object.
 
@@ -185,10 +211,16 @@ class DB(object):
             verify=None):
         self.scidb_url = scidb_url
         self.scidb_auth = scidb_auth
-        self.http_auth = http_auth
         self.role = role
         self.namespace = namespace
         self.verify = verify
+
+        if http_auth:
+            self._auth = requests.auth.HTTPDigestAuth(*http_auth)
+            self.http_auth = (http_auth[0], Password_Placeholder())
+        else:
+            self._auth = None
+            self.http_auth = None
 
         self.arrays = Arrays(self)
 
@@ -304,6 +336,7 @@ verify     = {}'''.format(*self)
         req = requests.get(
             requests.compat.urljoin(self.scidb_url, endpoint.value),
             params=kwargs,
+            auth=self._auth,
             verify=self.verify)
         req.reason = req.content
         req.raise_for_status()
