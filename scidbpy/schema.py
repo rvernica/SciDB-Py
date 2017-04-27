@@ -296,7 +296,7 @@ class Schema(object):
         '\s* \[ ( [^;\]]+ \s* (?: ; \s* [^;\]]+ \s* )* ) \] \s* $',
         re.VERBOSE)
 
-    def __init__(self, name, atts, dims):
+    def __init__(self, name=None, atts=(), dims=()):
         self.name = name
         self.atts = tuple(atts)
         self.dims = tuple(dims)

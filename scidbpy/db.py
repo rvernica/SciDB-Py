@@ -351,9 +351,8 @@ class Arrays(object):
     def __init__(self, db):
         self._db = db
         self._schema = Schema(
-            None,
-            (Attribute('name', 'string', not_null=True),),
-            (Dimension('i'),))
+            atts=(Attribute('name', 'string', not_null=True),),
+            dims=(Dimension('i'),))
 
     def __getattr__(self, name):
         return str(name)
