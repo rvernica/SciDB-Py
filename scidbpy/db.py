@@ -162,6 +162,7 @@ array([(0,), (1,), (2,)],
       dtype=[('x', '<i8')])
 """
 
+import copy
 import enum
 import itertools
 import logging
@@ -268,7 +269,8 @@ verify     = {}'''.format(*self)
         if fetch:
             # Use provided schema or get schema from SciDB
             if schema:
-                sch = schema
+                # Deep-copy schema since we might be mutating it
+                sch = copy.deepcopy(schema)
             else:
                 # Execute 'show(...)' and Download text
                 self._shim(
