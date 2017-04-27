@@ -119,14 +119,17 @@ array([((255, 0),), ((255, 1),), ((255, 2),)],
 
 Download operator output directly:
 
->>> iquery(db, 'build(<x:int64 not null>[i=0:2], i)', True)
+>>> iquery(db, 'build(<x:int64 not null>[i=0:2], i)', fetch=True)
 ... # doctest: +NORMALIZE_WHITESPACE
 array([(0, 0), (1, 1), (2, 2)],
       dtype=[('x', '<i8'), ('i', '<i8')])
 
 Optionally, download only the attributes:
 
->>> iquery(db, 'build(<x:int64 not null>[i=0:2], i)', True, True)
+>>> iquery(db,
+...        'build(<x:int64 not null>[i=0:2], i)',
+...        fetch=True,
+...        atts_only=True)
 ... # doctest: +NORMALIZE_WHITESPACE
 array([(0,), (1,), (2,)],
       dtype=[('x', '<i8')])
@@ -135,7 +138,7 @@ array([(0,), (1,), (2,)],
 If dimension names collide with attribute names, unique dimension
 names are created:
 
->>> iquery(db, 'apply(build(<x:int64 not null>[i=0:2], i), i, i)', True)
+>>> iquery(db, 'apply(build(<x:int64 not null>[i=0:2], i), i, i)', fetch=True)
 ... # doctest: +NORMALIZE_WHITESPACE
 array([(0, 0, 0), (1, 1, 1), (2, 2, 2)],
       dtype=[('x', '<i8'), ('i', '<i8'), ('i_1', '<i8')])
