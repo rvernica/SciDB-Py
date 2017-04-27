@@ -164,6 +164,31 @@ array([(0, 0), (1, 1), (2, 2)],
 ... # doctest: +NORMALIZE_WHITESPACE
 array([(0,), (1,), (2,)],
       dtype=[('x', '<i8')])
+
+
+Download as Pandas DataFrame:
+
+>>> iquery(db,
+...        'build(<x:int64 not null>[i=0:2], i)',
+...        fetch=True,
+...        as_dataframe=True)
+... # doctest: +NORMALIZE_WHITESPACE
+   x
+i
+0  0
+1  1
+2  2
+
+>>> iquery(db,
+...        'build(<x:int64 not null>[i=0:2], i)',
+...        fetch=True,
+...        atts_only=True,
+...        as_dataframe=True)
+... # doctest: +NORMALIZE_WHITESPACE
+   x
+0  0
+1  1
+2  2
 """
 
 import copy
@@ -171,6 +196,7 @@ import enum
 import itertools
 import logging
 import numpy
+import pandas
 import re
 import requests
 
@@ -256,6 +282,7 @@ verify     = {}'''.format(*self)
                query,
                fetch=False,
                atts_only=False,
+               as_dataframe=False,
                schema=None):
         """Execute query in SciDB
 
@@ -333,7 +360,14 @@ verify     = {}'''.format(*self)
                              for (att, (off, sz)) in zip(sch.atts, meta)))
                 pos += 1
 
-            return ar
+            # Return NumPy array or Pandas dataframe
+            if as_dataframe:
+                return pandas.DataFrame.from_records(
+                    ar,
+                    index=[dim.name for dim in sch.dims]
+                    if not atts_only else None)
+            else:
+                return ar
 
         else:                   # fetch=False
             self._shim(Shim.execute_query, id=id, query=query, release=1)
