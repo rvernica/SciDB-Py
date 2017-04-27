@@ -1,4 +1,5 @@
-"""Connect to SciDB
+"""
+Connect to SciDB
 ----------------
 
 Connect to SciDB using "connect()" or "DB()":
@@ -170,7 +171,7 @@ import numpy
 import re
 import requests
 
-from schema import Attribute, Dimension, Schema
+from .schema import Attribute, Dimension, Schema
 
 
 class Shim(enum.Enum):
