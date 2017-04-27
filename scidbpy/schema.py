@@ -287,7 +287,7 @@ class Schema(object):
     '<x:int64> [i]'
     """
 
-    _regex_name = re.compile('\s* (?P<name> [\w@]+ )?', re.VERBOSE)
+    _regex_name = re.compile('\s* (?P<name> [^<]+ )?', re.VERBOSE)
 
     _regex_atts = re.compile(
         '\s*  < ( [^,>]+  \s* (?: , \s* [^,>]+  \s* )* )  >', re.VERBOSE)
@@ -397,8 +397,9 @@ class Schema(object):
         atts_match = Schema._regex_atts.match(string, name_match.end(0))
         dims_match = Schema._regex_dims.match(string, atts_match.end(0))
 
+        name = name_match.groupdict()['name']
         return cls(
-            name_match.groupdict()['name'],
+            name.strip() if name else None,
             (Attribute.fromstring(s)
              for s in atts_match.group(1).split(',')),
             (Dimension.fromstring(s)
