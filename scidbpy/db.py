@@ -277,7 +277,7 @@ verify     = {}'''.format(*self)
                 self._shim(
                     Shim.execute_query,
                     id=id,
-                    query=DB._show_query.format(query),
+                    query=DB._show_query.format(query.replace("'", "\\'")),
                     save='text')
                 sch_str = DB._one_attr_regex.match(
                     self._shim(Shim.read_bytes, id=id, n=0).text).group(1)
