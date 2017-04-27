@@ -1,6 +1,6 @@
 import pytest
 
-from .schema import Attribute, Dimension, Schema
+from scidbpy.schema import Attribute, Dimension, Schema
 
 
 class TestAttribute:
