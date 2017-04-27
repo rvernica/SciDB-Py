@@ -25,7 +25,13 @@ before_install:
   - while ! curl http://localhost:8080/version; do sleep 1; done
 
 install:
-  - pip install --only-binary=scipy enum34 requests numpy pep8 pytest
+  - pip install --only-binary=scipy
+    enum34
+    numpy
+    pandas
+    pep8
+    pytest
+    requests
 
 script:
   - pep8 scidbpy
