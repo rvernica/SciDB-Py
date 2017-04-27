@@ -1,7 +1,3 @@
-from .db import connect, iquery
-
-__version__ = '16.9'
-
 """
 Usage
 -----
@@ -18,3 +14,7 @@ role       = None
 namespace  = None
 verify     = None
 """
+
+from .db import connect, iquery
+
+__version__ = '16.9'
