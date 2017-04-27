@@ -40,6 +40,7 @@ To prompt the user for the password, use:
 
 # >>> import getpass
 # >>> db_ha = connect(http_auth=('foo', getpass.getpass()))
+# Password:
 
 
 Use SSL:
