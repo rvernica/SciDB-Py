@@ -151,6 +151,12 @@ class TestSchema:
                  'foo',
                  (Attribute('x', 'int64'),),
                  (Dimension('i', 0, '*'),))),
+            ('foo@10<x:int64>[i=0:*]',
+             'foo@10<x:int64> [i=0:*]',
+             Schema(
+                 'foo@10',
+                 (Attribute('x', 'int64'),),
+                 (Dimension('i', 0, '*'),))),
             ('list<name:string NOT NULL,uaid:int64 NOT NULL,' +
              'aid:int64 NOT NULL,schema:string NOT NULL,' +
              'availability:bool NOT NULL,temporary:bool NOT NULL> ' +
