@@ -238,7 +238,7 @@ In IPython, you can use <TAB> for auto-completion of operator names:
 >>> dir(db.arrays)
 ['foo']
 
->>> db.remove('foo')
+>>> db.remove(db.arrays.foo)
 >>> dir(db.arrays)
 []
 """
