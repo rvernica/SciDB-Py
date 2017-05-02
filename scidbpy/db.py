@@ -246,7 +246,6 @@ class DB(object):
     """
 
     _show_query = "show('{}', 'afl')"
-    _one_attr_regex = re.compile("\[\( '( [^)]+ )' \)\]\n$", re.VERBOSE)
 
     def __init__(
             self,
@@ -333,13 +332,9 @@ verify     = {}'''.format(*self)
                     Shim.execute_query,
                     id=id,
                     query=DB._show_query.format(query.replace("'", "\\'")),
-                    save='text')
-                sch_str = DB._one_attr_regex.match(
-                    self._shim(Shim.read_bytes, id=id, n=0).text).group(1)
-
-                # Parse Schema
-                logging.debug(sch_str)
-                sch = Schema.fromstring(sch_str)
+                    save='tsv')
+                sch = Schema.fromstring(
+                    self._shim(Shim.read_bytes, id=id, n=0).text)
                 logging.debug(sch)
 
             # Unpack
