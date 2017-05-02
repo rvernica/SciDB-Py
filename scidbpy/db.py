@@ -206,8 +206,8 @@ i
 2  2
 
 
-Access SciDB Operators
-----------------------
+Use SciDB Operators
+-------------------
 
 >>> dir(db)
 ... # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
@@ -217,7 +217,12 @@ Access SciDB Operators
  'xgrid']
 
 >>> db.apply
-'apply'
+... # doctest: +NORMALIZE_WHITESPACE
+SciDB(db=DB('http://localhost:8080', None, None, None, None, None),
+      operator='apply', args=[])
+
+>>> print(db.apply)
+apply()
 
 >>> db.missing
 Traceback (most recent call last):
@@ -228,6 +233,14 @@ In IPython, you can use <TAB> for auto-completion of operator names:
 
 # In []: db.<TAB>
 # In []: db.apply
+
+>>> db.create_array('foo', '<x:int64>[i]')
+>>> dir(db.arrays)
+['foo']
+
+>>> db.remove('foo')
+>>> dir(db.arrays)
+[]
 """
 
 import copy
@@ -330,7 +343,7 @@ verify     = {}'''.format(*self)
 
     def __getattr__(self, name):
         if name in self.operators:
-            return name
+            return SciDB(self, name)
         else:
             raise AttributeError(
                 '{.__name__!r} object has no attribute {!r}'.format(
@@ -476,6 +489,44 @@ class Arrays(object):
         download only names and schemas
         """
         return self._db.iquery_readlines('project(list(), name)')
+
+
+class SciDB(object):
+    """Unevaluated SciDB expression"""
+    def __init__(self, db, operator, *args):
+        self.db = db
+
+        if operator.lower().startswith('create'):
+            self.operator = operator.replace('_', ' ')
+        else:
+            self.operator = operator
+
+        self.args = list(args)
+        self.lazy = self.operator.lower() not in (
+            'create array', 'remove')
+
+    def __call__(self, *args):
+        """Returns self for lazy expressions. Executes immediate expressions.
+        """
+        self.args = list(args)
+        if self.lazy:
+            return self
+        else:
+            return self.db.iquery(str(self))
+
+    def __repr__(self):
+        return '{}(db={!r}, operator={!r}, args=[{}])'.format(
+            type(self).__name__,
+            self.db,
+            self.operator,
+            ', '.join('{!r}'.format(i) for i in self.args))
+
+    def __str__(self):
+        args_fmt = ('{}'.format(i) for i in self.args)
+        if self.operator.lower().startswith('create'):
+            return '{} {}'.format(self.operator, ' '.join(args_fmt))
+        else:
+            return '{}({})'.format(self.operator, ', '.join(args_fmt))
 
 
 connect = DB
