@@ -63,6 +63,21 @@ details on the "verify" parameter.
     #ssl-cert-verification
 
 
+Use SSL and SciDB credentials:
+
+>>> db_sdb = connect(
+...   'https://localhost:8083', scidb_auth=('foo', 'bar'), verify=False)
+
+>>> print(db_sdb)
+scidb_url  = 'https://localhost:8083'
+scidb_auth = ('foo', PASSWORD_PROVIDED)
+http_auth  = None
+role       = None
+namespace  = None
+verify     = False
+
+
+
 Access SciDB Arrays
 -------------------
 
@@ -242,17 +257,27 @@ class DB(object):
             namespace=None,
             verify=None):
         self.scidb_url = scidb_url
-        self.scidb_auth = scidb_auth
         self.role = role
         self.namespace = namespace
         self.verify = verify
 
         if http_auth:
-            self._auth = requests.auth.HTTPDigestAuth(*http_auth)
+            self._http_auth = requests.auth.HTTPDigestAuth(*http_auth)
             self.http_auth = (http_auth[0], Password_Placeholder())
         else:
-            self._auth = None
-            self.http_auth = None
+            self._http_auth = self.http_auth = None
+
+        if scidb_auth:
+            if not self.scidb_url.lower().startswith('https'):
+                raise Exception(
+                    'SciDB credentials can only be used ' +
+                    'with https connections')
+
+            self._scidb_auth = {'user': scidb_auth[0],
+                                'password': scidb_auth[1]}
+            self.scidb_auth = (scidb_auth[0], Password_Placeholder())
+        else:
+            self._scidb_auth = self.scidb_auth = None
 
         self.arrays = Arrays(self)
 
@@ -374,10 +399,12 @@ verify     = {}'''.format(*self)
 
     def _shim(self, endpoint, **kwargs):
         """Make request on Shim endpoint."""
+        if self._scidb_auth:
+            kwargs.update(self._scidb_auth)
         req = requests.get(
             requests.compat.urljoin(self.scidb_url, endpoint.value),
             params=kwargs,
-            auth=self._auth,
+            auth=self._http_auth,
             verify=self.verify)
         req.reason = req.content
         req.raise_for_status()
