@@ -204,6 +204,30 @@ i
 0  0
 1  1
 2  2
+
+
+Access SciDB Operators
+----------------------
+
+>>> dir(db)
+... # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
+['aggregate',
+ 'apply',
+ ...
+ 'xgrid']
+
+>>> db.apply
+'apply'
+
+>>> db.missing
+Traceback (most recent call last):
+    ...
+AttributeError: 'DB' object has no attribute 'missing'
+
+In IPython, you can use <TAB> for auto-completion of operator names:
+
+# In []: db.<TAB>
+# In []: db.apply
 """
 
 import copy
@@ -279,6 +303,8 @@ class DB(object):
             self._scidb_auth = self.scidb_auth = None
 
         self.arrays = Arrays(self)
+        self.operators = self.iquery_readlines(
+            "project(list('operators'), name)")
 
     def __iter__(self):
         return (i for i in (
@@ -301,6 +327,17 @@ http_auth  = {}
 role       = {}
 namespace  = {}
 verify     = {}'''.format(*self)
+
+    def __getattr__(self, name):
+        if name in self.operators:
+            return name
+        else:
+            raise AttributeError(
+                '{.__name__!r} object has no attribute {!r}'.format(
+                    type(self), name))
+
+    def __dir__(self):
+        return self.operators
 
     def iquery(self,
                query,
