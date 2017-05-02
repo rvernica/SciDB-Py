@@ -316,8 +316,11 @@ class DB(object):
             self._scidb_auth = self.scidb_auth = None
 
         self.arrays = Arrays(self)
+
         self.operators = self.iquery_readlines(
             "project(list('operators'), name)")
+        self.operators.extend(('arrays', 'iquery', 'iquery_readlines'))
+        self.operators.sort()
 
     def __iter__(self):
         return (i for i in (
