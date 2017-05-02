@@ -311,7 +311,7 @@ verify     = {}'''.format(*self)
         """Execute query in SciDB
 
         >>> DB().iquery('build(<x:int64>[i=0:1; j=0:1], i + j)', fetch=True)
-        ... # doctest: +ELLIPSIS +NORMALIZE_WHITESPACE
+        ... # doctest: +NORMALIZE_WHITESPACE
         array([((255, 0), 0, 0),
                ((255, 1), 0, 1),
                ((255, 1), 1, 0),
@@ -392,6 +392,23 @@ verify     = {}'''.format(*self)
         else:                   # fetch=False
             self._shim(Shim.execute_query, id=id, query=query, release=1)
 
+    def iquery_readlines(self, query):
+        """Execute query in SciDB
+
+        >>> DB().iquery_readlines('build(<x:int64>[i=0:2], i * i)')
+        ['0', '1', '4']
+
+        >>> DB().iquery_readlines(
+        ...   'apply(build(<x:int64>[i=0:2], i), y, i + 10)')
+        ['0', '10', '1', '11', '2', '12']
+        """
+        id = self._shim(Shim.new_session).text
+        self._shim(Shim.execute_query, id=id, query=query, save='tsv')
+        ret = self._shim(Shim.read_bytes, id=id, n=0).text.split()
+        self._shim(Shim.release_session, id=id)
+
+        return ret
+
     def _shim(self, endpoint, **kwargs):
         """Make request on Shim endpoint."""
         if self._scidb_auth:
@@ -421,11 +438,7 @@ class Arrays(object):
         """Download the list of SciDB arrays. Use 'project(list(), name)' to
         download only names and schemas
         """
-        return self._db.iquery(
-            'project(list(), name)',
-            fetch=True,
-            atts_only=True,
-            schema=self._schema)['name'].tolist()
+        return self._db.iquery_readlines('project(list(), name)')
 
 
 connect = DB
