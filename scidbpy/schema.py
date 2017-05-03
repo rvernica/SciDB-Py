@@ -8,7 +8,6 @@ import struct
 type_map = dict(
     [(t.__name__, t) for t in (
         numpy.bool,
-        numpy.double,
 
         numpy.int8,
         numpy.int16,
@@ -22,6 +21,7 @@ type_map = dict(
     )] + [
         ('char', 'a1'),
         ('float', numpy.float32),
+        ('double', numpy.float64),
         ('string', numpy.object),
     ])
 
