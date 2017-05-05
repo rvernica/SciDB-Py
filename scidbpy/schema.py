@@ -25,6 +25,24 @@ type_map = dict(
         ('string', numpy.object),
     ])
 
+# Type promotion map for Pandas DataFrame
+# http://pandas.pydata.org/pandas-docs/stable/gotchas.html#na-type-promotions
+type_map_promo = dict(
+    [(t.__name__, numpy.float64) for t in (
+        numpy.int8,
+        numpy.int16,
+        numpy.int32,
+        numpy.int64,
+
+        numpy.uint8,
+        numpy.uint16,
+        numpy.uint32,
+        numpy.uint64,
+    )] + [
+        ('bool', numpy.object),
+        ('char', numpy.object),
+    ])
+
 # TODO datetime, datetimetz
 
 
@@ -119,7 +137,7 @@ class Attribute(object):
             buf, numpy.uint32, 1, offset + null_size)[0]
         return null_size + Attribute._length_dtype.itemsize + value_size
 
-    def frombytes(self, buf, offset=0, size=None):
+    def frombytes(self, buf, offset=0, size=None, promo=False):
         null_size = 0 if self.not_null else 1
 
         if self.val_dtype == numpy.object:
@@ -138,7 +156,11 @@ class Attribute(object):
         if self.not_null:
             return val
         else:
-            return (struct.unpack('B', buf[offset:offset + null_size])[0], val)
+            missing = struct.unpack('B', buf[offset:offset + null_size])[0]
+            if promo:
+                return val if missing == 255 else None
+            else:
+                return (missing, val)
 
     @classmethod
     def fromstring(cls, string):
@@ -383,6 +405,14 @@ class Schema(object):
             self.atts,
             (Attribute(d.name, 'int64', not_null=True) for d in self.dims)))
         self._update_atts_meta()
+
+    def get_promo_atts_dtype(self):
+        return numpy.dtype(
+            [a.dtype.descr[0] if a.not_null else
+             (a.dtype.names[0],
+              type_map_promo.get(a.type_name,
+                                 type_map.get(a.type_name, numpy.object)))
+             for a in self.atts])
 
     def _update_atts_meta(self):
         self.atts_dtype = numpy.dtype(

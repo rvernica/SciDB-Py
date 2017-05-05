@@ -186,7 +186,8 @@ Download as Pandas DataFrame:
 >>> iquery(db,
 ...        'build(<x:int64 not null>[i=0:2], i)',
 ...        fetch=True,
-...        as_dataframe=True)
+...        as_dataframe=True,
+...        index=True)
 ... # doctest: +NORMALIZE_WHITESPACE
    x
 i
@@ -360,6 +361,7 @@ verify     = {}'''.format(*self)
                fetch=False,
                atts_only=False,
                as_dataframe=False,
+               index=None,
                schema=None):
         """Execute query in SciDB
 
@@ -426,22 +428,34 @@ verify     = {}'''.format(*self)
                     off += sz
                 buf_meta.append(meta)
 
+            # Create NumPy record array
+            if as_dataframe:
+                ar = numpy.empty((len(buf_meta),),
+                                 dtype=sch.get_promo_atts_dtype())
+            else:
+                ar = numpy.empty((len(buf_meta),), dtype=sch.atts_dtype)
+
             # Extract values using (offset, size) metadata
-            # Create and populate NumPy record array
-            ar = numpy.empty((len(buf_meta),), dtype=sch.atts_dtype)
+            # Populate NumPy record array
             pos = 0
             for meta in buf_meta:
                 ar.put((pos,),
-                       tuple(att.frombytes(buf, off, sz)
+                       tuple(att.frombytes(buf, off, sz, promo=as_dataframe)
                              for (att, (off, sz)) in zip(sch.atts, meta)))
                 pos += 1
 
             # Return NumPy array or Pandas dataframe
             if as_dataframe:
-                return pandas.DataFrame.from_records(
-                    ar,
-                    index=[dim.name for dim in sch.dims]
-                    if not atts_only else None)
+                if atts_only:
+                    index = None
+                else:
+                    if index is True:
+                        # Index on all dimensions
+                        index = [dim.name for dim in sch.dims]
+                    elif index is False:
+                        index = None
+                # index is None or a list
+                return pandas.DataFrame.from_records(ar, index=index)
             else:
                 return ar
 
