@@ -19,9 +19,9 @@ type_map = dict(
         numpy.uint32,
         numpy.uint64,
     )] + [
-        ('char', 'a1'),
-        ('float', numpy.float32),
+        ('char', 'S1'),
         ('double', numpy.float64),
+        ('float', numpy.float32),
         ('string', numpy.object),
     ])
 
