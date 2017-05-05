@@ -378,7 +378,10 @@ verify     = {}'''.format(*self)
             # Use provided schema or get schema from SciDB
             if schema:
                 # Deep-copy schema since we might be mutating it
-                sch = copy.deepcopy(schema)
+                if isinstance(schema, Schema):
+                    sch = copy.deepcopy(schema)
+                else:
+                    sch = Schema.fromstring(schema)
             else:
                 # Execute 'show(...)' and Download text
                 self._shim(
