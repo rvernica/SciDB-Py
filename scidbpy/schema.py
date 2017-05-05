@@ -363,19 +363,19 @@ class Schema(object):
         else:
             return False
 
-    def make_dims_attr(self):
+    def make_dims_atts(self):
         """Make attributes from dimensions and append them to the attributes
         list.
 
         >>> s = Schema(None, (Attribute('x', 'bool'),), (Dimension('i'),))
         >>> print(s)
         <x:bool> [i]
-        >>> s.make_dims_attr()
+        >>> s.make_dims_atts()
         >>> print(s)
         <x:bool,i:int64 NOT NULL> [i]
 
         >>> s = Schema.fromstring('<x:bool>[i;j]')
-        >>> s.make_dims_attr()
+        >>> s.make_dims_atts()
         >>> print(s)
         <x:bool,i:int64 NOT NULL,j:int64 NOT NULL> [i; j]
         """

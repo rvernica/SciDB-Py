@@ -401,7 +401,7 @@ verify     = {}'''.format(*self)
                     query,
                     ', '.join('{0}, {0}'.format(d.name) for d in sch.dims))
 
-                sch.make_dims_attr()
+                sch.make_dims_atts()
                 logging.debug(query)
                 logging.debug(sch)
 
