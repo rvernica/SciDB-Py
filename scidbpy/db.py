@@ -473,7 +473,7 @@ verify     = {}'''.format(*self)
                     if index is True:
                         # Index on all dimensions
                         index = [dim.name for dim in sch.dims]
-                    elif index is False:
+                    elif index is False or index == []:
                         index = None
                 # index is None or a list
                 return pandas.DataFrame.from_records(ar, index=index)
