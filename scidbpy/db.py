@@ -365,6 +365,27 @@ verify     = {}'''.format(*self)
                schema=None):
         """Execute query in SciDB
 
+        :param bool fetch: If `True`, download SciDB array (default
+        `False`)
+
+        :param bool atts_only: If `True`, download only SciDB array
+        attributes without dimensions (default `False`)
+
+        :param bool as_dataframe: If `True`, return a Pandas
+        DataFrame. If `False`, return a NumPy array (default `False`)
+
+        :param index: If `True`, index the Pandas DataFrame with all
+        the dimensions of the array. If `False` or None, no index is
+        created. If a list, pass the list as index to Pandas when
+        creating the DataFrame. List elements are not verified
+        (default `None`)
+
+        :param schema: Schema of the SciDB array to use when
+        downloading the array. Schema is not verified. If schema is a
+        Schema instance, it is copied. Otherwise, a :py:class:`Schema`
+        object is built using :py:func:`Schema.fromstring` (default
+        `None`).
+
         >>> DB().iquery('build(<x:int64>[i=0:1; j=0:1], i + j)', fetch=True)
         ... # doctest: +NORMALIZE_WHITESPACE
         array([((255, 0), 0, 0),
