@@ -21,6 +21,7 @@ before_install:
     --volume /dev/shm
     --tmpfs /dev/shm:exec
     --publish 8080:8080
+    --publish 8083:8083
     rvernica/scidb:${SCIDB_VER}
   - while ! curl http://localhost:8080/version; do sleep 1; done
 
