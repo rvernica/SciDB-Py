@@ -184,27 +184,27 @@ array([(0,), (1,), (2,)],
 Download as Pandas DataFrame:
 
 >>> iquery(db,
-...        'build(<x:int64 not null>[i=0:2], i)',
+...        'build(<x:int64>[i=0:2], i)',
 ...        fetch=True,
 ...        as_dataframe=True,
 ...        index=True)
 ... # doctest: +NORMALIZE_WHITESPACE
    x
 i
-0  0
-1  1
-2  2
+0  0.0
+1  1.0
+2  2.0
 
 >>> iquery(db,
-...        'build(<x:int64 not null>[i=0:2], i)',
+...        'build(<x:int64>[i=0:2], i)',
 ...        fetch=True,
 ...        atts_only=True,
 ...        as_dataframe=True)
 ... # doctest: +NORMALIZE_WHITESPACE
    x
-0  0
-1  1
-2  2
+0  0.0
+1  1.0
+2  2.0
 
 
 Use SciDB Operators

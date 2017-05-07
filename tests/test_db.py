@@ -413,8 +413,8 @@ class TestDB:
         # Pandas DataFrame, atts_only
         ar = iquery(db, 'scan({})'.format(variety),
                     fetch=True, as_dataframe=True)
-        assert ar.shape == (12, 1)
-        assert ar.ndim == 1
+        assert ar.shape == (12, 16)
+        assert ar.ndim == 2
         assert numpy.all(ar[0:1].values[0, :13] == variety_values[0])
 
         # Values which differ have to be NAN
@@ -437,8 +437,8 @@ class TestDB:
         # Pandas DataFrame, atts_only
         ar = iquery(db, 'scan({})'.format(variety),
                     fetch=True, as_dataframe=True, atts_only=True)
-        assert ar.shape == (12, 1)
-        assert ar.ndim == 1
+        assert ar.shape == (12, 13)
+        assert ar.ndim == 2
         assert numpy.all(ar[0:1].values == variety_values[0])
 
         # Values which differ have to be NAN
@@ -466,7 +466,7 @@ class TestDB:
         ar = iquery(db, 'scan({})'.format(variety),
                     fetch=True, as_dataframe=True, index=index)
         assert ar.shape == (12, 13)
-        assert ar.ndim == 1
+        assert ar.ndim == 2
         assert numpy.all(
             ar.ix[[(0, -2, 0)]].values == variety_values[0])
 
