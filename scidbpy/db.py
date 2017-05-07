@@ -212,10 +212,10 @@ Use SciDB Operators
 
 >>> dir(db)
 ... # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
-['aggregate',
- 'apply',
+[...'aggregate',
+ ...'apply',
  ...
- 'xgrid']
+ ...'xgrid']
 
 >>> db.apply
 ... # doctest: +NORMALIZE_WHITESPACE
@@ -237,7 +237,8 @@ In IPython, you can use <TAB> for auto-completion of operator names:
 
 >>> db.create_array('foo', '<x:int64>[i]')
 >>> dir(db.arrays)
-['foo']
+... # doctest: +ELLIPSIS
+[...'foo']
 
 >>> db.remove(db.arrays.foo)
 >>> dir(db.arrays)
@@ -487,11 +488,13 @@ verify     = {}'''.format(*self)
         """Execute query in SciDB
 
         >>> DB().iquery_readlines('build(<x:int64>[i=0:2], i * i)')
-        ['0', '1', '4']
+        ... # doctest: +ELLIPSIS
+        [...'0', ...'1', ...'4']
 
         >>> DB().iquery_readlines(
         ...   'apply(build(<x:int64>[i=0:2], i), y, i + 10)')
-        ['0', '10', '1', '11', '2', '12']
+        ... # doctest: +ELLIPSIS
+        [...'0', ...'10', ...'1', ...'11', ...'2', ...'12']
         """
         id = self._shim(Shim.new_session).text
         self._shim(Shim.execute_query, id=id, query=query, save='tsv')
