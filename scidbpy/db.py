@@ -268,10 +268,11 @@ from .schema import Attribute, Dimension, Schema
 
 
 class Shim(enum.Enum):
-    new_session = 'new_session'
-    release_session = 'release_session'
+    cancel = 'cancel'
     execute_query = 'execute_query'
+    new_session = 'new_session'
     read_bytes = 'read_bytes'
+    release_session = 'release_session'
 
 
 class Password_Placeholder(object):
@@ -512,8 +513,8 @@ verify     = {}'''.format(*self)
         return ret
 
     def _shim(self, endpoint, **kwargs):
-        """Make request on Shim endpoint."""
-        if self._scidb_auth:
+        """Make request on Shim endpoint"""
+        if self._scidb_auth and endpoint in (Shim.cancel, Shim.execute_query):
             kwargs.update(self._scidb_auth)
         req = requests.get(
             requests.compat.urljoin(self.scidb_url, endpoint.value),
