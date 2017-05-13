@@ -3,6 +3,7 @@ import logging
 import numpy
 import re
 import struct
+import warnings
 
 
 type_map = dict(
@@ -408,6 +409,12 @@ class Schema(object):
         self._update_atts_meta()
 
     def get_promo_atts_dtype(self):
+        cnt = sum(not a.not_null for a in self.atts)
+        if cnt:
+            warnings.warn(
+                ('{} type(s) promoted for null support.' +
+                 ' Precision loss may occur').format(cnt),
+                stacklevel=2)
         return numpy.dtype(
             [a.dtype.descr[0] if a.not_null else
              (a.dtype.names[0],
