@@ -176,10 +176,10 @@ class TestSchema:
                  (Dimension('No', 0, '*', 0, 1000000),))),
             ('not empty operators' +
              '<name:string NOT NULL,library:string NOT NULL> [No=0:52:0:53]',
-             'not empty operators' +
+             'operators' +
              '<name:string NOT NULL,library:string NOT NULL> [No=0:52:0:53]',
              Schema(
-                 'not empty operators',
+                 'operators',
                  (Attribute('name', 'string', True, None, None),
                   Attribute('library', 'string', True, None, None)),
                  (Dimension('No', 0, 52, 0, 53),))),

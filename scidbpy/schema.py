@@ -310,7 +310,8 @@ class Schema(object):
     '<x:int64> [i]'
     """
 
-    _regex_name = re.compile('\s* (?P<name> [^<]+ )?', re.VERBOSE)
+    _regex_name = re.compile(
+        '\s* (?: not \s+ empty \s+ )? (?P<name> [\w@]+ )?', re.VERBOSE)
 
     _regex_atts = re.compile(
         '\s*  < ( [^,>]+  \s* (?: , \s* [^,>]+  \s* )* )  >', re.VERBOSE)
