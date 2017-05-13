@@ -547,20 +547,22 @@ class SciDB(object):
     """Unevaluated SciDB expression"""
     def __init__(self, db, operator, *args):
         self.db = db
-
-        if operator.lower().startswith('create'):
-            self.operator = operator.replace('_', ' ')
-        else:
-            self.operator = operator
+        self.operator = operator
 
         self.args = list(args)
         self.lazy = self.operator.lower() not in (
-            'create array', 'remove')
+            'create_array', 'remove')
 
     def __call__(self, *args):
         """Returns self for lazy expressions. Executes immediate expressions.
         """
         self.args = list(args)
+
+        if self.operator.lower().startswith('create_array') \
+           and len(self.args) < 3:
+            # Set temporary = False for create array
+            self.args.append(False)
+
         if self.lazy:
             return self
         else:
@@ -575,10 +577,7 @@ class SciDB(object):
 
     def __str__(self):
         args_fmt = ('{}'.format(i) for i in self.args)
-        if self.operator.lower().startswith('create'):
-            return '{} {}'.format(self.operator, ' '.join(args_fmt))
-        else:
-            return '{}({})'.format(self.operator, ', '.join(args_fmt))
+        return '{}({})'.format(self.operator, ', '.join(args_fmt))
 
 
 connect = DB
