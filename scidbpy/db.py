@@ -204,6 +204,18 @@ Download as Pandas DataFrame:
 1  1.0
 2  2.0
 
+>>> iquery(db,
+...        'build(<x:int64>[i=0:2], i)',
+...        fetch=True,
+...        atts_only=True,
+...        as_dataframe=True,
+...        dataframe_promo=False)
+... # doctest: +NORMALIZE_WHITESPACE
+   x
+0  (255, 0)
+1  (255, 1)
+2  (255, 2)
+
 
 Use SciDB Operators
 -------------------
@@ -360,6 +372,7 @@ verify     = {}'''.format(*self)
                fetch=False,
                atts_only=False,
                as_dataframe=False,
+               dataframe_promo=True,
                schema=None):
         """Execute query in SciDB
 
@@ -371,6 +384,12 @@ verify     = {}'''.format(*self)
 
         :param bool as_dataframe: If `True`, return a Pandas
         DataFrame. If `False`, return a NumPy array (default `False`)
+
+        :param bool dataframe_promo: If `True`, nullable types are
+        promoted as per Pandas promotion scheme
+        http://pandas.pydata.org/pandas-docs/stable/gotchas.html
+        #na-type-promotions If `False`, object records are used for
+        nullable types (default `True`)
 
         :param schema: Schema of the SciDB array to use when
         downloading the array. Schema is not verified. If schema is a
@@ -386,6 +405,7 @@ verify     = {}'''.format(*self)
                (1, 1, (255, 2))],
               dtype=[('i', '<i8'), ('j', '<i8'),
                      ('x', [('null', 'u1'), ('val', '<i8')])])
+
         """
         id = self._shim(Shim.new_session).text
 
@@ -444,7 +464,7 @@ verify     = {}'''.format(*self)
                 buf_meta.append(meta)
 
             # Create NumPy record array
-            if as_dataframe:
+            if as_dataframe and dataframe_promo:
                 ar = numpy.empty((len(buf_meta),),
                                  dtype=sch.get_promo_atts_dtype())
             else:
@@ -455,7 +475,11 @@ verify     = {}'''.format(*self)
             pos = 0
             for meta in buf_meta:
                 ar.put((pos,),
-                       tuple(att.frombytes(buf, off, sz, promo=as_dataframe)
+                       tuple(att.frombytes(
+                           buf,
+                           off,
+                           sz,
+                           promo=as_dataframe and dataframe_promo)
                              for (att, (off, sz)) in zip(sch.atts, meta)))
                 pos += 1
 
