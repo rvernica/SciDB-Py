@@ -221,7 +221,7 @@ class TestDB:
         "list('operators')",
     ])
     def test_iquery(self, db, query):
-        assert db.iquery(query) == None
+        assert db.iquery(query) is None
         assert type(db.iquery(query, fetch=True)) == numpy.ndarray
 
     @pytest.mark.parametrize(('type_name', 'schema'), [
