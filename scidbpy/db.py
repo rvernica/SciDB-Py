@@ -551,7 +551,7 @@ class SciDB(object):
         self.operator = operator
 
         self.args = list(args)
-        self.lazy = self.operator.lower() not in (
+        self.is_lazy = self.operator.lower() not in (
             'create_array', 'remove')
 
     def __call__(self, *args):
@@ -564,7 +564,7 @@ class SciDB(object):
             # Set temporary = False for create array
             self.args.append(False)
 
-        if self.lazy:
+        if self.is_lazy:
             return self
         else:
             return self.db.iquery(str(self))
