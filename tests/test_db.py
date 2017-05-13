@@ -234,8 +234,9 @@ class TestDB:
             'bool',
             'double',
             'float',
-            'int8',
-            'uint64',
+        ] + [
+            '{}int{}'.format(u, sz)
+            for u in ('', 'u') for sz in (8, 16, 32, 64)
         ]
         for schema in [
                 None,
@@ -257,6 +258,9 @@ class TestDB:
             fetch=True,
             atts_only=atts_only,
             schema=schema)
+        if not atts_only:
+            for i in range(10):
+                assert ar[i][0] == i + 1
         assert ar.shape == (10,)
         assert ar.ndim == 1
 
@@ -415,18 +419,22 @@ class TestDB:
                     fetch=True, as_dataframe=True)
         assert ar.shape == (12, 16)
         assert ar.ndim == 2
-        assert numpy.all(ar[0:1].values[0, :13] == variety_values[0])
+        assert numpy.all(ar[0:1].values[0, 3:] == variety_values[0])
 
         # Values which differ have to be NAN
         ln = ar[4:5]
         assert numpy.all(
             numpy.isnan(
-                ln[ar.columns[ln.values[0, :13] != variety_values[1]]]))
+                ln[ar.columns[
+                    [False] * 3 +
+                    (ln.values[0, 3:] != variety_values[1]).tolist()]]))
 
         ln = ar[8:9]
         assert numpy.all(
             numpy.isnan(
-                ln[ar.columns[ln.values[0, :13] != variety_values[2]]]))
+                ln[ar.columns[
+                    [False] * 3 +
+                    (ln.values[0, 3:] != variety_values[2]).tolist()]]))
 
     @pytest.mark.parametrize('schema', [
         None,

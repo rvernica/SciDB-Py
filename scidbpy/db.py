@@ -119,8 +119,8 @@ Use "iquery" to download array data:
 
 >>> iquery(db, 'scan(foo)', fetch=True)
 ... # doctest: +NORMALIZE_WHITESPACE
-array([((255, 0), 0), ((255, 1), 1), ((255, 2), 2)],
-      dtype=[('x', [('null', 'u1'), ('val', '<i8')]), ('i', '<i8')])
+array([(0, (255, 0)), (1, (255, 1)), (2, (255, 2))],
+      dtype=[('i', '<i8'), ('x', [('null', 'u1'), ('val', '<i8')])])
 
 Optionally, download only the attributes:
 
@@ -137,7 +137,7 @@ Download operator output directly:
 >>> iquery(db, 'build(<x:int64 not null>[i=0:2], i)', fetch=True)
 ... # doctest: +NORMALIZE_WHITESPACE
 array([(0, 0), (1, 1), (2, 2)],
-      dtype=[('x', '<i8'), ('i', '<i8')])
+      dtype=[('i', '<i8'), ('x', '<i8')])
 
 Optionally, download only the attributes:
 
@@ -156,7 +156,7 @@ names are created:
 >>> iquery(db, 'apply(build(<x:int64 not null>[i=0:2], i), i, i)', fetch=True)
 ... # doctest: +NORMALIZE_WHITESPACE
 array([(0, 0, 0), (1, 1, 1), (2, 2, 2)],
-      dtype=[('x', '<i8'), ('i', '<i8'), ('i_1', '<i8')])
+      dtype=[('i_1', '<i8'), ('x', '<i8'), ('i', '<i8')])
 
 
 If schema is known, it can be provided to "iquery":
@@ -169,7 +169,7 @@ If schema is known, it can be provided to "iquery":
 ...                      (Dimension('i', 0, 2),)))
 ... # doctest: +NORMALIZE_WHITESPACE
 array([(0, 0), (1, 1), (2, 2)],
-      dtype=[('x', '<i8'), ('i', '<i8')])
+      dtype=[('i', '<i8'), ('x', '<i8')])
 
 >>> iquery(db,
 ...        'build(<x:int64 not null>[i=0:2], i)',
@@ -389,12 +389,12 @@ verify     = {}'''.format(*self)
 
         >>> DB().iquery('build(<x:int64>[i=0:1; j=0:1], i + j)', fetch=True)
         ... # doctest: +NORMALIZE_WHITESPACE
-        array([((255, 0), 0, 0),
-               ((255, 1), 0, 1),
-               ((255, 1), 1, 0),
-               ((255, 2), 1, 1)],
-              dtype=[('x', [('null', 'u1'), ('val', '<i8')]),
-                     ('i', '<i8'), ('j', '<i8')])
+        array([(0, 0, (255, 0)),
+               (0, 1, (255, 1)),
+               (1, 0, (255, 1)),
+               (1, 1, (255, 2))],
+              dtype=[('i', '<i8'), ('j', '<i8'),
+                     ('x', [('null', 'u1'), ('val', '<i8')])])
         """
         id = self._shim(Shim.new_session).text
 
@@ -424,9 +424,11 @@ verify     = {}'''.format(*self)
                     # cast.
                     query = 'cast({}, {:h})'.format(query, sch)
 
-                query = 'apply({}, {})'.format(
+                query = 'project(apply({}, {}), {})'.format(
                     query,
-                    ', '.join('{0}, {0}'.format(d.name) for d in sch.dims))
+                    ', '.join('{0}, {0}'.format(d.name) for d in sch.dims),
+                    ', '.join(i.name for i in itertools.chain(
+                        sch.dims, sch.atts)))
 
                 sch.make_dims_atts()
                 logging.debug(query)

@@ -386,24 +386,25 @@ class Schema(object):
             return False
 
     def make_dims_atts(self):
-        """Make attributes from dimensions and append them to the attributes
-        list.
+        """Make attributes from dimensions and pre-append them to the
+        attributes list.
 
         >>> s = Schema(None, (Attribute('x', 'bool'),), (Dimension('i'),))
         >>> print(s)
         <x:bool> [i]
         >>> s.make_dims_atts()
         >>> print(s)
-        <x:bool,i:int64 NOT NULL> [i]
+        <i:int64 NOT NULL,x:bool> [i]
 
         >>> s = Schema.fromstring('<x:bool>[i;j]')
         >>> s.make_dims_atts()
         >>> print(s)
-        <x:bool,i:int64 NOT NULL,j:int64 NOT NULL> [i; j]
+        <i:int64 NOT NULL,j:int64 NOT NULL,x:bool> [i; j]
+
         """
         self.atts = tuple(itertools.chain(
-            self.atts,
-            (Attribute(d.name, 'int64', not_null=True) for d in self.dims)))
+            (Attribute(d.name, 'int64', not_null=True) for d in self.dims),
+            self.atts))
         self._update_atts_meta()
 
     def get_promo_atts_dtype(self):
