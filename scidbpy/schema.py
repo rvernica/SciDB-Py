@@ -28,19 +28,19 @@ type_map = dict(
 # Type promotion map for Pandas DataFrame
 # http://pandas.pydata.org/pandas-docs/stable/gotchas.html#na-type-promotions
 type_map_promo = dict(
-    [(t.__name__, numpy.float64) for t in (
-        numpy.int8,
-        numpy.int16,
-        numpy.int32,
-        numpy.int64,
-
-        numpy.uint8,
-        numpy.uint16,
-        numpy.uint32,
-        numpy.uint64,
-    )] + [
+    [
         ('bool', numpy.object),
         ('char', numpy.object),
+
+        ('int8', numpy.float16),
+        ('int16', numpy.float32),
+        ('int32', numpy.float64),
+        ('int64', numpy.float64),
+
+        ('uint8', numpy.float16),
+        ('uint16', numpy.float32),
+        ('uint32', numpy.float64),
+        ('uint64', numpy.float64),
     ])
 
 # TODO datetime, datetimetz
