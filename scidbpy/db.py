@@ -186,14 +186,12 @@ Download as Pandas DataFrame:
 >>> iquery(db,
 ...        'build(<x:int64>[i=0:2], i)',
 ...        fetch=True,
-...        as_dataframe=True,
-...        index=True)
+...        as_dataframe=True)
 ... # doctest: +NORMALIZE_WHITESPACE
-   x
-i
-0  0.0
-1  1.0
-2  2.0
+   i x
+0  0 0.0
+1  1 1.0
+2  2 2.0
 
 >>> iquery(db,
 ...        'build(<x:int64>[i=0:2], i)',
@@ -362,7 +360,6 @@ verify     = {}'''.format(*self)
                fetch=False,
                atts_only=False,
                as_dataframe=False,
-               index=None,
                schema=None):
         """Execute query in SciDB
 
@@ -374,12 +371,6 @@ verify     = {}'''.format(*self)
 
         :param bool as_dataframe: If `True`, return a Pandas
         DataFrame. If `False`, return a NumPy array (default `False`)
-
-        :param index: If `True`, index the Pandas DataFrame with all
-        the dimensions of the array. If `False` or None, no index is
-        created. If a list, pass the list as index to Pandas when
-        creating the DataFrame. List elements are not verified
-        (default `None`)
 
         :param schema: Schema of the SciDB array to use when
         downloading the array. Schema is not verified. If schema is a
@@ -470,16 +461,7 @@ verify     = {}'''.format(*self)
 
             # Return NumPy array or Pandas dataframe
             if as_dataframe:
-                if atts_only:
-                    index = None
-                else:
-                    if index is True:
-                        # Index on all dimensions
-                        index = [dim.name for dim in sch.dims]
-                    elif index is False or index == []:
-                        index = None
-                # index is None or a list
-                return pandas.DataFrame.from_records(ar, index=index)
+                return pandas.DataFrame.from_records(ar)
             else:
                 return ar
 

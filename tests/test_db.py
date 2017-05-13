@@ -285,19 +285,13 @@ class TestDB:
                 '<val:{}>[i]'.format(type_name),
         ]
     ])
-    @pytest.mark.parametrize('index', [
-        False,
-        None,
-        [],
-    ])
-    def test_fetch_dataframe(self, db, type_name, index, schema):
+    def test_fetch_dataframe(self, db, type_name, schema):
         # Pandas DataFrame
         ar = iquery(
             db,
             'build(<val:{}>[i=1:10,10,0], random())'.format(type_name),
             fetch=True,
             as_dataframe=True,
-            index=index,
             schema=schema)
         assert ar.shape == (10, 2)
         assert ar.ndim == 2
@@ -323,12 +317,7 @@ class TestDB:
                 '<val:{}>[i]'.format(type_name),
         ]
     ])
-    @pytest.mark.parametrize('index', [
-        False,
-        None,
-        [],
-    ])
-    def test_fetch_dataframe_atts(self, db, type_name, index, schema):
+    def test_fetch_dataframe_atts(self, db, type_name, schema):
         # Pandas DataFrame
         ar = iquery(
             db,
@@ -336,44 +325,6 @@ class TestDB:
             fetch=True,
             atts_only=True,
             as_dataframe=True,
-            index=index,
-            schema=schema)
-        assert ar.shape == (10, 1)
-        assert ar.ndim == 2
-
-    @pytest.mark.parametrize(('type_name', 'schema'), [
-        (type_name, schema)
-        for type_name in [
-                '{}int{}'.format(pre, sz)
-                for pre in ('', 'u')
-                for sz in (8, 16, 32, 64)
-        ] + [
-            'bool',
-            'double',
-            'float',
-            'int8',
-            'uint64',
-        ]
-        for schema in [
-                None,
-                'build<val:{}>[i=1:10,10,0]'.format(type_name),
-                '<val:{}>[i=1:10,10,0]'.format(type_name),
-                '<val:{}>[i=1:10]'.format(type_name),
-                '<val:{}>[i]'.format(type_name),
-        ]
-    ])
-    @pytest.mark.parametrize('index', [
-        True,
-        ['val'],
-    ])
-    def test_fetch_dataframe_index(self, db, type_name, index, schema):
-        # Pandas DataFrame, index
-        ar = iquery(
-            db,
-            'build(<val:{}>[i=1:10,10,0], random())'.format(type_name),
-            fetch=True,
-            as_dataframe=True,
-            index=index,
             schema=schema)
         assert ar.shape == (10, 1)
         assert ar.ndim == 2
@@ -456,35 +407,6 @@ class TestDB:
                 ln[ar.columns[(ln.values != variety_values[1])[0]]]))
 
         ln = ar[8:9]
-        assert numpy.all(
-            numpy.isnan(
-                ln[ar.columns[(ln.values != variety_values[2])[0]]]))
-
-    @pytest.mark.parametrize('schema', [
-        None,
-        variety_schema,
-        Schema.fromstring(variety_schema),
-    ])
-    @pytest.mark.parametrize('index', [
-        True,
-        ('i', 'j', 'k'),
-    ])
-    def test_variety_dataframe_index(self, db, variety, schema, index):
-        # Pandas DataFrame
-        ar = iquery(db, 'scan({})'.format(variety),
-                    fetch=True, as_dataframe=True, index=index)
-        assert ar.shape == (12, 13)
-        assert ar.ndim == 2
-        assert numpy.all(
-            ar.ix[[(0, -2, 0)]].values == variety_values[0])
-
-        # Values which differ have to be NAN
-        ln = ar.ix[[(1, -2, 0)]]
-        assert numpy.all(
-            numpy.isnan(
-                ln[ar.columns[(ln.values != variety_values[1])[0]]]))
-
-        ln = ar.ix[[(2, -2, 0)]]
         assert numpy.all(
             numpy.isnan(
                 ln[ar.columns[(ln.values != variety_values[2])[0]]]))
