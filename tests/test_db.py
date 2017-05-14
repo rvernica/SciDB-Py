@@ -28,6 +28,18 @@ class TestDB:
         assert db.iquery(query) is None
         assert type(db.iquery(query, fetch=True)) == numpy.ndarray
 
+    @pytest.mark.parametrize('query_batch', [
+        [('store(build(<val:double>[i=1:10,10,0], i), foo)', False),
+         ('versions(foo)', True),
+         ('remove(foo)', False)],
+    ])
+    def test_iquery_batch(self, db, query_batch):
+        for (query, fetch) in query_batch:
+            if fetch:
+                assert type(db.iquery(query, fetch=fetch)) == numpy.ndarray
+            else:
+                assert db.iquery(query, fetch=fetch) is None
+
     @pytest.mark.parametrize(('type_name', 'schema'), [
         (type_name, schema)
         for type_name in [
