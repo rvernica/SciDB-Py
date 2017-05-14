@@ -253,6 +253,11 @@ In IPython, you can use <TAB> for auto-completion of operator names:
 >>> db.remove(db.arrays.foo)
 >>> dir(db.arrays)
 []
+
+>>> db.build('<x:int8>[i=0:2]', 'random()')
+... # doctest: +NORMALIZE_WHITESPACE
+SciDB(db=DB('http://localhost:8080', None, None, None, None, None),
+      operator='build', args=['<x:int8>[i=0:2]', 'random()'])
 """
 
 import copy
