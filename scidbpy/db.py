@@ -254,10 +254,10 @@ In IPython, you can use <TAB> for auto-completion of operator names:
 >>> dir(db.arrays)
 []
 
->>> db.build('<x:int8>[i=0:2]', 'random()')
+>>> db.build('<x:int8 not null>[i=0:2]', 'i + 10')[:]
 ... # doctest: +NORMALIZE_WHITESPACE
-SciDB(db=DB('http://localhost:8080', None, None, None, None, None),
-      operator='build', args=['<x:int8>[i=0:2]', 'random()'])
+array([(0, 10), (1, 11), (2, 12)],
+      dtype=[('i', '<i8'), ('x', 'i1')])
 """
 
 import copy
@@ -559,6 +559,17 @@ class SciDB(object):
         self.is_lazy = self.operator.lower() not in (
             'create_array', 'remove')
 
+    def __repr__(self):
+        return '{}(db={!r}, operator={!r}, args=[{}])'.format(
+            type(self).__name__,
+            self.db,
+            self.operator,
+            ', '.join('{!r}'.format(i) for i in self.args))
+
+    def __str__(self):
+        args_fmt = ('{}'.format(i) for i in self.args)
+        return '{}({})'.format(self.operator, ', '.join(args_fmt))
+
     def __call__(self, *args):
         """Returns self for lazy expressions. Executes immediate expressions.
         """
@@ -574,17 +585,12 @@ class SciDB(object):
         else:
             return self.db.iquery(str(self))
 
-    def __repr__(self):
-        return '{}(db={!r}, operator={!r}, args=[{}])'.format(
-            type(self).__name__,
-            self.db,
-            self.operator,
-            ', '.join('{!r}'.format(i) for i in self.args))
-
-    def __str__(self):
-        args_fmt = ('{}'.format(i) for i in self.args)
-        return '{}({})'.format(self.operator, ', '.join(args_fmt))
-
+    def __getitem__(self, key):
+        if self.is_lazy:
+            return self.db.iquery(str(self), fetch=True)[key]
+        else:
+            raise RuntimeError('Key reference or slicing ' +
+                               'not supported for immediate expressions')
 
 connect = DB
 iquery = DB.iquery
