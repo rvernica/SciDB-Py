@@ -258,6 +258,17 @@ In IPython, you can use <TAB> for auto-completion of operator names:
 ... # doctest: +NORMALIZE_WHITESPACE
 array([(0, 10), (1, 11), (2, 12)],
       dtype=[('i', '<i8'), ('x', 'i1')])
+
+>>> db.build('<x:int8 not null>[i=0:2]', 'i + 10').fetch(as_dataframe=True)
+   i   x
+0  0  10
+1  1  11
+2  2  12
+
+>>> db.build('<x:int8 not null>[i=0:2]', 'i + 10').apply('y', 'x - 5')[:]
+... # doctest: +NORMALIZE_WHITESPACE
+array([(0, 10, 5), (1, 11, 6), (2, 12, 7)],
+      dtype=[('i', '<i8'), ('x', 'i1'), ('y', '<i8')])
 """
 
 import copy
@@ -337,8 +348,9 @@ class DB(object):
 
         self.operators = self.iquery_readlines(
             "project(list('operators'), name)")
-        self.operators.extend(('arrays', 'iquery', 'iquery_readlines'))
-        self.operators.sort()
+        self._dir = (self.operators +
+                     ['arrays', 'iquery', 'iquery_readlines'])
+        self._dir.sort()
 
     def __iter__(self):
         return (i for i in (
@@ -371,7 +383,7 @@ verify     = {}'''.format(*self)
                     type(self), name))
 
     def __dir__(self):
-        return self.operators
+        return self._dir
 
     def iquery(self,
                query,
@@ -559,6 +571,9 @@ class SciDB(object):
         self.is_lazy = self.operator.lower() not in (
             'create_array', 'remove')
 
+        self._dir = self.db.operators + ['fetch']
+        self._dir.sort()
+
     def __repr__(self):
         return '{}(db={!r}, operator={!r}, args=[{}])'.format(
             type(self).__name__,
@@ -573,7 +588,7 @@ class SciDB(object):
     def __call__(self, *args):
         """Returns self for lazy expressions. Executes immediate expressions.
         """
-        self.args = list(args)
+        self.args.extend(args)
 
         if self.operator.lower().startswith('create_array') \
            and len(self.args) < 3:
@@ -586,11 +601,25 @@ class SciDB(object):
             return self.db.iquery(str(self))
 
     def __getitem__(self, key):
-        if self.is_lazy:
-            return self.db.iquery(str(self), fetch=True)[key]
+        return self.fetch()[key]
+
+    def __getattr__(self, name):
+        if name in self.db.operators:
+            return SciDB(self.db, name, self)
         else:
-            raise RuntimeError('Key reference or slicing ' +
-                               'not supported for immediate expressions')
+            raise AttributeError(
+                '{.__name__!r} object has no attribute {!r}'.format(
+                    type(self), name))
+
+    def __dir__(self):
+        return self._dir
+
+    def fetch(self, as_dataframe=False):
+        if self.is_lazy:
+            return self.db.iquery(
+                str(self), fetch=True, as_dataframe=as_dataframe)
+        else:
+            None
 
 connect = DB
 iquery = DB.iquery
