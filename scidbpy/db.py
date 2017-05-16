@@ -89,6 +89,10 @@ Access SciDB arrays using "db.arrays":
 ... # doctest: +ELLIPSIS
 [...'foo']
 
+>>> dir(db.arrays.foo)
+... # doctest: +ELLIPSIS
+[...'i', ...'x']
+
 >>> iquery(db, 'remove(foo)')
 
 >>> dir(db.arrays)
@@ -96,15 +100,18 @@ Access SciDB arrays using "db.arrays":
 
 Arrays specified explicitly are not checked:
 
->>> db.arrays.foo
-'foo'
->>> db.arrays.bar
-'bar'
+>>> print(db.arrays.foo)
+foo
+>>> print(db.arrays.bar)
+bar
 
-In IPython, you can use <TAB> for auto-completion of array names:
+In IPython, you can use <TAB> for auto-completion of array names,
+array dimensions, and array attributes:
 
 # In []: db.arrays.<TAB>
 # In []: db.arrays.foo
+# In []: db.arrays.foo.<TAB>
+# In []: db.arrays.foo.x
 
 
 Use "iquery" function
@@ -269,6 +276,22 @@ array([(0, 10), (1, 11), (2, 12)],
 ... # doctest: +NORMALIZE_WHITESPACE
 array([(0, 10, 5), (1, 11, 6), (2, 12, 7)],
       dtype=[('i', '<i8'), ('x', 'i1'), ('y', '<i8')])
+
+
+>>> db.build('<x:int8 not null>[i=0:2]', 'i + 10').store('foo')
+
+>>> db.scan(db.arrays.foo)[:]
+... # doctest: +NORMALIZE_WHITESPACE
+array([(0, 10), (1, 11), (2, 12)],
+      dtype=[('i', '<i8'), ('x', 'i1')])
+
+>>> db.apply(db.arrays.foo, 'y', db.arrays.foo.x + 1)[:]
+... # doctest: +NORMALIZE_WHITESPACE
+array([(0, 10, 11), (1, 11, 12), (2, 12, 13)],
+      dtype=[('i', '<i8'), ('x', 'i1'), ('y', '<i8')])
+
+>>> db.remove(db.arrays.foo)
+
 """
 
 import copy
@@ -520,11 +543,13 @@ verify     = {}'''.format(*self)
         >>> DB().iquery_readlines(
         ...   'apply(build(<x:int64>[i=0:2], i), y, i + 10)')
         ... # doctest: +ELLIPSIS
-        [...'0', ...'10', ...'1', ...'11', ...'2', ...'12']
+        [[...'0', ...'10'], [...'1', ...'11'], [...'2', ...'12']]
         """
         id = self._shim(Shim.new_session).text
         self._shim(Shim.execute_query, id=id, query=query, save='tsv')
-        ret = self._shim(Shim.read_bytes, id=id, n=0).text.split()
+        ret = [line.split('\t') if '\t' in line else line
+               for line in self._shim(
+                       Shim.read_bytes, id=id, n=0).text.splitlines()]
         self._shim(Shim.release_session, id=id)
 
         return ret
@@ -546,19 +571,64 @@ verify     = {}'''.format(*self)
 class Arrays(object):
     """Access to arrays available in SciDB"""
     def __init__(self, db):
-        self._db = db
-        self._schema = Schema(
-            atts=(Attribute('name', 'string', not_null=True),),
-            dims=(Dimension('i'),))
+        self.db = db
+
+    def __repr__(self):
+        return '{}({!r})'.format(
+            type(self).__name__, self.db)
+
+    def __str__(self):
+        return '''DB:
+{}'''.format(self.db)
 
     def __getattr__(self, name):
-        return str(name)
+        return Array(self.db, name)
 
     def __dir__(self):
         """Download the list of SciDB arrays. Use 'project(list(), name)' to
         download only names and schemas
         """
-        return self._db.iquery_readlines('project(list(), name)')
+        return self.db.iquery_readlines('project(list(), name)')
+
+
+class Array(object):
+    """Access to individual array"""
+    def __init__(self, db, name):
+        self.db = db
+        self.name = name
+
+    def __repr__(self):
+        return '{}({!r}, {!r})'.format(
+            type(self).__name__, self.db, self.name)
+
+    def __str__(self):
+        return self.name
+
+    def __getattr__(self, key):
+        return ArrayExp('{}.{}'.format(self.name, key))
+
+    def __dir__(self):
+        """Download the schema of the SciDB array, using `show()`"""
+        sh = Schema.fromstring(
+            self.db.iquery_readlines('show({})'.format(self))[0])
+        ls = [i.name for i in itertools.chain(sh.atts, sh.dims)]
+        ls.sort()
+        return ls
+
+
+class ArrayExp(object):
+    """Access to individual attribute or dimension"""
+    def __init__(self, exp):
+        self.exp = exp
+
+    def __repr__(self):
+        return '{}({!r})'.format(type(self).__name__, self.exp)
+
+    def __str__(self):
+        return '{}'.format(self.exp)
+
+    def __add__(self, other):
+        return ArrayExp('{} + {}'.format(self, other))
 
 
 class SciDB(object):
@@ -569,7 +639,10 @@ class SciDB(object):
 
         self.args = list(args)
         self.is_lazy = self.operator.lower() not in (
-            'create_array', 'remove')
+            'create_array',
+            'remove',
+            'store',
+        )
 
         self._dir = self.db.operators + ['fetch']
         self._dir.sort()
