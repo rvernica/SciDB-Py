@@ -77,13 +77,12 @@ namespace  = None
 verify     = False
 
 
-
 Access SciDB Arrays
 -------------------
 
 Access SciDB arrays using "db.arrays":
 
->>> iquery(db, 'create array foo<x:int64>[i=0:2]')
+>>> iquery(db, 'store(build(<x:int64>[i=0:2], i), foo)')
 
 >>> dir(db.arrays)
 ... # doctest: +ELLIPSIS
@@ -92,6 +91,11 @@ Access SciDB arrays using "db.arrays":
 >>> dir(db.arrays.foo)
 ... # doctest: +ELLIPSIS
 [...'i', ...'x']
+
+>>> db.arrays.foo[:]
+... # doctest: +NORMALIZE_WHITESPACE
+array([(0, (255, 0)), (1, (255, 1)), (2, (255, 2))],
+      dtype=[('i', '<i8'), ('x', [('null', 'u1'), ('val', '<i8')])])
 
 >>> iquery(db, 'remove(foo)')
 
@@ -607,6 +611,9 @@ class Array(object):
     def __getattr__(self, key):
         return ArrayExp('{}.{}'.format(self.name, key))
 
+    def __getitem__(self, key):
+        return self.fetch()[key]
+
     def __dir__(self):
         """Download the schema of the SciDB array, using `show()`"""
         sh = Schema.fromstring(
@@ -614,6 +621,10 @@ class Array(object):
         ls = [i.name for i in itertools.chain(sh.atts, sh.dims)]
         ls.sort()
         return ls
+
+    def fetch(self, as_dataframe=False):
+        return self.db.iquery(
+            'scan({})'.format(self), fetch=True, as_dataframe=as_dataframe)
 
 
 class ArrayExp(object):
