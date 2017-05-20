@@ -228,6 +228,25 @@ Download as Pandas DataFrame:
 2  (255, 2)
 
 
+Upload to SciDB
+---------------
+
+>>> import numpy
+
+>>> db.iquery_upload("store(input(<x:int64>[i], '{}', 0, '(int64)'), foo)",
+...                  numpy.arange(3).tobytes())
+
+>>> db.arrays.foo[:]
+... # doctest: +NORMALIZE_WHITESPACE
+array([(0, (255, 0)), (1, (255, 1)), (2, (255, 2))],
+      dtype=[('i', '<i8'), ('x', [('null', 'u1'), ('val', '<i8')])])
+
+>>> db.iquery_upload("load(foo, '{}', 0, '(int64)')",
+...                  numpy.arange(3).tobytes())
+
+>>> db.remove(db.arrays.foo)
+
+
 Use SciDB Operators
 -------------------
 
@@ -316,6 +335,7 @@ class Shim(enum.Enum):
     new_session = 'new_session'
     read_bytes = 'read_bytes'
     release_session = 'release_session'
+    upload = 'upload'
 
 
 class Password_Placeholder(object):
@@ -558,15 +578,31 @@ verify     = {}'''.format(*self)
 
         return ret
 
+    def iquery_upload(self, query, data):
+        """Upload data and execute query with file name argument in SciDB
+        """
+        id = self._shim(Shim.new_session).text
+        fn = self._shim(Shim.upload, id=id, data=data).text
+        self._shim(
+            Shim.execute_query, id=id, query=query.format(fn), release=1)
+
     def _shim(self, endpoint, **kwargs):
         """Make request on Shim endpoint"""
         if self._scidb_auth and endpoint in (Shim.cancel, Shim.execute_query):
             kwargs.update(self._scidb_auth)
-        req = requests.get(
-            requests.compat.urljoin(self.scidb_url, endpoint.value),
-            params=kwargs,
-            auth=self._http_auth,
-            verify=self.verify)
+        url = requests.compat.urljoin(self.scidb_url, endpoint.value)
+        if endpoint == Shim.upload:
+            req = requests.post(
+                '{}?id={}'.format(url, kwargs['id']),
+                data=kwargs['data'],
+                auth=self._http_auth,
+                verify=self.verify)
+        else:
+            req = requests.get(
+                url,
+                params=kwargs,
+                auth=self._http_auth,
+                verify=self.verify)
         req.reason = req.content
         req.raise_for_status()
         return req
