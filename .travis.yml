@@ -35,8 +35,9 @@ install:
     requests
 
 script:
-  - pep8 scidbpy
-  - pytest --doctest-modules
+  - pep8 .
+  - pytest
+  - pip install .
 
 after_failure:
   - docker logs scidb
