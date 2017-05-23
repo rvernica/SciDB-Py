@@ -511,8 +511,10 @@ verify     = {}'''.format(*self)
                 logging.debug(sch)
 
             # Execute Query and Download content
-            self._shim(
-                Shim.execute_query, id=id, query=query, save=sch.atts_fmt)
+            self._shim(Shim.execute_query,
+                       id=id,
+                       query=query,
+                       save=sch.atts_fmt_scidb)
             buf = self._shim(Shim.read_bytes, id=id, n=0).content
 
             self._shim(Shim.release_session, id=id)
@@ -702,8 +704,8 @@ class SciDB(object):
             ', '.join('{!r}'.format(i) for i in self.args))
 
     def __str__(self):
-        args_fmt = ('{}'.format(i) for i in self.args)
-        return '{}({})'.format(self.operator, ', '.join(args_fmt))
+        args_fmt_scidb = ('{}'.format(i) for i in self.args)
+        return '{}({})'.format(self.operator, ', '.join(args_fmt_scidb))
 
     def __call__(self, *args):
         """Returns self for lazy expressions. Executes immediate expressions.

@@ -102,8 +102,8 @@ class Attribute(object):
             self.dtype = numpy.dtype([(str(self.name),
                                        [('null', numpy.uint8),
                                         ('val', self.val_dtype)])])
-        self.fmt = '{}{}'.format(self.type_name,
-                                 '' if self.not_null else ' null')
+        self.fmt_scidb = '{}{}'.format(self.type_name,
+                                       '' if self.not_null else ' null')
 
     def __iter__(self):
         return (i for i in (
@@ -428,7 +428,8 @@ class Schema(object):
             list(
                 itertools.chain.from_iterable(
                     a.dtype.descr for a in self.atts)))
-        self.atts_fmt = '({})'.format(', '.join(a.fmt for a in self.atts))
+        self.atts_fmt_scidb = '({})'.format(
+            ', '.join(a.fmt_scidb for a in self.atts))
 
     @classmethod
     def fromstring(cls, string):
