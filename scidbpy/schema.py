@@ -6,7 +6,7 @@ import struct
 import warnings
 
 
-type_map = dict(
+type_map_numpy = dict(
     [(t.__name__, t) for t in (
         numpy.bool,
 
@@ -92,7 +92,7 @@ class Attribute(object):
         self.default = default
         self.compression = compression
 
-        self.val_dtype = type_map.get(self.type_name, numpy.object)
+        self.val_dtype = type_map_numpy.get(self.type_name, numpy.object)
         # >>> numpy.dtype([(u"a", int)])
         # TypeError: data type not understood
         # https://github.com/numpy/numpy/issues/2407
@@ -419,8 +419,8 @@ class Schema(object):
         return numpy.dtype(
             [a.dtype.descr[0] if a.not_null else
              (a.dtype.names[0],
-              type_map_promo.get(a.type_name,
-                                 type_map.get(a.type_name, numpy.object)))
+              type_map_promo.get(
+                  a.type_name, type_map_numpy.get(a.type_name, numpy.object)))
              for a in self.atts])
 
     def _update_atts_meta(self):
