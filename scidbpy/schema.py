@@ -92,16 +92,16 @@ class Attribute(object):
         self.default = default
         self.compression = compression
 
-        self.val_dtype = type_map_numpy.get(self.type_name, numpy.object)
+        self.dtype_val = type_map_numpy.get(self.type_name, numpy.object)
         # >>> numpy.dtype([(u"a", int)])
         # TypeError: data type not understood
         # https://github.com/numpy/numpy/issues/2407
         if self.not_null:
-            self.dtype = numpy.dtype([(str(self.name), self.val_dtype)])
+            self.dtype = numpy.dtype([(str(self.name), self.dtype_val)])
         else:
             self.dtype = numpy.dtype([(str(self.name),
                                        [('null', numpy.uint8),
-                                        ('val', self.val_dtype)])])
+                                        ('val', self.dtype_val)])])
         self.fmt_scidb = '{}{}'.format(self.type_name,
                                        '' if self.not_null else ' null')
 
@@ -130,7 +130,7 @@ class Attribute(object):
             if self.compression else '')
 
     def itemsize(self, buf=None, offset=0):
-        if self.val_dtype != numpy.object:
+        if self.dtype_val != numpy.object:
             return self.dtype.itemsize
 
         null_size = 0 if self.not_null else 1
@@ -141,7 +141,7 @@ class Attribute(object):
     def frombytes(self, buf, offset=0, size=None, promo=False):
         null_size = 0 if self.not_null else 1
 
-        if self.val_dtype == numpy.object:
+        if self.dtype_val == numpy.object:
             if self.type_name == 'string':
                 val = buf[offset + null_size +
                           Attribute._length_dtype.itemsize:
