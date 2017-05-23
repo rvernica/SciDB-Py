@@ -26,6 +26,26 @@ type_map_numpy = dict(
         ('string', numpy.object),
     ])
 
+type_map_struct = {
+    'bool': '?',
+
+    'char': 'c',
+
+    'int8': 'b',
+    'int16': '<h',
+    'int32': '<i',
+    'int64': '<q',
+
+    'uint8': 'B',
+    'uint16': '<H',
+    'uint32': '<I',
+    'uint64': '<Q',
+
+    'float': '<f',
+    'double': '<d',
+    }
+
+
 # Type promotion map for Pandas DataFrame
 # http://pandas.pydata.org/pandas-docs/stable/gotchas.html#na-type-promotions
 type_map_promo = dict(
@@ -104,6 +124,7 @@ class Attribute(object):
                                         ('val', self.dtype_val)])])
         self.fmt_scidb = '{}{}'.format(self.type_name,
                                        '' if self.not_null else ' null')
+        self.fmt_struct = type_map_struct.get(self.type_name, None)
 
     def __iter__(self):
         return (i for i in (
@@ -151,8 +172,8 @@ class Attribute(object):
                           Attribute._length_dtype.itemsize:
                           offset + size]
         else:
-            val = numpy.frombuffer(
-                buf, self.val_dtype, 1, offset + null_size)[0]
+            val = struct.unpack(
+                self.fmt_struct, buf[offset + null_size:offset + size])[0]
 
         if self.not_null:
             return val
