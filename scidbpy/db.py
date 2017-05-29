@@ -244,6 +244,10 @@ array([(0, (255, 0)), (1, (255, 1)), (2, (255, 2))],
 >>> db.iquery_upload("load(foo, '{}', 0, '(int64)')",
 ...                  numpy.arange(3).tobytes())
 
+>>> db.iquery_upload("load(foo, '{}', 0, '(int64 null)')",
+...                  numpy.arange(3),
+...                  Schema.fromstring('<x:int64>[i]'))
+
 >>> db.remove(db.arrays.foo)
 
 
@@ -577,13 +581,35 @@ verify     = {}'''.format(*self)
                for line in self._shim(
                        Shim.read_bytes, id=id, n=0).text.splitlines()]
         self._shim(Shim.release_session, id=id)
-
         return ret
 
-    def iquery_upload(self, query, data):
+    def iquery_upload(self, query, values, schema=None):
         """Upload data and execute query with file name argument in SciDB
         """
         id = self._shim(Shim.new_session).text
+
+        if isinstance(values, numpy.ndarray):
+            if schema is None:
+                raise Exception('Schema is needed for NumPy arrays')
+
+            no_v = len(values.dtype)
+            no_a = len(schema.atts_dtype)
+            if not(no_v == 0 and no_a == 1 or
+                   no_v == no_a):
+                raise Exception(
+                    ('Number of values ({}) is different than ' +
+                     'number of attributes ({})').format(no_v, no_a))
+
+            data_lst = []
+            for cell in values:
+                for (atr, idx) in zip(schema.atts, range(len(schema.atts))):
+                    data_lst.append(
+                        atr.tobytes(cell if no_v == 0 else cell[idx]))
+
+            data = b''.join(data_lst)
+        else:
+            data = values
+
         fn = self._shim(Shim.upload, id=id, data=data).text
         self._shim(
             Shim.execute_query, id=id, query=query.format(fn), release=1)

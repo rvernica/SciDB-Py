@@ -191,6 +191,19 @@ class Attribute(object):
             else:
                 return (missing, val)
 
+    def tobytes(self, val):
+        if self.dtype_val == numpy.object:
+            buf = None
+        else:
+            if self.not_null:
+                buf = struct.pack(self.fmt_struct[0], val)
+            else:
+                try:
+                    buf = struct.pack(self.fmt_struct[1], *val)
+                except TypeError:
+                    buf = struct.pack(self.fmt_struct[1], 255, val)
+        return buf
+
     @classmethod
     def fromstring(cls, string):
         return cls(**Attribute._regex.match(string).groupdict())
