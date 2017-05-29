@@ -36,15 +36,22 @@ type_map_struct = {
     'int32': '<i',
     'int64': '<q',
 
-    'uint8': 'B',
-    'uint16': '<H',
-    'uint32': '<I',
-    'uint64': '<Q',
-
     'float': '<f',
     'double': '<d',
     }
 
+# Add uint types
+for key in list(type_map_struct.keys()):
+    if key.startswith('int'):
+        type_map_struct['u' + key] = type_map_struct[key].upper()
+
+# Add nullable type
+for (key, val) in type_map_struct.items():
+    if len(val) > 1:
+        val_null = val[0] + 'B' + val[1]
+    else:
+        val_null = 'B' + val
+    type_map_struct[key] = (val, val_null)
 
 # Type promotion map for Pandas DataFrame
 # http://pandas.pydata.org/pandas-docs/stable/gotchas.html#na-type-promotions
@@ -173,7 +180,7 @@ class Attribute(object):
                           offset + size]
         else:
             val = struct.unpack(
-                self.fmt_struct, buf[offset + null_size:offset + size])[0]
+                self.fmt_struct[0], buf[offset + null_size:offset + size])[0]
 
         if self.not_null:
             return val
