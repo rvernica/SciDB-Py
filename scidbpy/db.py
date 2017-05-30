@@ -241,6 +241,9 @@ Upload to SciDB
 array([(0, (255, 0)), (1, (255, 1)), (2, (255, 2))],
       dtype=[('i', '<i8'), ('x', [('null', 'u1'), ('val', '<i8')])])
 
+>>> db.iquery_upload("insert(input(foo, '{}', 0, '(int64)'), foo)",
+...                  numpy.arange(3).tobytes())
+
 >>> db.iquery_upload("load(foo, '{}', 0, '(int64)')",
 ...                  numpy.arange(3).tobytes())
 
