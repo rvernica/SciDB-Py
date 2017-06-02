@@ -231,9 +231,11 @@ Download as Pandas DataFrame:
 Upload to SciDB
 ---------------
 
+Provide SciDB store/insert query and binary data:
+
 >>> import numpy
 
->>> db.iquery_upload("store(input(<x:int64>[i], '{}', 0, '(int64)'), foo)",
+>>> db.iquery_upload("store(input(<x:int64>[i], '{fn}', 0, '(int64)'), foo)",
 ...                  numpy.arange(3).tobytes())
 
 >>> db.arrays.foo[:]
@@ -241,15 +243,28 @@ Upload to SciDB
 array([(0, (255, 0)), (1, (255, 1)), (2, (255, 2))],
       dtype=[('i', '<i8'), ('x', [('null', 'u1'), ('val', '<i8')])])
 
->>> db.iquery_upload("insert(input(foo, '{}', 0, '(int64)'), foo)",
+>>> db.iquery_upload("insert(input(foo, '{fn}', 0, '(int64)'), foo)",
 ...                  numpy.arange(3).tobytes())
 
->>> db.iquery_upload("load(foo, '{}', 0, '(int64)')",
+>>> db.iquery_upload("load(foo, '{fn}', 0, '(int64)')",
 ...                  numpy.arange(3).tobytes())
 
->>> db.iquery_upload("load(foo, '{}', 0, '(int64 null)')",
+Provide SciDB store/insert query and NumPy array (optional: schema and
+format). If the schema is missing, it is inferred from the array
+dtype. If the format is missing, it is inferred from schema:
+
+>>> db.iquery_upload("load(foo, '{fn}', 0, '{fmt}')", numpy.arange(3))
+
+>>> db.iquery_upload("load(foo, '{fn}', 0, '{fmt}')",
 ...                  numpy.arange(3),
-...                  Schema.fromstring('<x:int64>[i]'))
+...                  schema=Schema.fromstring('<x:int64>[i]'))
+
+In the previous example, the (int64 null) format is used. If the
+format is specified, it has to match the explicit or inferred schema:
+
+>>> db.iquery_upload("load(foo, '{fn}', 0, '{fmt}')",
+...                  numpy.arange(3),
+...                  fmt='(int64)')
 
 >>> db.remove(db.arrays.foo)
 
@@ -586,23 +601,26 @@ verify     = {}'''.format(*self)
         self._shim(Shim.release_session, id=id)
         return ret
 
-    def iquery_upload(self, query, values, schema=None):
+    def iquery_upload(self, query, values, schema=None, fmt=None):
         """Upload data and execute query with file name argument in SciDB
         """
         id = self._shim(Shim.new_session).text
 
         if isinstance(values, numpy.ndarray):
-            if schema is None:
-                raise Exception('Schema is needed for NumPy arrays')
-
             no_v = len(values.dtype)
-            no_a = len(schema.atts_dtype)
-            if not(no_v == 0 and no_a == 1 or
-                   no_v == no_a):
-                raise Exception(
-                    ('Number of values ({}) is different than ' +
-                     'number of attributes ({})').format(no_v, no_a))
+            if schema is None:
+                schema = Schema.fromdtype(values.dtype)
+            else:
+                no_a = len(schema.atts_dtype)
+                if not(no_v == 0 and no_a == 1 or
+                       no_v == no_a):
+                    raise Exception(
+                        ('Number of values in NumPy array ({}) ' +
+                         'is different than ' +
+                         'number of attributes in Schema ({})').format(
+                             no_v, no_a))
 
+            logging.debug(schema)
             data_lst = []
             for cell in values:
                 for (atr, idx) in zip(schema.atts, range(len(schema.atts))):
@@ -613,9 +631,16 @@ verify     = {}'''.format(*self)
         else:
             data = values
 
+        logging.debug(len(data))
+
+        if not fmt and schema:
+            fmt = schema.atts_fmt_scidb
+
         fn = self._shim(Shim.upload, id=id, data=data).text
-        self._shim(
-            Shim.execute_query, id=id, query=query.format(fn), release=1)
+        self._shim(Shim.execute_query,
+                   id=id,
+                   query=query.format(fn=fn, fmt=fmt),
+                   release=1)
 
     def _shim(self, endpoint, **kwargs):
         """Make request on Shim endpoint"""
