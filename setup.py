@@ -28,5 +28,6 @@ setup(name=NAME,
           'numpy',
           'pandas',
           'requests',
+          'six',
       ],
       )

@@ -2,6 +2,7 @@ import itertools
 import logging
 import numpy
 import re
+import six
 import struct
 import warnings
 
@@ -25,6 +26,8 @@ type_map_numpy = dict(
         ('float', numpy.float32),
         ('string', numpy.object),
     ])
+
+type_map_inv_numpy = {v: k for k, v in six.iteritems(type_map_numpy)}
 
 type_map_struct = {
     'bool': '?',
@@ -72,6 +75,9 @@ type_map_promo = dict(
     ])
 
 # TODO datetime, datetimetz
+
+unique_att_name = 'f71a49b8d75b482fa9ef538b14f958d9'
+unique_dim_name = 'c3f7cb3f62ec4cc682e4254a16185796'
 
 
 class Attribute(object):
@@ -208,6 +214,18 @@ class Attribute(object):
     @classmethod
     def fromstring(cls, string):
         return cls(**Attribute._regex.match(string).groupdict())
+
+    @classmethod
+    def fromdtype(cls, dtype):
+        if isinstance(dtype[1], str):
+            dtype_val = dtype[1]
+            not_null = True
+        else:
+            dtype_val = dtype[1][1][1]
+            not_null = False
+        return cls(dtype[0] if dtype[0] else unique_att_name,
+                   type_map_inv_numpy[numpy.dtype(dtype_val).type],
+                   not_null)
 
 
 class Dimension(object):
@@ -486,6 +504,13 @@ class Schema(object):
              for s in atts_match.group(1).split(',')),
             (Dimension.fromstring(s)
              for s in dims_match.group(1).split(';')))
+
+    @classmethod
+    def fromdtype(cls, dtype):
+        return cls(
+            None,
+            (Attribute.fromdtype(dt) for dt in dtype.descr),
+            (Dimension(unique_dim_name),))
 
 
 if __name__ == "__main__":
