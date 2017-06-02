@@ -123,6 +123,7 @@ class Attribute(object):
         # >>> numpy.dtype([(u"a", int)])
         # TypeError: data type not understood
         # https://github.com/numpy/numpy/issues/2407
+        # cannot use `self.name` directly, use `str(...)`
         if self.not_null:
             self.dtype = numpy.dtype([(str(self.name), self.dtype_val)])
         else:
