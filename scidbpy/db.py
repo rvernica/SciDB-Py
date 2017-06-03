@@ -231,33 +231,42 @@ Download as Pandas DataFrame:
 Upload to SciDB
 ---------------
 
-Provide SciDB store/insert query and binary data:
+To upload data to SciDB use the "iquery" function and provide an
+"upload_data" argument.
+
+Provide SciDB input/store/insert/load query, NumPy array, and,
+optional, schema. If the schema is missing, it is inferred from the
+array dtype. If the format is missing from the query string, it is
+inferred from schema:
 
 >>> import numpy
 
->>> db.iquery("store(input(<x:int64>[i], '{fn}', 0, '(int64)'), foo)",
-...           upload_data=numpy.arange(3).tobytes())
+>>> db.iquery("store(input(<x:int64>[i], '{fn}', 0, '{fmt}'), foo)",
+...           upload_data=numpy.arange(3))
 
 >>> db.arrays.foo[:]
 ... # doctest: +NORMALIZE_WHITESPACE
 array([(0, (255, 0)), (1, (255, 1)), (2, (255, 2))],
       dtype=[('i', '<i8'), ('x', [('null', 'u1'), ('val', '<i8')])])
 
+>>> db.iquery("insert(input(foo, '{fn}', 0, '{fmt}'), foo)",
+...           upload_data=numpy.arange(3))
+
+>>> db.iquery("load(foo, '{fn}', 0, '{fmt}')",
+...           upload_data=numpy.arange(3),
+...           schema=Schema.fromstring('<x:int64>[i]'))
+
+Provide SciDB input/store/insert/load query and binary data. The query
+string needs to contain the format of the binary data:
+
+>>> db.iquery("store(input(<x:int64>[i], '{fn}', 0, '(int64)'), foo)",
+...           upload_data=numpy.arange(3).tobytes())
+
 >>> db.iquery("insert(input(foo, '{fn}', 0, '(int64)'), foo)",
 ...           upload_data=numpy.arange(3).tobytes())
 
 >>> db.iquery("load(foo, '{fn}', 0, '(int64)')",
 ...           upload_data=numpy.arange(3).tobytes())
-
-Provide SciDB store/insert query and NumPy array (optional: schema and
-format). If the schema is missing, it is inferred from the array
-dtype. If the format is missing, it is inferred from schema:
-
->>> db.iquery("load(foo, '{fn}', 0, '{fmt}')", upload_data=numpy.arange(3))
-
->>> db.iquery("load(foo, '{fn}', 0, '{fmt}')",
-...           upload_data=numpy.arange(3),
-...           schema=Schema.fromstring('<x:int64>[i]'))
 
 >>> db.remove(db.arrays.foo)
 
