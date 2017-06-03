@@ -235,6 +235,27 @@ Provide SciDB store/insert query and binary data:
 
 >>> import numpy
 
+>>> db.iquery("store(input(<x:int64>[i], '{fn}', 0, '(int64)'), foo)",
+...           upload_data=numpy.arange(3).tobytes())
+
+>>> db.arrays.foo[:]
+... # doctest: +NORMALIZE_WHITESPACE
+array([(0, (255, 0)), (1, (255, 1)), (2, (255, 2))],
+      dtype=[('i', '<i8'), ('x', [('null', 'u1'), ('val', '<i8')])])
+
+>>> db.iquery("insert(input(foo, '{fn}', 0, '(int64)'), foo)",
+...           upload_data=numpy.arange(3).tobytes())
+
+>>> db.iquery("load(foo, '{fn}', 0, '(int64)')",
+...           upload_data=numpy.arange(3).tobytes())
+
+>>> db.iquery("load(foo, '{fn}', 0, '{fmt}')", upload_data=numpy.arange(3))
+
+>>> db.iquery("load(foo, '{fn}', 0, '{fmt}')",
+...           upload_data=numpy.arange(3),
+...           schema=Schema.fromstring('<x:int64>[i]'))
+
+
 >>> db.iquery_upload("store(input(<x:int64>[i], '{fn}', 0, '(int64)'), foo)",
 ...                  numpy.arange(3).tobytes())
 
@@ -460,7 +481,8 @@ verify     = {}'''.format(*self)
                atts_only=False,
                as_dataframe=False,
                dataframe_promo=True,
-               schema=None):
+               schema=None,
+               upload_data=None):
         """Execute query in SciDB
 
         :param bool fetch: If `True`, download SciDB array (default
@@ -495,6 +517,39 @@ verify     = {}'''.format(*self)
 
         """
         id = self._shim(Shim.new_session).text
+
+        if upload_data is not None:
+            if isinstance(upload_data, numpy.ndarray):
+                no_v = len(upload_data.dtype)
+
+                if schema is None:
+                    schema = Schema.fromdtype(upload_data.dtype)
+                else:
+                    no_a = len(schema.atts_dtype)
+                    if not(no_v == 0 and no_a == 1 or
+                           no_v == no_a):
+                        raise Exception(
+                            ('Number of values in NumPy array ({}) ' +
+                             'is different than ' +
+                             'number of attributes in Schema ({})').format(
+                                 no_v, no_a))
+                logging.debug(schema)
+
+                # Convert upload data52 to bytes
+                data_lst = []
+                for cell in upload_data:
+                    for (atr, idx) in zip(schema.atts,
+                                          range(len(schema.atts))):
+                        data_lst.append(
+                            atr.tobytes(cell if no_v == 0 else cell[idx]))
+                upload_data = b''.join(data_lst)
+            # TODO
+            # Assume upload data is already in bytes format
+            logging.debug(len(upload_data))
+
+            fn = self._shim(Shim.upload, id=id, data=upload_data).text
+            query = query.format(fn=fn,
+                                 fmt=schema.atts_fmt_scidb if schema else None)
 
         if fetch:
             # Use provided schema or get schema from SciDB
