@@ -118,10 +118,10 @@ array dimensions, and array attributes:
 # In []: db.arrays.foo.x
 
 
-Use "iquery" function
----------------------
+Query SciDB
+-----------
 
-Use "iquery" to execute queries:
+Use "iquery" to execute queries against SciDB:
 
 >>> iquery(db, 'store(build(<x:int64>[i=0:2], i), foo)')
 
