@@ -254,7 +254,7 @@ array([(0, (255, 0)), (1, (255, 1)), (2, (255, 2))],
 
 >>> db.iquery("load(foo, '{fn}', 0, '{fmt}')",
 ...           upload_data=numpy.arange(3),
-...           schema=Schema.fromstring('<x:int64>[i]'))
+...           upload_schema=Schema.fromstring('<x:int64>[i]'))
 
 Provide SciDB input/store/insert/load query and binary data. The query
 string needs to contain the format of the binary data:
@@ -267,6 +267,15 @@ string needs to contain the format of the binary data:
 
 >>> db.iquery("load(foo, '{fn}', 0, '(int64)')",
 ...           upload_data=numpy.arange(3).tobytes())
+
+Use direct SciDB operators:
+
+>>> db.input('<x:int64>[i]', numpy.arange(3))[:]
+... # doctest: +NORMALIZE_WHITESPACE
+array([(0, (255, 0)), (1, (255, 1)), (2, (255, 2))],
+      dtype=[('i', '<i8'), ('x', [('null', 'u1'), ('val', '<i8')])])
+
+>>> db.input('<x:int64>[i]', numpy.arange(3)).store(db.arrays.foo)
 
 >>> db.remove(db.arrays.foo)
 
@@ -463,7 +472,8 @@ verify     = {}'''.format(*self)
                as_dataframe=False,
                dataframe_promo=True,
                schema=None,
-               upload_data=None):
+               upload_data=None,
+               upload_schema=None):
         """Execute query in SciDB
 
         :param bool fetch: If `True`, download SciDB array (default
@@ -503,10 +513,10 @@ verify     = {}'''.format(*self)
             if isinstance(upload_data, numpy.ndarray):
                 no_v = len(upload_data.dtype)
 
-                if schema is None:
-                    schema = Schema.fromdtype(upload_data.dtype)
+                if upload_schema is None:
+                    upload_schema = Schema.fromdtype(upload_data.dtype)
                 else:
-                    no_a = len(schema.atts_dtype)
+                    no_a = len(upload_schema.atts_dtype)
                     if not(no_v == 0 and no_a == 1 or
                            no_v == no_a):
                         raise Exception(
@@ -514,23 +524,21 @@ verify     = {}'''.format(*self)
                              'is different than ' +
                              'number of attributes in Schema ({})').format(
                                  no_v, no_a))
-                logging.debug(schema)
 
                 # Convert upload data52 to bytes
                 data_lst = []
                 for cell in upload_data:
-                    for (atr, idx) in zip(schema.atts,
-                                          range(len(schema.atts))):
+                    for (atr, idx) in zip(upload_schema.atts,
+                                          range(len(upload_schema.atts))):
                         data_lst.append(
                             atr.tobytes(cell if no_v == 0 else cell[idx]))
                 upload_data = b''.join(data_lst)
             # TODO
             # Assume upload data is already in bytes format
-            logging.debug(len(upload_data))
-
             fn = self._shim(Shim.upload, id=id, data=upload_data).text
-            query = query.format(fn=fn,
-                                 fmt=schema.atts_fmt_scidb if schema else None)
+            query = query.format(
+                fn=fn,
+                fmt=upload_schema.atts_fmt_scidb if upload_schema else None)
 
         if fetch:
             # Use provided schema or get schema from SciDB
@@ -549,7 +557,6 @@ verify     = {}'''.format(*self)
                     save='tsv')
                 sch = Schema.fromstring(
                     self._shim(Shim.read_bytes, id=id, n=0).text)
-                logging.debug(sch)
 
             # Unpack
             if not atts_only:
@@ -565,8 +572,6 @@ verify     = {}'''.format(*self)
                         sch.dims, sch.atts)))
 
                 sch.make_dims_atts()
-                logging.debug(query)
-                logging.debug(sch)
 
             # Execute Query and Download content
             self._shim(Shim.execute_query,
@@ -731,9 +736,10 @@ class ArrayExp(object):
 
 class SciDB(object):
     """Unevaluated SciDB expression"""
-    def __init__(self, db, operator, *args):
+    def __init__(self, db, operator, upload_data=None, *args):
         self.db = db
         self.operator = operator
+        self.upload_data = upload_data
 
         self.args = list(args)
         self.is_lazy = self.operator.lower() not in (
@@ -761,22 +767,32 @@ class SciDB(object):
         """
         self.args.extend(args)
 
-        if self.operator.lower().startswith('create_array') \
+        if self.operator.lower() == 'create_array' \
            and len(self.args) < 3:
             # Set temporary = False for create array
             self.args.append(False)
 
+        if self.operator.lower() == 'input':
+            # TODO pass through second argument if it is string
+            self.upload_data = args[1]
+            self.args = [self.args[0], "'{fn}'"] + self.args[2:]  # input_file
+            if len(self.args) < 4:
+                if len(self.args) < 3:
+                    self.args.append(0)      # instance_id
+                self.args.append("'{fmt}'")  # format
+
         if self.is_lazy:
             return self
         else:
-            return self.db.iquery(str(self))
+            return self.db.iquery(str(self),
+                                  upload_data=self.upload_data)
 
     def __getitem__(self, key):
         return self.fetch()[key]
 
     def __getattr__(self, name):
         if name in self.db.operators:
-            return SciDB(self.db, name, self)
+            return SciDB(self.db, name, self.upload_data, self)
         else:
             raise AttributeError(
                 '{.__name__!r} object has no attribute {!r}'.format(
@@ -787,8 +803,11 @@ class SciDB(object):
 
     def fetch(self, as_dataframe=False):
         if self.is_lazy:
-            return self.db.iquery(
-                str(self), fetch=True, as_dataframe=as_dataframe)
+
+            return self.db.iquery(str(self),
+                                  fetch=True,
+                                  as_dataframe=as_dataframe,
+                                  upload_data=self.upload_data)
         else:
             None
 
