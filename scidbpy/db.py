@@ -277,6 +277,17 @@ array([(0, (255, 0)), (1, (255, 1)), (2, (255, 2))],
 
 >>> db.input('<x:int64>[i]', numpy.arange(3)).store(db.arrays.foo)
 
+>>> db.input('<x:int64>[j]', numpy.arange(3, 6)
+...  ).apply('i', 'j + 3'
+...  ).redimension(db.arrays.foo
+...  ).insert(db.arrays.foo)
+
+>>> db.arrays.foo[:]
+... # doctest: +NORMALIZE_WHITESPACE
+array([(0, (255, 0)), (1, (255, 1)), (2, (255, 2)), (3, (255, 3)),
+       (4, (255, 4)), (5, (255, 5))],
+      dtype=[('i', '<i8'), ('x', [('null', 'u1'), ('val', '<i8')])])
+
 >>> db.remove(db.arrays.foo)
 
 
@@ -744,6 +755,7 @@ class SciDB(object):
         self.args = list(args)
         self.is_lazy = self.operator.lower() not in (
             'create_array',
+            'insert',
             'remove',
             'store',
         )
