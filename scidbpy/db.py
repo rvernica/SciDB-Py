@@ -268,26 +268,6 @@ string needs to contain the format of the binary data:
 >>> db.iquery("load(foo, '{fn}', 0, '(int64)')",
 ...           upload_data=numpy.arange(3).tobytes())
 
-Use direct SciDB operators:
-
->>> db.input('<x:int64>[i]', numpy.arange(3))[:]
-... # doctest: +NORMALIZE_WHITESPACE
-array([(0, (255, 0)), (1, (255, 1)), (2, (255, 2))],
-      dtype=[('i', '<i8'), ('x', [('null', 'u1'), ('val', '<i8')])])
-
->>> db.input('<x:int64>[i]', numpy.arange(3)).store(db.arrays.foo)
-
->>> db.input('<x:int64>[j]', numpy.arange(3, 6)
-...  ).apply('i', 'j + 3'
-...  ).redimension(db.arrays.foo
-...  ).insert(db.arrays.foo)
-
->>> db.arrays.foo[:]
-... # doctest: +NORMALIZE_WHITESPACE
-array([(0, (255, 0)), (1, (255, 1)), (2, (255, 2)), (3, (255, 3)),
-       (4, (255, 4)), (5, (255, 5))],
-      dtype=[('i', '<i8'), ('x', [('null', 'u1'), ('val', '<i8')])])
-
 >>> db.remove(db.arrays.foo)
 
 
@@ -344,7 +324,6 @@ array([(0, 10), (1, 11), (2, 12)],
 array([(0, 10, 5), (1, 11, 6), (2, 12, 7)],
       dtype=[('i', '<i8'), ('x', 'i1'), ('y', '<i8')])
 
-
 >>> db.build('<x:int8 not null>[i=0:2]', 'i + 10').store('foo')
 
 >>> db.scan(db.arrays.foo)[:]
@@ -356,6 +335,30 @@ array([(0, 10), (1, 11), (2, 12)],
 ... # doctest: +NORMALIZE_WHITESPACE
 array([(0, 10, 11), (1, 11, 12), (2, 12, 13)],
       dtype=[('i', '<i8'), ('x', 'i1'), ('y', '<i8')])
+
+>>> db.remove(db.arrays.foo)
+
+Input and load operators can be used to upload data:
+
+>>> db.input('<x:int64>[i]', numpy.arange(3))[:]
+... # doctest: +NORMALIZE_WHITESPACE
+array([(0, (255, 0)), (1, (255, 1)), (2, (255, 2))],
+      dtype=[('i', '<i8'), ('x', [('null', 'u1'), ('val', '<i8')])])
+
+>>> db.input('<x:int64>[i]', numpy.arange(3)).store(db.arrays.foo)
+
+>>> db.load(db.arrays.foo, numpy.arange(3))
+
+>>> db.input('<x:int64>[j]', numpy.arange(3, 6)
+...  ).apply('i', 'j + 3'
+...  ).redimension(db.arrays.foo
+...  ).insert(db.arrays.foo)
+
+>>> db.arrays.foo[:]
+... # doctest: +NORMALIZE_WHITESPACE
+array([(0, (255, 0)), (1, (255, 1)), (2, (255, 2)), (3, (255, 3)),
+       (4, (255, 4)), (5, (255, 5))],
+      dtype=[('i', '<i8'), ('x', [('null', 'u1'), ('val', '<i8')])])
 
 >>> db.remove(db.arrays.foo)
 
@@ -437,8 +440,9 @@ class DB(object):
 
         self.arrays = Arrays(self)
 
-        self.operators = self.iquery_readlines(
-            "project(list('operators'), name)")
+        self.operators = (
+            self.iquery_readlines("project(list('operators'), name)") +
+            self.iquery_readlines("project(list('macros'),    name)"))
         self._dir = (self.operators +
                      ['arrays', 'iquery', 'iquery_readlines'])
         self._dir.sort()
@@ -756,6 +760,7 @@ class SciDB(object):
         self.is_lazy = self.operator.lower() not in (
             'create_array',
             'insert',
+            'load',
             'remove',
             'store',
         )
@@ -784,7 +789,7 @@ class SciDB(object):
             # Set temporary = False for create array
             self.args.append(False)
 
-        if self.operator.lower() == 'input':
+        if self.operator.lower() in ('input', 'load'):
             # TODO pass through second argument if it is string
             self.upload_data = args[1]
             self.args = [self.args[0], "'{fn}'"] + self.args[2:]  # input_file
