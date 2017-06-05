@@ -360,7 +360,15 @@ array([(0, (255, 0)), (1, (255, 1)), (2, (255, 2)), (3, (255, 3)),
        (4, (255, 4)), (5, (255, 5))],
       dtype=[('i', '<i8'), ('x', [('null', 'u1'), ('val', '<i8')])])
 
+>>> db.input('<i:int64 not null, x:int64>[j]', db.arrays.foo[:]
+...  ).redimension(db.arrays.foo
+...  ).store('bar')
+
+>>> numpy.all(db.arrays.bar[:] == db.arrays.foo[:])
+True
+
 >>> db.remove(db.arrays.foo)
+>>> db.remove(db.arrays.bar)
 
 """
 
