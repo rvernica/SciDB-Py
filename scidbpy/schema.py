@@ -164,6 +164,9 @@ class Attribute(object):
             ' COMPRESSION {}'.format(self.compression)
             if self.compression else '')
 
+    def is_fixsize(self):
+        return self.dtype_val != numpy.object
+
     def itemsize(self, buf=None, offset=0):
         if self.dtype_val != numpy.object:
             return self.dtype.itemsize
@@ -205,9 +208,10 @@ class Attribute(object):
             if self.not_null:
                 buf = struct.pack(self.fmt_struct[0], val)
             else:
-                try:
+                if isinstance(val, numpy.void):
+                    # NumPy structured array
                     buf = struct.pack(self.fmt_struct[1], *val)
-                except TypeError:
+                else:
                     buf = struct.pack(self.fmt_struct[1], 255, val)
         return buf
 
@@ -407,6 +411,9 @@ class Schema(object):
             self.name if not no_name and self.name else '',
             ','.join(str(a) for a in self.atts),
             '; '.join(str(d) for d in self.dims))
+
+    def is_fixsize(self):
+        return all(a.is_fixsize() for a in self.atts)
 
     def make_dims_unique(self):
         """Check attributes and dimensions form a list with unique names. If

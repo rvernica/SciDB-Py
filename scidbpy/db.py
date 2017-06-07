@@ -254,7 +254,7 @@ array([(0, (255, 0)), (1, (255, 1)), (2, (255, 2))],
 
 >>> db.iquery("load(foo, '{fn}', 0, '{fmt}')",
 ...           upload_data=numpy.arange(3),
-...           upload_schema=Schema.fromstring('<x:int64>[i]'))
+...           upload_schema=Schema.fromstring('<x:int64 not null>[i]'))
 
 Provide SciDB input/store/insert/load query and binary data. The query
 string needs to contain the format of the binary data:
@@ -534,28 +534,33 @@ verify     = {}'''.format(*self)
 
         if upload_data is not None:
             if isinstance(upload_data, numpy.ndarray):
-                no_v = len(upload_data.dtype)
-
                 if upload_schema is None:
                     upload_schema = Schema.fromdtype(upload_data.dtype)
-                else:
-                    no_a = len(upload_schema.atts_dtype)
-                    if not(no_v == 0 and no_a == 1 or
-                           no_v == no_a):
-                        raise Exception(
-                            ('Number of values in NumPy array ({}) ' +
-                             'is different than ' +
-                             'number of attributes in Schema ({})').format(
-                                 no_v, no_a))
 
-                # Convert upload data52 to bytes
-                data_lst = []
-                for cell in upload_data:
-                    for (atr, idx) in zip(upload_schema.atts,
-                                          range(len(upload_schema.atts))):
-                        data_lst.append(
-                            atr.tobytes(cell if no_v == 0 else cell[idx]))
-                upload_data = b''.join(data_lst)
+                # Convert upload data to bytes
+                if upload_schema.is_fixsize():
+                    upload_data = upload_data.tobytes()
+                else:
+                    data_lst = []
+                    if len(upload_data.dtype) > 0:
+                        # NumPy strucutred array
+                        if len(upload_schema.atts_dtype) == 1:
+                            # One attribute
+                            atr = upload_schema.atts[0]
+                            for cell in upload_data:
+                                data_lst.append(atr.tobytes(cell[0]))
+                        else:
+                            # Multiple attributes
+                            for cell in upload_data:
+                                for (atr, val) in zip(upload_schema.atts,
+                                                      cell):
+                                    data_lst.append(atr.tobytes(val))
+                    else:
+                        # NumPy single-field array
+                        atr = upload_schema.atts[0]
+                        for val in upload_data:
+                            data_lst.append(atr.tobytes(val))
+                    upload_data = b''.join(data_lst)
             # TODO
             # Assume upload data is already in bytes format
             fn = self._shim(Shim.upload, id=id, data=upload_data).text
@@ -605,36 +610,39 @@ verify     = {}'''.format(*self)
 
             self._shim(Shim.release_session, id=id)
 
-            # Scan content and build (offset, size) metadata
-            off = 0
-            buf_meta = []
-            while off < len(buf):
-                meta = []
-                for att in sch.atts:
-                    sz = att.itemsize(buf, off)
-                    meta.append((off, sz))
-                    off += sz
-                buf_meta.append(meta)
-
-            # Create NumPy record array
-            if as_dataframe and dataframe_promo:
-                ar = numpy.empty((len(buf_meta),),
-                                 dtype=sch.get_promo_atts_dtype())
+            if sch.is_fixsize() and (not as_dataframe or not dataframe_promo):
+                ar = numpy.frombuffer(buf, dtype=sch.atts_dtype)
             else:
-                ar = numpy.empty((len(buf_meta),), dtype=sch.atts_dtype)
+                # Scan content and build (offset, size) metadata
+                off = 0
+                buf_meta = []
+                while off < len(buf):
+                    meta = []
+                    for att in sch.atts:
+                        sz = att.itemsize(buf, off)
+                        meta.append((off, sz))
+                        off += sz
+                    buf_meta.append(meta)
 
-            # Extract values using (offset, size) metadata
-            # Populate NumPy record array
-            pos = 0
-            for meta in buf_meta:
-                ar.put((pos,),
-                       tuple(att.frombytes(
-                           buf,
-                           off,
-                           sz,
-                           promo=as_dataframe and dataframe_promo)
-                             for (att, (off, sz)) in zip(sch.atts, meta)))
-                pos += 1
+                # Create NumPy record array
+                if as_dataframe and dataframe_promo:
+                    ar = numpy.empty((len(buf_meta),),
+                                     dtype=sch.get_promo_atts_dtype())
+                else:
+                    ar = numpy.empty((len(buf_meta),), dtype=sch.atts_dtype)
+
+                # Extract values using (offset, size) metadata
+                # Populate NumPy record array
+                pos = 0
+                for meta in buf_meta:
+                    ar.put((pos,),
+                           tuple(att.frombytes(
+                               buf,
+                               off,
+                               sz,
+                               promo=as_dataframe and dataframe_promo)
+                                 for (att, (off, sz)) in zip(sch.atts, meta)))
+                    pos += 1
 
             # Return NumPy array or Pandas dataframe
             if as_dataframe:
