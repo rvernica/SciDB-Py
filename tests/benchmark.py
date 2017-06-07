@@ -14,7 +14,8 @@ if __name__ == "__main__":
     db = scidbpy.connect()
 
     db.iquery(
-        'store(build(<x:int64 not null>[i=0:{}], random()), bm)'.format(cnt - 1))
+        'store(build(<x:int64 not null>[i=0:{}], random()), bm)'.format(
+            cnt - 1))
     ar = db.iquery('scan(bm)', fetch=True, atts_only=True)
 
     print("""\
