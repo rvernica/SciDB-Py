@@ -490,6 +490,27 @@ class Schema(object):
                   a.type_name, type_map_numpy.get(a.type_name, numpy.object)))
              for a in self.atts])
 
+    def tobytes(self, data):
+        data_lst = []
+        if len(data.dtype) > 0:
+            # NumPy strucutred array
+            if len(self.atts_dtype) == 1:
+                # One attribute
+                atr = self.atts[0]
+                for cell in data:
+                    data_lst.append(atr.tobytes(cell[0]))
+            else:
+                # Multiple attributes
+                for cell in data:
+                    for (atr, val) in zip(self.atts, cell):
+                        data_lst.append(atr.tobytes(val))
+        else:
+            # NumPy single-field array
+            atr = self.atts[0]
+            for val in data:
+                data_lst.append(atr.tobytes(val))
+        return b''.join(data_lst)
+
     def _update_atts_meta(self):
         self.atts_dtype = numpy.dtype(
             list(

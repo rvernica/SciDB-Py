@@ -541,26 +541,7 @@ verify     = {}'''.format(*self)
                 if upload_schema.is_fixsize():
                     upload_data = upload_data.tobytes()
                 else:
-                    data_lst = []
-                    if len(upload_data.dtype) > 0:
-                        # NumPy strucutred array
-                        if len(upload_schema.atts_dtype) == 1:
-                            # One attribute
-                            atr = upload_schema.atts[0]
-                            for cell in upload_data:
-                                data_lst.append(atr.tobytes(cell[0]))
-                        else:
-                            # Multiple attributes
-                            for cell in upload_data:
-                                for (atr, val) in zip(upload_schema.atts,
-                                                      cell):
-                                    data_lst.append(atr.tobytes(val))
-                    else:
-                        # NumPy single-field array
-                        atr = upload_schema.atts[0]
-                        for val in upload_data:
-                            data_lst.append(atr.tobytes(val))
-                    upload_data = b''.join(data_lst)
+                    upload_data = schema.tobytes(upload_data)
             # TODO
             # Assume upload data is already in bytes format
             fn = self._shim(Shim.upload, id=id, data=upload_data).text
