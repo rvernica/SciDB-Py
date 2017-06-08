@@ -412,6 +412,14 @@ class Schema(object):
             ','.join(str(a) for a in self.atts),
             '; '.join(str(d) for d in self.dims))
 
+    def _update_atts_meta(self):
+        self.atts_dtype = numpy.dtype(
+            list(
+                itertools.chain.from_iterable(
+                    a.dtype.descr for a in self.atts)))
+        self.atts_fmt_scidb = '({})'.format(
+            ', '.join(a.fmt_scidb for a in self.atts))
+
     def is_fixsize(self):
         return all(a.is_fixsize() for a in self.atts)
 
@@ -510,14 +518,6 @@ class Schema(object):
             for val in data:
                 data_lst.append(atr.tobytes(val))
         return b''.join(data_lst)
-
-    def _update_atts_meta(self):
-        self.atts_dtype = numpy.dtype(
-            list(
-                itertools.chain.from_iterable(
-                    a.dtype.descr for a in self.atts)))
-        self.atts_fmt_scidb = '({})'.format(
-            ', '.join(a.fmt_scidb for a in self.atts))
 
     @classmethod
     def fromstring(cls, string):
