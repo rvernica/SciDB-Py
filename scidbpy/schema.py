@@ -498,6 +498,39 @@ class Schema(object):
                   a.type_name, type_map_numpy.get(a.type_name, numpy.object)))
              for a in self.atts])
 
+    def frombytes(self, buf, as_dataframe=False, dataframe_promo=True):
+        # Scan content and build (offset, size) metadata
+        off = 0
+        buf_meta = []
+        while off < len(buf):
+            meta = []
+            for att in self.atts:
+                sz = att.itemsize(buf, off)
+                meta.append((off, sz))
+                off += sz
+            buf_meta.append(meta)
+
+        # Create NumPy record array
+        if as_dataframe and dataframe_promo:
+            data = numpy.empty((len(buf_meta),),
+                               dtype=self.get_promo_atts_dtype())
+        else:
+            data = numpy.empty((len(buf_meta),), dtype=self.atts_dtype)
+
+        # Extract values using (offset, size) metadata
+        # Populate NumPy record array
+        pos = 0
+        for meta in buf_meta:
+            data.put((pos,),
+                     tuple(att.frombytes(
+                         buf,
+                         off,
+                         sz,
+                         promo=as_dataframe and dataframe_promo)
+                           for (att, (off, sz)) in zip(self.atts, meta)))
+            pos += 1
+        return data
+
     def tobytes(self, data):
         data_lst = []
         if len(data.dtype) > 0:

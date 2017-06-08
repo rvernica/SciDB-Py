@@ -594,45 +594,15 @@ verify     = {}'''.format(*self)
 
             if schema.is_fixsize() and (not as_dataframe or
                                         not dataframe_promo):
-                ar = numpy.frombuffer(buf, dtype=schema.atts_dtype)
+                data = numpy.frombuffer(buf, dtype=schema.atts_dtype)
             else:
-                # Scan content and build (offset, size) metadata
-                off = 0
-                buf_meta = []
-                while off < len(buf):
-                    meta = []
-                    for att in schema.atts:
-                        sz = att.itemsize(buf, off)
-                        meta.append((off, sz))
-                        off += sz
-                    buf_meta.append(meta)
-
-                # Create NumPy record array
-                if as_dataframe and dataframe_promo:
-                    ar = numpy.empty((len(buf_meta),),
-                                     dtype=schema.get_promo_atts_dtype())
-                else:
-                    ar = numpy.empty((len(buf_meta),), dtype=schema.atts_dtype)
-
-                # Extract values using (offset, size) metadata
-                # Populate NumPy record array
-                pos = 0
-                for meta in buf_meta:
-                    ar.put((pos,),
-                           tuple(att.frombytes(
-                               buf,
-                               off,
-                               sz,
-                               promo=as_dataframe and dataframe_promo)
-                                 for (att, (off, sz)) in zip(schema.atts,
-                                                             meta)))
-                    pos += 1
+                data = schema.frombytes(buf, as_dataframe, dataframe_promo)
 
             # Return NumPy array or Pandas dataframe
             if as_dataframe:
-                return pandas.DataFrame.from_records(ar)
+                return pandas.DataFrame.from_records(data)
             else:
-                return ar
+                return data
 
         else:                   # fetch=False
             self._shim(Shim.execute_query, id=id, query=query, release=1)
