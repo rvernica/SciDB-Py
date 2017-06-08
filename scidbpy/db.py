@@ -573,9 +573,10 @@ verify     = {}'''.format(*self)
             if schema:
                 # Deep-copy schema since we might be mutating it
                 if isinstance(schema, Schema):
-                    sch = copy.deepcopy(schema)
+                    if not atts_only:
+                        schema = copy.deepcopy(schema)
                 else:
-                    sch = Schema.fromstring(schema)
+                    schema = Schema.fromstring(schema)
             else:
                 # Execute 'show(...)' and Download text
                 self._shim(
@@ -583,42 +584,43 @@ verify     = {}'''.format(*self)
                     id=id,
                     query=DB._show_query.format(query.replace("'", "\\'")),
                     save='tsv')
-                sch = Schema.fromstring(
+                schema = Schema.fromstring(
                     self._shim(Shim.read_bytes, id=id, n=0).text)
 
             # Unpack
             if not atts_only:
-                if sch.make_dims_unique():
+                if schema.make_dims_unique():
                     # Dimensions renamed due to collisions. Need to
                     # cast.
-                    query = 'cast({}, {:h})'.format(query, sch)
+                    query = 'cast({}, {:h})'.format(query, schema)
 
                 query = 'project(apply({}, {}), {})'.format(
                     query,
-                    ', '.join('{0}, {0}'.format(d.name) for d in sch.dims),
+                    ', '.join('{0}, {0}'.format(d.name) for d in schema.dims),
                     ', '.join(i.name for i in itertools.chain(
-                        sch.dims, sch.atts)))
+                        schema.dims, schema.atts)))
 
-                sch.make_dims_atts()
+                schema.make_dims_atts()
 
             # Execute Query and Download content
             self._shim(Shim.execute_query,
                        id=id,
                        query=query,
-                       save=sch.atts_fmt_scidb)
+                       save=schema.atts_fmt_scidb)
             buf = self._shim(Shim.read_bytes, id=id, n=0).content
 
             self._shim(Shim.release_session, id=id)
 
-            if sch.is_fixsize() and (not as_dataframe or not dataframe_promo):
-                ar = numpy.frombuffer(buf, dtype=sch.atts_dtype)
+            if schema.is_fixsize() and (not as_dataframe or
+                                        not dataframe_promo):
+                ar = numpy.frombuffer(buf, dtype=schema.atts_dtype)
             else:
                 # Scan content and build (offset, size) metadata
                 off = 0
                 buf_meta = []
                 while off < len(buf):
                     meta = []
-                    for att in sch.atts:
+                    for att in schema.atts:
                         sz = att.itemsize(buf, off)
                         meta.append((off, sz))
                         off += sz
@@ -627,9 +629,9 @@ verify     = {}'''.format(*self)
                 # Create NumPy record array
                 if as_dataframe and dataframe_promo:
                     ar = numpy.empty((len(buf_meta),),
-                                     dtype=sch.get_promo_atts_dtype())
+                                     dtype=schema.get_promo_atts_dtype())
                 else:
-                    ar = numpy.empty((len(buf_meta),), dtype=sch.atts_dtype)
+                    ar = numpy.empty((len(buf_meta),), dtype=schema.atts_dtype)
 
                 # Extract values using (offset, size) metadata
                 # Populate NumPy record array
@@ -641,7 +643,8 @@ verify     = {}'''.format(*self)
                                off,
                                sz,
                                promo=as_dataframe and dataframe_promo)
-                                 for (att, (off, sz)) in zip(sch.atts, meta)))
+                                 for (att, (off, sz)) in zip(schema.atts,
+                                                             meta)))
                     pos += 1
 
             # Return NumPy array or Pandas dataframe
