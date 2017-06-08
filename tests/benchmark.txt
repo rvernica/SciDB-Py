@@ -24,13 +24,15 @@ Object size:    100.00 MB
 
 Number of runs:   3
 
+* If strings or UDT are present in the schema:
+
 Download time:               82.16 seconds   1.22 MB/second
 Upload (single) time:        12.29 seconds   8.14 MB/second
 Upload (single/null) time:   18.76 seconds   5.33 MB/second
 Upload (struct.) time:       26.25 seconds   3.81 MB/second
 Upload (struct./null) time:  63.41 seconds   1.58 MB/second
 
-* Using NumPy frombytes and tobytes (fixed size schema):
+* If schema uses only fixed size types (from/tobytes):
 
 Download time:                1.94 seconds  51.67 MB/second
 Upload (single) time:         2.41 seconds  41.48 MB/second
