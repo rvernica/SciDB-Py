@@ -532,25 +532,25 @@ class Schema(object):
         return data
 
     def tobytes(self, data):
-        data_lst = []
+        buf_lst = []
         if len(data.dtype) > 0:
             # NumPy strucutred array
             if len(self.atts_dtype) == 1:
                 # One attribute
                 atr = self.atts[0]
                 for cell in data:
-                    data_lst.append(atr.tobytes(cell[0]))
+                    buf_lst.append(atr.tobytes(cell[0]))
             else:
                 # Multiple attributes
                 for cell in data:
                     for (atr, val) in zip(self.atts, cell):
-                        data_lst.append(atr.tobytes(val))
+                        buf_lst.append(atr.tobytes(val))
         else:
             # NumPy single-field array
             atr = self.atts[0]
             for val in data:
-                data_lst.append(atr.tobytes(val))
-        return b''.join(data_lst)
+                buf_lst.append(atr.tobytes(val))
+        return b''.join(buf_lst)
 
     @classmethod
     def fromstring(cls, string):
