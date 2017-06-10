@@ -541,7 +541,7 @@ verify     = {}'''.format(*self)
                 if upload_schema.is_fixsize():
                     upload_data = upload_data.tobytes()
                 else:
-                    upload_data = schema.tobytes(upload_data)
+                    upload_data = upload_schema.tobytes(upload_data)
             # TODO
             # Assume upload data is already in bytes format
             fn = self._shim(Shim.upload, id=id, data=upload_data).text
