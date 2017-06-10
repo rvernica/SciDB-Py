@@ -20,21 +20,89 @@ scidb-py> env PYTHONPATH=`pwd` python tests/benchmark.py 100
 
 Data size:      100.00 MB
 In-memory size: 100.00 MB
-Object size:    100.00 MB
-
 Number of runs:   3
 
 * If strings or UDT are present in the schema:
 
-Download time:               82.16 seconds   1.22 MB/second
-Upload (single) time:        12.29 seconds   8.14 MB/second
-Upload (single/null) time:   18.76 seconds   5.33 MB/second
-Upload (struct.) time:       26.25 seconds   3.81 MB/second
-Upload (struct./null) time:  63.41 seconds   1.58 MB/second
+Download
+--------
+
+SciDB query:        1.24 seconds  80.69 MB/second
+Shim download:      0.56 seconds 179.74 MB/second
+NumPy manual:      79.69 seconds   1.25 MB/second
+Total:             81.50 seconds   1.23 MB/second
+
+Upload (NumPy struct_array=False, Schema not_null=True)
+------
+
+NumPy manual:       9.29 seconds  10.77 MB/second
+Shim upload:        0.18 seconds 550.60 MB/second
+SciDB query:        2.27 seconds  44.05 MB/second
+Total:             11.81 seconds   8.47 MB/second
+
+Upload (NumPy struct_array=False, Schema not_null=False)
+------
+
+NumPy manual:      14.98 seconds   6.68 MB/second
+Shim upload:        0.21 seconds 472.83 MB/second
+SciDB query:        2.56 seconds  39.07 MB/second
+Total:             17.95 seconds   5.57 MB/second
+
+Upload (NumPy struct_array=True, Schema not_null=True)
+------
+
+NumPy manual:      23.29 seconds   4.29 MB/second
+Shim upload:        0.19 seconds 531.38 MB/second
+SciDB query:        2.19 seconds  45.58 MB/second
+Total:             26.54 seconds   3.77 MB/second
+
+Upload (NumPy struct_array=True, Schema not_null=False)
+------
+
+NumPy manual:      30.50 seconds   3.28 MB/second
+Shim upload:        0.22 seconds 464.06 MB/second
+SciDB query:        2.54 seconds  39.36 MB/second
+Total:             33.32 seconds   3.00 MB/second
+
+
+Upload (NumPy struct_array=True, Schema not_null=False)
+------
+
+NumPy manual:      60.08 seconds   1.66 MB/second
+Shim upload:        0.22 seconds 454.94 MB/second
+SciDB query:        2.66 seconds  37.62 MB/second
+Total:             62.70 seconds   1.59 MB/second
 
 * If schema uses only fixed size types (from/tobytes):
 
-Download time:                1.94 seconds  51.67 MB/second
-Upload (single) time:         2.41 seconds  41.48 MB/second
-Upload (struct.) time:        2.40 seconds  41.69 MB/second
-Upload (struct./null) time:   2.77 seconds  36.06 MB/second
+Download
+--------
+
+SciDB query:        1.27 seconds  79.02 MB/second
+Shim download:      0.57 seconds 175.92 MB/second
+NumPy frombuffer:   0.00 seconds    NaN MB/second
+Total:              1.98 seconds  50.50 MB/second
+
+Upload (NumPy struct_array=False, Schema not_null=True)
+------
+
+NumPy tobytes:      0.04 seconds 2373.65 MB/second
+Shim upload:        0.20 seconds 497.57 MB/second
+SciDB query:        2.19 seconds  45.64 MB/second
+Total:              2.43 seconds  41.17 MB/second
+
+Upload (NumPy struct_array=True, Schema not_null=True)
+------
+
+NumPy tobytes:      0.04 seconds 2469.66 MB/second
+Shim upload:        0.19 seconds 535.78 MB/second
+SciDB query:        2.18 seconds  45.82 MB/second
+Total:              2.70 seconds  37.01 MB/second
+
+Upload (NumPy struct_array=True, Schema not_null=False)
+------
+
+NumPy tobytes:      0.04 seconds 2570.19 MB/second
+Shim upload:        0.21 seconds 478.91 MB/second
+SciDB query:        2.84 seconds  35.22 MB/second
+Total:              2.78 seconds  35.98 MB/second
