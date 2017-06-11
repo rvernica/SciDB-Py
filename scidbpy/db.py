@@ -272,20 +272,20 @@ data. The content of the file has to be in one of the supported SciDB
 formats. A matching format specification has to be provided as well:
 
 >>> with open('array.bin', 'wb') as file:
-...     file.write(numpy.arange(3).tobytes())
+...     n = file.write(numpy.arange(3).tobytes())
 
 >>> db.iquery("load(foo, '{fn}', 0, '(int64)')",
 ...           upload_data=open('array.bin', 'rb'))
 
 >>> with open('array.csv', 'w') as file:
-...     file.write('1\n2\n3\n')
+...     n = file.write('1\\n2\\n3\\n')
 
 >>> db.iquery("load(foo, '{fn}', 0, 'CSV')",
 ...           upload_data=open('array.csv', 'r'))
 
 >>> import os
 >>> os.remove('array.bin')
->>> os.remove('array.txt')
+>>> os.remove('array.csv')
 
 >>> db.remove(db.arrays.foo)
 
