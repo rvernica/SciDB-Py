@@ -359,16 +359,16 @@ array([(0, 10, 11), (1, 11, 12), (2, 12, 13)],
 
 Input and load operators can be used to upload data:
 
->>> db.input('<x:int64>[i]', numpy.arange(3))[:]
+>>> db.input('<x:int64>[i]', upload_data=numpy.arange(3))[:]
 ... # doctest: +NORMALIZE_WHITESPACE
 array([(0, (255, 0)), (1, (255, 1)), (2, (255, 2))],
       dtype=[('i', '<i8'), ('x', [('null', 'u1'), ('val', '<i8')])])
 
->>> db.input('<x:int64>[i]', numpy.arange(3)).store(db.arrays.foo)
+>>> db.input('<x:int64>[i]', upload_data=numpy.arange(3)).store(db.arrays.foo)
 
->>> db.load(db.arrays.foo, numpy.arange(3))
+>>> db.load(db.arrays.foo, upload_data=numpy.arange(3))
 
->>> db.input('<x:int64>[j]', numpy.arange(3, 6)
+>>> db.input('<x:int64>[j]', upload_data=numpy.arange(3, 6)
 ...  ).apply('i', 'j + 3'
 ...  ).redimension(db.arrays.foo
 ...  ).insert(db.arrays.foo)
@@ -379,7 +379,7 @@ array([(0, (255, 0)), (1, (255, 1)), (2, (255, 2)), (3, (255, 3)),
        (4, (255, 4)), (5, (255, 5))],
       dtype=[('i', '<i8'), ('x', [('null', 'u1'), ('val', '<i8')])])
 
->>> db.input('<i:int64 not null, x:int64>[j]', db.arrays.foo[:]
+>>> db.input('<i:int64 not null, x:int64>[j]', upload_data=db.arrays.foo[:]
 ...  ).redimension(db.arrays.foo
 ...  ).store('bar')
 
@@ -388,6 +388,13 @@ True
 
 >>> db.remove(db.arrays.foo)
 >>> db.remove(db.arrays.bar)
+
+For files already available on the server the "input" or "load"
+operators can be invoked with the full set of parameters supported by
+SciDB. Parameters that need to be quoted in SciDB need to be
+double-quoted in SciDB-Py. For example:
+
+# >>> db.load('foo', "'/data.csv'", 0, "'CSV'")
 
 """
 
@@ -768,7 +775,7 @@ class SciDB(object):
         args_fmt_scidb = ('{}'.format(i) for i in self.args)
         return '{}({})'.format(self.operator, ', '.join(args_fmt_scidb))
 
-    def __call__(self, *args):
+    def __call__(self, *args, **kwargs):
         """Returns self for lazy expressions. Executes immediate expressions.
         """
         self.args.extend(args)
@@ -780,8 +787,10 @@ class SciDB(object):
 
         if self.operator.lower() in ('input', 'load'):
             # TODO pass through second argument if it is string
-            self.upload_data = args[1]
-            self.args = [self.args[0], "'{fn}'"] + self.args[2:]  # input_file
+            if 'upload_data' in kwargs.keys():
+                self.upload_data = kwargs['upload_data']
+                # add placeholder for input_file
+                self.args = [self.args[0], "'{fn}'"] + self.args[1:]
             if len(self.args) < 4:
                 if len(self.args) < 3:
                     self.args.append(0)      # instance_id
