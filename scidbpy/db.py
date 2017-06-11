@@ -268,6 +268,17 @@ string needs to contain the format of the binary data:
 >>> db.iquery("load(foo, '{fn}', 0, '(int64)')",
 ...           upload_data=numpy.arange(3).tobytes())
 
+The binary data can be provided as a file-like object:
+
+>>> with open('array.bin', 'wb') as file:
+...     file.write(numpy.arange(3).tobytes())
+
+>>> db.iquery("load(foo, '{fn}', 0, '(int64)')",
+...           upload_data=open('array.bin', 'rb'))
+
+>>> import os
+>>> os.remove('array.bin')
+
 >>> db.remove(db.arrays.foo)
 
 
