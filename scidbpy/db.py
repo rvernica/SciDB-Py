@@ -1,5 +1,4 @@
-"""
-Connect to SciDB
+"""Connect to SciDB
 ----------------
 
 Connect to SciDB using "connect()" or "DB()":
@@ -268,7 +267,9 @@ string needs to contain the format of the binary data:
 >>> db.iquery("load(foo, '{fn}', 0, '(int64)')",
 ...           upload_data=numpy.arange(3).tobytes())
 
-The binary data can be provided as a file-like object:
+A binary or text file-like object can be used to specify the upload
+data. The content of the file has to be in one of the supported SciDB
+formats. A matching format specification has to be provided as well:
 
 >>> with open('array.bin', 'wb') as file:
 ...     file.write(numpy.arange(3).tobytes())
@@ -276,8 +277,15 @@ The binary data can be provided as a file-like object:
 >>> db.iquery("load(foo, '{fn}', 0, '(int64)')",
 ...           upload_data=open('array.bin', 'rb'))
 
+>>> with open('array.csv', 'w') as file:
+...     file.write('1\n2\n3\n')
+
+>>> db.iquery("load(foo, '{fn}', 0, 'CSV')",
+...           upload_data=open('array.csv', 'r'))
+
 >>> import os
 >>> os.remove('array.bin')
+>>> os.remove('array.txt')
 
 >>> db.remove(db.arrays.foo)
 
