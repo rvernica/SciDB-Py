@@ -230,7 +230,32 @@ Download as Pandas DataFrame:
 Upload to SciDB
 ---------------
 
-To upload data to SciDB use the "iquery" function and provide an
+To upload data to SciDB use the "upload" function. An array name can
+be specified or an unique array name is generated. By default arrays
+are marked for garbage collection and removed when "gc" is called:
+
+>>> ar = db.upload(numpy.arange(3))
+>>> ar
+... # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
+Array(DB('http://localhost:8080', None, None, None, None, None),
+      'py_..._1')
+>>> ar[:]
+... # doctest: +NORMALIZE_WHITESPACE
+array([(0, 0), (1, 1), (2, 2)],
+      dtype=[('i', '<i8'), ('x', '<i8')])
+>>> db.gc()
+>>> dir(db.arrays)
+[]
+
+If a context is used, arrays marked for garbage collection are removed
+when the context is exited:
+
+>>> with connect() as db:
+...     ar = db.upload(numpy.arange(3))
+>>> dir(db.arrays)
+[]
+
+Data can also be uploaded using the "iquery" function, by providing an
 "upload_data" argument.
 
 Provide SciDB input/store/insert/load query, NumPy array, and,
@@ -248,7 +273,7 @@ inferred from schema:
 array([(0, (255, 0)), (1, (255, 1)), (2, (255, 2))],
       dtype=[('i', '<i8'), ('x', [('null', 'u1'), ('val', '<i8')])])
 
->>> db.iquery("insert(input(foo, '{fn}', 0, '{fmt}'), foo)",
+>>> db.iquery("insert(input({sch}, '{fn}', 0, '(int64)'), foo)",
 ...           upload_data=numpy.arange(3))
 
 >>> db.iquery("load(foo, '{fn}', 0, '{fmt}')",
@@ -406,6 +431,7 @@ import numpy
 import pandas
 import re
 import requests
+import threading
 
 from .schema import Attribute, Dimension, Schema
 
@@ -474,12 +500,43 @@ class DB(object):
 
         self.arrays = Arrays(self)
 
-        self.operators = (
-            self.iquery_readlines("project(list('operators'), name)") +
-            self.iquery_readlines("project(list('macros'),    name)"))
+        # get list of operators and macros
+        id = self._shim(Shim.new_session).text
+
+        self.id = self._shim(
+            Shim.execute_query,
+            id=id,
+            query="project(list('operators'), name)",
+            save='tsv').text  # set query ID as DB instance ID
+        operators = self._shim_readlines(id=id)
+
+        self._shim(
+            Shim.execute_query,
+            id=id,
+            query="project(list('macros'), name)",
+            save='tsv').content
+        macros = self._shim_readlines(id=id)
+
+        self._shim(Shim.release_session, id=id)
+
+        self.operators = operators + macros
         self._dir = (self.operators +
-                     ['arrays', 'iquery', 'iquery_readlines'])
+                     ['arrays',
+                      'gc',
+                      'iquery',
+                      'iquery_readlines',
+                      'upload'])
         self._dir.sort()
+
+        self._lock = threading.Lock()
+        self._last_array_id = 0
+        self._created_arrays = []
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        self.gc()
 
     def __iter__(self):
         return (i for i in (
@@ -555,7 +612,14 @@ verify     = {}'''.format(*self)
               dtype=[('i', '<i8'), ('j', '<i8'),
                      ('x', [('null', 'u1'), ('val', '<i8')])])
 
+        >>> DB().iquery("input({sch}, '{fn}', 0, '{fmt}')",
+        ...             fetch=True,
+        ...             upload_data=numpy.arange(3, 6))
+        ... # doctest: +NORMALIZE_WHITESPACE
+        array([(0, 3), (1, 4), (2, 5)],
+              dtype=[('i', '<i8'), ('x', '<i8')])
         """
+
         id = self._shim(Shim.new_session).text
 
         if upload_data is not None:
@@ -572,6 +636,7 @@ verify     = {}'''.format(*self)
             # Assume upload data is already in bytes format
             fn = self._shim(Shim.upload, id=id, data=upload_data).text
             query = query.format(
+                sch=upload_schema,
                 fn=fn,
                 fmt=upload_schema.atts_fmt_scidb if upload_schema else None)
 
@@ -647,13 +712,49 @@ verify     = {}'''.format(*self)
         """
         id = self._shim(Shim.new_session).text
         self._shim(Shim.execute_query, id=id, query=query, save='tsv')
-        ret = [line.split('\t') if '\t' in line else line
-               for line in self._shim(
-                       Shim.read_bytes, id=id, n=0).text.splitlines()]
+        ret = self._shim_readlines(id=id)
         self._shim(Shim.release_session, id=id)
         return ret
 
+    def upload(self, upload_data, name=None, gc=True):
+        """Upload data as new SciDB array
+
+        :param numpy upload_data: Data to upload to SciDB
+
+        :param string name: Name of the new SciDB array. If `None` a
+        unique array name is created and used (default `None`)
+
+        :param bool gc: If `True`, the array is removed when `gc()` is
+        called or when the context of the object is exited if a
+        context is used, i.e., `with` statement (default `True`)
+        """
+        if name is None:
+            name = 'py_{db_id}_{array_id}'.format(
+                db_id=self.id,
+                array_id=self._next_array_id())
+        if gc:
+            self._created_arrays.append(name)
+        self.iquery("store(input({sch}, '{fn}', 0, '{fmt}'), " + name + ")",
+                    upload_data=upload_data)
+        return Array(self, name)
+
+    def gc(self):
+        """Remove created arrays marked for garbage collection"""
+        if len(self._created_arrays):
+            id = self._shim(Shim.new_session).text
+            for name in self._created_arrays:
+                try:
+                    self.id = self._shim(
+                        Shim.execute_query,
+                        id=id,
+                        query='remove({})'.format(name))
+                except Exception as e:
+                    pass
+            self._shim(Shim.release_session, id=id)
+            self._created_arrays = []
+
     def _shim(self, endpoint, **kwargs):
+
         """Make request on Shim endpoint"""
         if self._scidb_auth and endpoint in (Shim.cancel, Shim.execute_query):
             kwargs.update(self._scidb_auth)
@@ -673,6 +774,18 @@ verify     = {}'''.format(*self)
         req.reason = req.content
         req.raise_for_status()
         return req
+
+    def _shim_readlines(self, id):
+        """Read data from Shim and parse as text lines"""
+        return [line.split('\t') if '\t' in line else line
+                for line in self._shim(
+                        Shim.read_bytes, id=id, n=0).text.splitlines()]
+
+    def _next_array_id(self):
+        """Thread-safe counter for array names"""
+        with self._lock:
+            self._last_array_id += 1
+            return self._last_array_id
 
 
 class Arrays(object):
@@ -818,7 +931,6 @@ class SciDB(object):
 
     def fetch(self, as_dataframe=False):
         if self.is_lazy:
-
             return self.db.iquery(str(self),
                                   fetch=True,
                                   as_dataframe=as_dataframe,
