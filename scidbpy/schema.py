@@ -76,8 +76,8 @@ type_map_promo = dict(
 
 # TODO datetime, datetimetz
 
-unique_att_name = 'f71a49b8d75b482fa9ef538b14f958d9'
-unique_dim_name = 'c3f7cb3f62ec4cc682e4254a16185796'
+one_att_name = 'x'
+one_dim_name = 'i'
 
 
 class Attribute(object):
@@ -227,9 +227,9 @@ class Attribute(object):
         else:
             dtype_val = dtype[1][1][1]
             not_null = False
-        return cls(dtype[0] if dtype[0] else unique_att_name,
-                   type_map_inv_numpy[numpy.dtype(dtype_val).type],
-                   not_null)
+        return cls(name=dtype[0] if dtype[0] else one_att_name,
+                   type_name=type_map_inv_numpy[numpy.dtype(dtype_val).type],
+                   not_null=not_null)
 
 
 class Dimension(object):
@@ -571,7 +571,7 @@ class Schema(object):
         return cls(
             None,
             (Attribute.fromdtype(dt) for dt in dtype.descr),
-            (Dimension(unique_dim_name),))
+            (Dimension(one_dim_name),))
 
 
 if __name__ == "__main__":
