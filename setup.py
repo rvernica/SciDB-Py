@@ -24,6 +24,7 @@ setup(name=NAME,
       license=LICENSE,
       packages=['scidbpy'],
       install_requires=[
+          'backports.weakref',
           'enum34',
           'numpy',
           'pandas',
