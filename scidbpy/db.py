@@ -243,15 +243,7 @@ Array(DB('http://localhost:8080', None, None, None, None, None),
 ... # doctest: +NORMALIZE_WHITESPACE
 array([(0, 0), (1, 1), (2, 2)],
       dtype=[('i', '<i8'), ('x', '<i8')])
->>> db.gc()
->>> dir(db.arrays)
-[]
-
-If a context is used, arrays marked for garbage collection are removed
-when the context is exited:
-
->>> with connect() as db:
-...     ar = db.upload(numpy.arange(3))
+>>> ar = None
 >>> dir(db.arrays)
 []
 
@@ -431,6 +423,11 @@ import re
 import requests
 import threading
 
+try:
+    from weakref import finalize
+except ImportError:
+    from backports.weakref import finalize
+
 from .schema import Attribute, Dimension, Schema
 
 
@@ -528,13 +525,6 @@ class DB(object):
 
         self._lock = threading.Lock()
         self._last_array_id = 0
-        self._created_arrays = []
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *args):
-        self.gc()
 
     def __iter__(self):
         return (i for i in (
@@ -730,26 +720,9 @@ verify     = {}'''.format(*self)
             name = 'py_{db_id}_{array_id}'.format(
                 db_id=self.id,
                 array_id=self._next_array_id())
-        if gc:
-            self._created_arrays.append(name)
         self.iquery("store(input({sch}, '{fn}', 0, '{fmt}'), " + name + ")",
                     upload_data=upload_data)
-        return Array(self, name)
-
-    def gc(self):
-        """Remove created arrays marked for garbage collection"""
-        if len(self._created_arrays):
-            id = self._shim(Shim.new_session).text
-            for name in self._created_arrays:
-                try:
-                    self.id = self._shim(
-                        Shim.execute_query,
-                        id=id,
-                        query='remove({})'.format(name))
-                except:
-                    pass
-            self._shim(Shim.release_session, id=id)
-            self._created_arrays = []
+        return Array(self, name, gc)
 
     def _shim(self, endpoint, **kwargs):
 
@@ -811,9 +784,14 @@ class Arrays(object):
 
 class Array(object):
     """Access to individual array"""
-    def __init__(self, db, name):
+    def __init__(self, db, name, gc=False):
         self.db = db
         self.name = name
+
+        if gc:
+            finalize(self,
+                     self.db.iquery,
+                     'remove({})'.format(self.name))
 
     def __repr__(self):
         return '{}({!r}, {!r})'.format(
