@@ -1,0 +1,6 @@
+enum34
+numpy
+pandas
+pep8
+pytest
+requests

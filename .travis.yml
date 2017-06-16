@@ -27,12 +27,7 @@ before_install:
 
 install:
   - pip install --only-binary=scipy
-    enum34
-    numpy
-    pandas
-    pep8
-    pytest
-    requests
+  - pip install -r requirements.txt
 
 script:
   - pep8 .
