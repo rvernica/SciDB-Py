@@ -232,7 +232,8 @@ Upload to SciDB
 
 To upload data to SciDB use the "upload" function. An array name can
 be specified or an unique array name is generated. By default arrays
-are marked for garbage collection and removed when "gc" is called:
+created by upload are removed when the Array object is garbage
+collected:
 
 >>> ar = db.upload(numpy.arange(3))
 >>> ar
@@ -713,9 +714,8 @@ verify     = {}'''.format(*self)
         :param string name: Name of the new SciDB array. If `None` a
         unique array name is created and used (default `None`)
 
-        :param bool gc: If `True`, the array is removed when `gc()` is
-        called or when the context of the object is exited if a
-        context is used, i.e., `with` statement (default `True`)
+        :param bool gc: If `True`, the array is removed when the Array
+        object is garbage collected (default `True`)
         """
         if name is None:
             name = 'py_{db_id}_{array_id}'.format(
