@@ -263,8 +263,6 @@ optional, schema. If the schema is missing, it is inferred from the
 array dtype. If the format is missing from the query string, it is
 inferred from schema:
 
->>> import numpy
-
 >>> db.iquery("store(input(<x:int64>[i], '{fn}', 0, '{fmt}'), foo)",
 ...           upload_data=numpy.arange(3))
 
