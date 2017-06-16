@@ -746,7 +746,7 @@ verify     = {}'''.format(*self)
                         Shim.execute_query,
                         id=id,
                         query='remove({})'.format(name))
-                except Exception as e:
+                except:
                     pass
             self._shim(Shim.release_session, id=id)
             self._created_arrays = []
