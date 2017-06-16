@@ -428,6 +428,7 @@ try:
 except ImportError:
     from backports.weakref import finalize
 
+from .ops_hungry import ops_hungry
 from .schema import Attribute, Dimension, Schema
 
 
@@ -842,13 +843,7 @@ class SciDB(object):
         self.upload_data = upload_data
 
         self.args = list(args)
-        self.is_lazy = self.operator.lower() not in (
-            'create_array',
-            'insert',
-            'load',
-            'remove',
-            'store',
-        )
+        self.is_lazy = self.operator.lower() not in ops_hungry
 
         self._dir = self.db.operators + ['fetch']
         self._dir.sort()
