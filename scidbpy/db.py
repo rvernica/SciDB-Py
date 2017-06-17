@@ -1,4 +1,5 @@
-"""Connect to SciDB
+"""
+Connect to SciDB
 ----------------
 
 Connect to SciDB using "connect()" or "DB()":
@@ -321,8 +322,9 @@ Use SciDB Operators
 
 >>> db.apply
 ... # doctest: +NORMALIZE_WHITESPACE
-SciDB(db=DB('http://localhost:8080', None, None, None, None, None),
-      operator='apply', args=[])
+Operator(db=DB('http://localhost:8080', None, None, None, None, None),
+         name='apply',
+         args=[])
 
 >>> print(db.apply)
 apply()
@@ -555,7 +557,7 @@ verify     = {}'''.format(*self)
 
     def __getattr__(self, name):
         if name in self.operators:
-            return SciDB(self, name)
+            return Operator(self, name)
         else:
             raise AttributeError(
                 '{.__name__!r} object has no attribute {!r}'.format(
@@ -838,41 +840,45 @@ class ArrayExp(object):
         return ArrayExp('{} + {}'.format(self, other))
 
 
-class SciDB(object):
-    """Unevaluated SciDB expression"""
-    def __init__(self, db, operator, upload_data=None, *args):
+class Operator(object):
+    """Store SciDB operator and arguments. Hungry operators (e.g., remove,
+    store, etc.) evaluate immediately. Lazy operators evaluate on data
+    fetch.
+
+    """
+    def __init__(self, db, name, upload_data=None, *args):
         self.db = db
-        self.operator = operator
+        self.name = name
         self.upload_data = upload_data
 
         self.args = list(args)
-        self.is_lazy = self.operator.lower() not in ops_hungry
+        self.is_lazy = self.name.lower() not in ops_hungry
 
         self._dir = self.db.operators + ['fetch']
         self._dir.sort()
 
     def __repr__(self):
-        return '{}(db={!r}, operator={!r}, args=[{}])'.format(
+        return '{}(db={!r}, name={!r}, args=[{}])'.format(
             type(self).__name__,
             self.db,
-            self.operator,
+            self.name,
             ', '.join('{!r}'.format(i) for i in self.args))
 
     def __str__(self):
         args_fmt_scidb = ('{}'.format(i) for i in self.args)
-        return '{}({})'.format(self.operator, ', '.join(args_fmt_scidb))
+        return '{}({})'.format(self.name, ', '.join(args_fmt_scidb))
 
     def __call__(self, *args, **kwargs):
         """Returns self for lazy expressions. Executes immediate expressions.
         """
         self.args.extend(args)
 
-        if self.operator.lower() == 'create_array' \
+        if self.name.lower() == 'create_array' \
            and len(self.args) < 3:
             # Set temporary = False for create array
             self.args.append(False)
 
-        if self.operator.lower() in ('input', 'load'):
+        if self.name.lower() in ('input', 'load'):
             # TODO pass through second argument if it is string
             if 'upload_data' in kwargs.keys():
                 self.upload_data = kwargs['upload_data']
@@ -894,7 +900,7 @@ class SciDB(object):
 
     def __getattr__(self, name):
         if name in self.db.operators:
-            return SciDB(self.db, name, self.upload_data, self)
+            return Operator(self.db, name, self.upload_data, self)
         else:
             raise AttributeError(
                 '{.__name__!r} object has no attribute {!r}'.format(
