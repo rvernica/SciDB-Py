@@ -234,13 +234,23 @@ verify     = {}'''.format(*self)
                 schema = Schema.fromstring(
                     self._shim(Shim.read_bytes, id=id, n=0).text)
 
+            # Attributes and dimensions can collide. Run make_unque to
+            # remove any collisions.
+            #
+            # make_unique fixes any collision, but if we don't
+            # download the diemsnions, we don't need to fix collisons
+            # between dimensions and attributes. So, we use
+            # make_unique only if there are collisions within the
+            # attribute names.
+            if ((not atts_only or
+                 len(set((a.name for a in schema.atts))) <
+                 len(schema.atts)) and schema.make_unique()):
+                # Dimensions or attributes were renamed due to
+                # collisions. We need to cast.
+                query = 'cast({}, {:h})'.format(query, schema)
+
             # Unpack
             if not atts_only:
-                if schema.make_unique():
-                    # Dimensions or attributes were renamed due to
-                    # collisions. We need to cast.
-                    query = 'cast({}, {:h})'.format(query, schema)
-
                 # apply: add dimensions as attributes
                 # project: place dimensions first
                 query = 'project(apply({}, {}), {})'.format(

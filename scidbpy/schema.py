@@ -119,26 +119,17 @@ class Attribute(object):
                  not_null=False,
                  default=None,
                  compression=None):
-        self.name = name
+        self.__name = name
         self.type_name = type_name
         self.not_null = bool(not_null)
         self.default = default
         self.compression = compression
 
-        self.dtype_val = type_map_numpy.get(self.type_name, numpy.object)
-        # >>> numpy.dtype([(u"a", int)])
-        # TypeError: data type not understood
-        # https://github.com/numpy/numpy/issues/2407
-        # cannot use `self.name` directly, use `str(...)`
-        if self.not_null:
-            self.dtype = numpy.dtype([(str(self.name), self.dtype_val)])
-        else:
-            self.dtype = numpy.dtype([(str(self.name),
-                                       [('null', numpy.uint8),
-                                        ('val', self.dtype_val)])])
         self.fmt_scidb = '{}{}'.format(self.type_name,
                                        '' if self.not_null else ' null')
         self.fmt_struct = type_map_struct.get(self.type_name, None)
+
+        self._set_dtype()
 
     def __iter__(self):
         return (i for i in (
@@ -163,6 +154,28 @@ class Attribute(object):
             ' DEFAULT {}'.format(self.default) if self.default else '',
             ' COMPRESSION {}'.format(self.compression)
             if self.compression else '')
+
+    @property
+    def name(self):
+        return self.__name
+
+    @name.setter
+    def name(self, value):
+        self.__name = value
+        self._set_dtype()
+
+    def _set_dtype(self):
+        self.dtype_val = type_map_numpy.get(self.type_name, numpy.object)
+        # >>> numpy.dtype([(u"a", int)])
+        # TypeError: data type not understood
+        # https://github.com/numpy/numpy/issues/2407
+        # cannot use `self.name` directly, use `str(...)`
+        if self.not_null:
+            self.dtype = numpy.dtype([(str(self.name), self.dtype_val)])
+        else:
+            self.dtype = numpy.dtype([(str(self.name),
+                                       [('null', numpy.uint8),
+                                        ('val', self.dtype_val)])])
 
     def is_fixsize(self):
         return self.dtype_val != numpy.object
