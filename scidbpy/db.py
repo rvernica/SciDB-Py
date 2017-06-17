@@ -125,6 +125,9 @@ Use "iquery" to execute queries against SciDB:
 >>> iquery(db, 'store(build(<x:int64>[i=0:2], i), foo)')
 
 
+Dwonload Data from SciDB
+------------------------
+
 Use "iquery" to download array data:
 
 >>> iquery(db, 'scan(foo)', fetch=True)
@@ -227,8 +230,8 @@ Download as Pandas DataFrame:
 2  (255, 2)
 
 
-Upload to SciDB
----------------
+Upload Data to SciDB
+--------------------
 
 To upload data to SciDB use the "upload" function. An array name can
 be specified or an unique array name is generated. By default arrays
