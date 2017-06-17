@@ -388,7 +388,10 @@ class Schema(object):
         self.name = name
         self.atts = tuple(atts)
         self.dims = tuple(dims)
-        self._update_atts_meta()
+
+        # Set lazy
+        self.__atts_dtype = None
+        self.__atts_fmt_scidb = None
 
     def __iter__(self):
         return (i for i in (self.name, ) + self.atts + self.dims)
@@ -412,52 +415,82 @@ class Schema(object):
             ','.join(str(a) for a in self.atts),
             '; '.join(str(d) for d in self.dims))
 
-    def _update_atts_meta(self):
-        self.atts_dtype = numpy.dtype(
-            list(
-                itertools.chain.from_iterable(
-                    a.dtype.descr for a in self.atts)))
-        self.atts_fmt_scidb = '({})'.format(
-            ', '.join(a.fmt_scidb for a in self.atts))
+    @property
+    def atts_dtype(self):
+        if self.__atts_dtype is None:
+            self.__atts_dtype = numpy.dtype(list(itertools.chain.from_iterable(
+                a.dtype.descr for a in self.atts)))
+        return self.__atts_dtype
+
+    @property
+    def atts_fmt_scidb(self):
+        if self.__atts_fmt_scidb is None:
+            self.__atts_fmt_scidb = '({})'.format(
+                ', '.join(a.fmt_scidb for a in self.atts))
+        return self.__atts_fmt_scidb
 
     def is_fixsize(self):
         return all(a.is_fixsize() for a in self.atts)
 
-    def make_dims_unique(self):
-        """Check attributes and dimensions form a list with unique names. If
-        not, rename diemsnions. Return True is any dimension was
-        renamed.
+    def make_unique(self):
+        """Make dimension and attribute names unique within the schema. Return
+        ``True`` if any dimension or attribute was renamed.
 
         >>> s = Schema(None, (Attribute('i', 'bool'),), (Dimension('i'),))
         >>> print(s)
         <i:bool> [i]
-        >>> s.make_dims_unique()
+        >>> s.make_unique()
         True
         >>> print(s)
         <i:bool> [i_1]
 
-        >>> s = Schema.fromstring('<i:bool>[i;i_1]')
-        >>> s.make_dims_unique()
+        >>> s = Schema.fromstring('<i:bool, i:int64>[i;i_1;i]')
+        >>> s.make_unique()
         True
         >>> print(s)
-        <i:bool> [i_2; i_1]
+        <i:bool,i_2:int64> [i_3; i_1; i_4]
+
         """
-        all_names = set(itertools.chain((a.name for a in self.atts),
-                                        (d.name for d in self.dims)))
-        if len(all_names) < len(self.atts) + len(self.dims):
-            # Rename dimensions
-            atts_names = set(a.name for a in self.atts)
-            new_dims_names = []
-            for d in self.dims:
-                # Check if dimension name collides with any attribute
-                # name
-                if d.name in atts_names:
+        all_before = set(itertools.chain((a.name for a in self.atts),
+                                         (d.name for d in self.dims)))
+
+        # Check if overall duplicates are present
+        if len(all_before) < len(self.atts) + len(self.dims):
+
+            all_after = set()
+
+            # Process attributes
+            for a in self.atts:
+                # Start renaming after the first copy. First copy
+                # will not be in all_after. From second copy
+                # onwards, a copy will be in all_after.
+                if a.name in all_after:
+                    new_name_tmpl = a.name + '_{}'
                     count = 1
-                    new_dim_name = '{}_{}'.format(d.name, count)
-                    while new_dim_name in all_names:
+                    new_name = new_name_tmpl.format(count)
+                    while (new_name in all_before or
+                           new_name in all_after):
                         count += 1
-                        new_dim_name = '{}_{}'.format(d.name, count)
-                    d.name = new_dim_name
+                        new_name = new_name_tmpl.format(count)
+                    a.name = new_name
+                all_after.add(a.name)
+
+            # Process dimensions
+            for d in self.dims:
+                if d.name in all_after:
+                    new_name_tmpl = d.name + '_{}'
+                    count = 1
+                    new_name = new_name_tmpl.format(count)
+                    while (new_name in all_before or
+                           new_name in all_after):
+                        count += 1
+                        new_name = new_name_tmpl.format(count)
+                    d.name = new_name
+                all_after.add(d.name)
+
+            # Reset dtype
+            self.__atts_dtype = None
+
             return True
         else:
             return False
@@ -482,7 +515,10 @@ class Schema(object):
         self.atts = tuple(itertools.chain(
             (Attribute(d.name, 'int64', not_null=True) for d in self.dims),
             self.atts))
-        self._update_atts_meta()
+
+        # Reset
+        self.__atts_dtype = None
+        self.__atts_fmt_scidb = None
 
     def get_promo_atts_dtype(self):
         cnt = sum(not a.not_null for a in self.atts)

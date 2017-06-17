@@ -236,17 +236,20 @@ verify     = {}'''.format(*self)
 
             # Unpack
             if not atts_only:
-                if schema.make_dims_unique():
-                    # Dimensions renamed due to collisions. Need to
-                    # cast.
+                if schema.make_unique():
+                    # Dimensions or attributes were renamed due to
+                    # collisions. We need to cast.
                     query = 'cast({}, {:h})'.format(query, schema)
 
+                # apply: add dimensions as attributes
+                # project: place dimensions first
                 query = 'project(apply({}, {}), {})'.format(
                     query,
                     ', '.join('{0}, {0}'.format(d.name) for d in schema.dims),
                     ', '.join(i.name for i in itertools.chain(
                         schema.dims, schema.atts)))
 
+                # update schema after apply
                 schema.make_dims_atts()
 
             # Execute Query and Download content
