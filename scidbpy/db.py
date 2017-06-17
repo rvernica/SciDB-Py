@@ -1,5 +1,4 @@
-"""
-Connect to SciDB
+"""Connect to SciDB
 ----------------
 
 Connect to SciDB using "connect()" or "DB()":
@@ -365,6 +364,7 @@ array([(0, 10, 5), (1, 11, 6), (2, 12, 7)],
       dtype=[('i', '<i8'), ('x', 'i1'), ('y', '<i8')])
 
 >>> db.build('<x:int8 not null>[i=0:2]', 'i + 10').store('foo')
+Array(DB('http://localhost:8080', None, None, None, None, None), 'foo')
 
 >>> db.scan(db.arrays.foo)[:]
 ... # doctest: +NORMALIZE_WHITESPACE
@@ -378,7 +378,18 @@ array([(0, 10, 11), (1, 11, 12), (2, 12, 13)],
 
 >>> db.remove(db.arrays.foo)
 
-Input and load operators can be used to upload data:
+Input and load operators can be used to upload data. If the schema and
+the format are not specified, they are inferred from the uploaded
+data. If an array name is not specified for the store operator, an
+array name is generated. Arrays with generated names are removed when
+the returned Array object is garbage collected. This behavior can be
+changed by specifying "gc=False" to the store operator:
+
+>>> ar = db.input(upload_data=numpy.arange(3)).store()
+>>> ar
+... # doctest: +ELLIPSIS
+Array(DB('http://localhost:8080', None, None, None, None, None), 'py_..._2')
+>>> del ar
 
 >>> db.input('<x:int64>[i]', upload_data=numpy.arange(3))[:]
 ... # doctest: +NORMALIZE_WHITESPACE
@@ -386,6 +397,8 @@ array([(0, (255, 0)), (1, (255, 1)), (2, (255, 2))],
       dtype=[('i', '<i8'), ('x', [('null', 'u1'), ('val', '<i8')])])
 
 >>> db.input('<x:int64>[i]', upload_data=numpy.arange(3)).store(db.arrays.foo)
+... # doctest: +NORMALIZE_WHITESPACE
+Array(DB('http://localhost:8080', None, None, None, None, None), 'foo')
 
 >>> db.load(db.arrays.foo, upload_data=numpy.arange(3))
 
@@ -403,6 +416,7 @@ array([(0, (255, 0)), (1, (255, 1)), (2, (255, 2)), (3, (255, 3)),
 >>> db.input('<i:int64 not null, x:int64>[j]', upload_data=db.arrays.foo[:]
 ...  ).redimension(db.arrays.foo
 ...  ).store('bar')
+Array(DB('http://localhost:8080', None, None, None, None, None), 'bar')
 
 >>> numpy.all(db.arrays.bar[:] == db.arrays.foo[:])
 True
@@ -505,7 +519,7 @@ class DB(object):
         # get list of operators and macros
         id = self._shim(Shim.new_session).text
 
-        self.id = self._shim(
+        self._id = self._shim(
             Shim.execute_query,
             id=id,
             query="project(list('operators'), name)",
@@ -531,7 +545,7 @@ class DB(object):
         self._dir.sort()
 
         self._lock = threading.Lock()
-        self._last_array_id = 0
+        self._array_cnt = 0
 
     def __iter__(self):
         return (i for i in (
@@ -723,12 +737,16 @@ verify     = {}'''.format(*self)
         object is garbage collected (default `True`)
         """
         if name is None:
-            name = 'py_{db_id}_{array_id}'.format(
-                db_id=self.id,
-                array_id=self._next_array_id())
+            name = self.next_array_name()
         self.iquery("store(input({sch}, '{fn}', 0, '{fmt}'), " + name + ")",
                     upload_data=upload_data)
         return Array(self, name, gc)
+
+    def next_array_name(self):
+        # Thread-safe counter
+        with self._lock:
+            self._array_cnt += 1
+            return 'py_{}_{}'.format(self._id, self._array_cnt)
 
     def _shim(self, endpoint, **kwargs):
 
@@ -757,12 +775,6 @@ verify     = {}'''.format(*self)
         return [line.split('\t') if '\t' in line else line
                 for line in self._shim(
                         Shim.read_bytes, id=id, n=0).text.splitlines()]
-
-    def _next_array_id(self):
-        """Thread-safe counter for array names"""
-        with self._lock:
-            self._last_array_id += 1
-            return self._last_array_id
 
 
 class Arrays(object):
@@ -873,27 +885,54 @@ class Operator(object):
         """
         self.args.extend(args)
 
-        if self.name.lower() == 'create_array' \
-           and len(self.args) < 3:
-            # Set temporary = False for create array
+        # Special case: -- - create_array - --
+        if self.name.lower() == 'create_array' and len(self.args) < 3:
+            # Set "temporary"
             self.args.append(False)
 
-        if self.name.lower() in ('input', 'load'):
-            # TODO pass through second argument if it is string
+        # Special case: -- - input & load - --
+        elif self.name.lower() in ('input', 'load'):
+            # Set upload data
             if 'upload_data' in kwargs.keys():
                 self.upload_data = kwargs['upload_data']
-                # add placeholder for input_file
-                self.args = [self.args[0], "'{fn}'"] + self.args[1:]
-            if len(self.args) < 4:
-                if len(self.args) < 3:
-                    self.args.append(0)      # instance_id
-                self.args.append("'{fmt}'")  # format
 
+            ln = len(self.args)
+            # Check if "format" is present (4th argument)
+            if ln < 4:
+                # Check if "instance_id" is present (3rd argument)
+                if ln < 3:
+                    # Check if "input_file" is present (2nd argument)
+                    if ln < 2:
+                        # Check if "existing_array|annonymous_schema"
+                        # is present (1st argument)
+                        if ln < 1:
+                            self.args.append('{sch}')  # annonymous_schema
+                        self.args.append("'{fn}'")     # input_file
+                    self.args.append(0)                # instance_id
+                self.args.append("'{fmt}'")            # format
+
+        # Special case: -- - store - --
+        elif self.name.lower() == 'store' and len(self.args) < 2:
+            # Set "named_array"
+            self.args.append(self.db.next_array_name())
+            # Garbage collect (if not specified)
+            if 'gc' not in kwargs.keys():
+                kwargs['gc'] = True
+
+        # Lazy or hungry
         if self.is_lazy:
             return self
         else:
-            return self.db.iquery(str(self),
-                                  upload_data=self.upload_data)
+            self.db.iquery(str(self), upload_data=self.upload_data)
+
+            # Special case: -- - store - --
+            if self.name.lower() == 'store':
+                if isinstance(self.args[1], Array):
+                    return self.args[1]
+                else:
+                    return Array(self.db,
+                                 self.args[1],
+                                 kwargs.get('gc', False))
 
     def __getitem__(self, key):
         return self.fetch()[key]
