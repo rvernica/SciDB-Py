@@ -233,25 +233,7 @@ Download as Pandas DataFrame:
 Upload Data to SciDB
 --------------------
 
-To upload data to SciDB use the "upload" function. An array name can
-be specified or an unique array name is generated. By default arrays
-created by upload are removed when the Array object is garbage
-collected:
-
->>> ar = db.upload(numpy.arange(3))
->>> ar
-... # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
-Array(DB('http://localhost:8080', None, None, None, None, None),
-      'py_..._1')
->>> ar[:]
-... # doctest: +NORMALIZE_WHITESPACE
-array([(0, 0), (1, 1), (2, 2)],
-      dtype=[('i', '<i8'), ('x', '<i8')])
->>> ar = None
->>> dir(db.arrays)
-[]
-
-Data can also be uploaded using the "iquery" function, by providing an
+Data can be uploaded using the "iquery" function, by providing an
 "upload_data" argument.
 
 Provide SciDB input/store/insert/load query, NumPy array, and,
@@ -388,7 +370,7 @@ changed by specifying "gc=False" to the store operator:
 >>> ar = db.input(upload_data=numpy.arange(3)).store()
 >>> ar
 ... # doctest: +ELLIPSIS
-Array(DB('http://localhost:8080', None, None, None, None, None), 'py_..._2')
+Array(DB('http://localhost:8080', None, None, None, None, None), 'py_...')
 >>> del ar
 
 >>> db.input('<x:int64>[i]', upload_data=numpy.arange(3))[:]
@@ -724,23 +706,6 @@ verify     = {}'''.format(*self)
         ret = self._shim_readlines(id=id)
         self._shim(Shim.release_session, id=id)
         return ret
-
-    def upload(self, upload_data, name=None, gc=True):
-        """Upload data as new SciDB array
-
-        :param numpy upload_data: Data to upload to SciDB
-
-        :param string name: Name of the new SciDB array. If `None` a
-        unique array name is created and used (default `None`)
-
-        :param bool gc: If `True`, the array is removed when the Array
-        object is garbage collected (default `True`)
-        """
-        if name is None:
-            name = self.next_array_name()
-        self.iquery("store(input({sch}, '{fn}', 0, '{fmt}'), " + name + ")",
-                    upload_data=upload_data)
-        return Array(self, name, gc)
 
     def next_array_name(self):
         # Thread-safe counter
