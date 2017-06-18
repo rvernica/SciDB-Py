@@ -1,0 +1,677 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>User Guide &#8212; SciDB-Py 16.9 documentation</title>
+    
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '16.9',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="SciDB-Py API" href="api.html" />
+    <link rel="prev" title="SciDB-Py Documentation" href="index.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="module-scidbpy">
+<span id="user-guide"></span><h1>User Guide<a class="headerlink" href="#module-scidbpy" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="quick-start">
+<h2>Quick Start<a class="headerlink" href="#quick-start" title="Permalink to this headline">¶</a></h2>
+<p>Connect to SciDB and run a query:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">scidbpy</span> <span class="k">import</span> <span class="n">connect</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">db</span> <span class="o">=</span> <span class="n">connect</span><span class="p">(</span><span class="s1">&#39;http://localhost:8080&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">db</span><span class="o">.</span><span class="n">iquery</span><span class="p">(</span><span class="s1">&#39;store(build(&lt;x:int64&gt;[i=0:2], i), foo)&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Download data from SciDB:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">db</span><span class="o">.</span><span class="n">arrays</span><span class="o">.</span><span class="n">foo</span><span class="p">[:]</span>  
+<span class="go">array([(0, (255, 0)), (1, (255, 1)), (2, (255, 2))],</span>
+<span class="go">      dtype=[(&#39;i&#39;, &#39;&lt;i8&#39;), (&#39;x&#39;, [(&#39;null&#39;, &#39;u1&#39;), (&#39;val&#39;, &#39;&lt;i8&#39;)])])</span>
+</pre></div>
+</div>
+<p>Upload data to SciDB and create an array:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">numpy</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ar</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">input</span><span class="p">(</span><span class="n">upload_data</span><span class="o">=</span><span class="n">numpy</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">3</span><span class="p">))</span><span class="o">.</span><span class="n">store</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">ar</span><span class="p">)</span>  
+<span class="go">py_..._1</span>
+</pre></div>
+</div>
+<p>Run a query with chained operators and download the resulting array:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">db</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">ar</span><span class="p">,</span> <span class="s1">&#39;foo&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="s1">&#39;j&#39;</span><span class="p">,</span> <span class="n">ar</span><span class="o">.</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)[:]</span>
+<span class="gp">... </span>
+<span class="go">array([(0, 0, (255, 0), 1), (1, 1, (255, 1), 2), (2, 2, (255, 2), 3)],</span>
+<span class="go">      dtype=[(&#39;i&#39;, &#39;&lt;i8&#39;),</span>
+<span class="go">             (&#39;x&#39;, &#39;&lt;i8&#39;),</span>
+<span class="go">             (&#39;x_1&#39;, [(&#39;null&#39;, &#39;u1&#39;), (&#39;val&#39;, &#39;&lt;i8&#39;)]),</span>
+<span class="go">             (&#39;j&#39;, &#39;&lt;i8&#39;)])</span>
+</pre></div>
+</div>
+<p>Cleanup:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">db</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">db</span><span class="o">.</span><span class="n">arrays</span><span class="o">.</span><span class="n">foo</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">del</span> <span class="n">ar</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="connect-to-scidb">
+<h2>Connect to SciDB<a class="headerlink" href="#connect-to-scidb" title="Permalink to this headline">¶</a></h2>
+<p>Connect to SciDB using <a class="reference internal" href="api.html#scidbpy.db.connect" title="scidbpy.db.connect"><code class="xref py py-func docutils literal"><span class="pre">connect()</span></code></a>:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">scidbpy</span> <span class="k">import</span> <span class="n">connect</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">db</span> <span class="o">=</span> <span class="n">connect</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">db</span> <span class="o">=</span> <span class="n">connect</span><span class="p">(</span><span class="s1">&#39;http://localhost:8080&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><code class="docutils literal"><span class="pre">connect()</span></code> is aliased to the constructor of the
+<a class="reference internal" href="api.html#scidbpy.db.DB" title="scidbpy.db.DB"><code class="xref py py-class docutils literal"><span class="pre">DB</span></code></a> class. See <a class="reference internal" href="api.html#scidbpy.db.DB" title="scidbpy.db.DB"><code class="xref py py-meth docutils literal"><span class="pre">DB()</span></code></a> for
+the complete set of arguments that can be provided to
+<code class="docutils literal"><span class="pre">connect</span></code>. <code class="docutils literal"><span class="pre">http://localhost:8080</span></code> is the default connection URL
+is none is provided.</p>
+<p>Display information about the <code class="docutils literal"><span class="pre">db</span></code> object:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">db</span>
+<span class="go">DB(&#39;http://localhost:8080&#39;, None, None, None, None, None)</span>
+</pre></div>
+</div>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">db</span><span class="p">)</span>
+<span class="go">scidb_url  = &#39;http://localhost:8080&#39;</span>
+<span class="go">scidb_auth = None</span>
+<span class="go">http_auth  = None</span>
+<span class="go">role       = None</span>
+<span class="go">namespace  = None</span>
+<span class="go">verify     = None</span>
+</pre></div>
+</div>
+<div class="section" id="advanced-connection">
+<h3>Advanced Connection<a class="headerlink" href="#advanced-connection" title="Permalink to this headline">¶</a></h3>
+<p>Provide <a class="reference external" href="https://github.com/Paradigm4/shim">Shim</a> credentials:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">db</span> <span class="o">=</span> <span class="n">connect</span><span class="p">(</span><span class="n">http_auth</span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;foo&#39;</span><span class="p">,</span> <span class="s1">&#39;bar&#39;</span><span class="p">))</span>
+</pre></div>
+</div>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">db</span>
+<span class="go">DB(&#39;http://localhost:8080&#39;, None, (&#39;foo&#39;, PASSWORD_PROVIDED), None, None, None)</span>
+</pre></div>
+</div>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">db</span><span class="p">)</span>
+<span class="go">scidb_url  = &#39;http://localhost:8080&#39;</span>
+<span class="go">scidb_auth = None</span>
+<span class="go">http_auth  = (&#39;foo&#39;, PASSWORD_PROVIDED)</span>
+<span class="go">role       = None</span>
+<span class="go">namespace  = None</span>
+<span class="go">verify     = None</span>
+</pre></div>
+</div>
+<p>To prompt the user for the password, use:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">getpass</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">db</span> <span class="o">=</span> <span class="n">connect</span><span class="p">(</span><span class="n">http_auth</span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;foo&#39;</span><span class="p">,</span> <span class="n">getpass</span><span class="o">.</span><span class="n">getpass</span><span class="p">()))</span> 
+<span class="go">Password:</span>
+</pre></div>
+</div>
+<p>Use SSL:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">db_ssl</span> <span class="o">=</span> <span class="n">connect</span><span class="p">(</span><span class="s1">&#39;https://localhost:8083&#39;</span><span class="p">,</span> <span class="n">verify</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">db_ssl</span><span class="p">)</span>
+<span class="go">scidb_url  = &#39;https://localhost:8083&#39;</span>
+<span class="go">scidb_auth = None</span>
+<span class="go">http_auth  = None</span>
+<span class="go">role       = None</span>
+<span class="go">namespace  = None</span>
+<span class="go">verify     = False</span>
+</pre></div>
+</div>
+<p>See Python <a class="reference external" href="http://docs.python-requests.org/en/master/">requests</a>
+library <a class="reference external" href="http://docs.python-requests.org/en/master/user/advanced/#ssl-cert-verification">SSL Cert Verification</a> section for details on the <code class="docutils literal"><span class="pre">verify</span></code>
+argument.</p>
+<p>Use SSL and SciDB credentials:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">db_ssl</span> <span class="o">=</span> <span class="n">connect</span><span class="p">(</span>
+<span class="gp">... </span>  <span class="s1">&#39;https://localhost:8083&#39;</span><span class="p">,</span> <span class="n">scidb_auth</span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;foo&#39;</span><span class="p">,</span> <span class="s1">&#39;bar&#39;</span><span class="p">),</span> <span class="n">verify</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">db_ssl</span><span class="p">)</span>
+<span class="go">scidb_url  = &#39;https://localhost:8083&#39;</span>
+<span class="go">scidb_auth = (&#39;foo&#39;, PASSWORD_PROVIDED)</span>
+<span class="go">http_auth  = None</span>
+<span class="go">role       = None</span>
+<span class="go">namespace  = None</span>
+<span class="go">verify     = False</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="use-scidb-arrays">
+<h2>Use SciDB Arrays<a class="headerlink" href="#use-scidb-arrays" title="Permalink to this headline">¶</a></h2>
+<p>SciDB arrays can be accessed using <code class="docutils literal"><span class="pre">DB.arrays</span></code>:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">db</span> <span class="o">=</span> <span class="n">connect</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">db</span><span class="o">.</span><span class="n">iquery</span><span class="p">(</span><span class="s1">&#39;store(build(&lt;x:int64&gt;[i=0:2], i), foo)&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="nb">dir</span><span class="p">(</span><span class="n">db</span><span class="o">.</span><span class="n">arrays</span><span class="p">)</span>
+<span class="gp">... </span>
+<span class="go">[...&#39;foo&#39;]</span>
+</pre></div>
+</div>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="nb">dir</span><span class="p">(</span><span class="n">db</span><span class="o">.</span><span class="n">arrays</span><span class="o">.</span><span class="n">foo</span><span class="p">)</span>
+<span class="gp">... </span>
+<span class="go">[...&#39;i&#39;, ...&#39;x&#39;]</span>
+</pre></div>
+</div>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">db</span><span class="o">.</span><span class="n">arrays</span><span class="o">.</span><span class="n">foo</span><span class="p">[:]</span>
+<span class="gp">... </span>
+<span class="go">array([(0, (255, 0)), (1, (255, 1)), (2, (255, 2))],</span>
+<span class="go">      dtype=[(&#39;i&#39;, &#39;&lt;i8&#39;), (&#39;x&#39;, [(&#39;null&#39;, &#39;u1&#39;), (&#39;val&#39;, &#39;&lt;i8&#39;)])])</span>
+</pre></div>
+</div>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">db</span><span class="o">.</span><span class="n">iquery</span><span class="p">(</span><span class="s1">&#39;remove(foo)&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="nb">dir</span><span class="p">(</span><span class="n">db</span><span class="o">.</span><span class="n">arrays</span><span class="p">)</span>
+<span class="go">[]</span>
+</pre></div>
+</div>
+<p>Arrays specified explicitly are not checked:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">db</span><span class="o">.</span><span class="n">arrays</span><span class="o">.</span><span class="n">foo</span><span class="p">)</span>
+<span class="go">foo</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">db</span><span class="o">.</span><span class="n">arrays</span><span class="o">.</span><span class="n">bar</span><span class="p">)</span>
+<span class="go">bar</span>
+</pre></div>
+</div>
+<p>In IPython, you can use &lt;TAB&gt; for auto-completion of array names,
+array dimensions, and array attributes:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">In</span> <span class="p">[</span><span class="mi">1</span><span class="p">]:</span> <span class="n">db</span><span class="o">.</span><span class="n">arrays</span><span class="o">.&lt;</span><span class="n">TAB</span><span class="o">&gt;</span>
+<span class="n">In</span> <span class="p">[</span><span class="mi">1</span><span class="p">]:</span> <span class="n">db</span><span class="o">.</span><span class="n">arrays</span><span class="o">.</span><span class="n">foo</span>
+<span class="n">In</span> <span class="p">[</span><span class="mi">2</span><span class="p">]:</span> <span class="n">db</span><span class="o">.</span><span class="n">arrays</span><span class="o">.</span><span class="n">foo</span><span class="o">.&lt;</span><span class="n">TAB</span><span class="o">&gt;</span>
+<span class="n">In</span> <span class="p">[</span><span class="mi">2</span><span class="p">]:</span> <span class="n">db</span><span class="o">.</span><span class="n">arrays</span><span class="o">.</span><span class="n">foo</span><span class="o">.</span><span class="n">x</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="use-scidb-operators">
+<h2>Use SciDB Operators<a class="headerlink" href="#use-scidb-operators" title="Permalink to this headline">¶</a></h2>
+<p>At connection time, the library downloads the list of available SciDB
+operators and macros and makes them available through the <code class="docutils literal"><span class="pre">DB</span></code> class
+instance:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="nb">dir</span><span class="p">(</span><span class="n">db</span><span class="p">)</span>  
+<span class="go">[...&#39;aggregate&#39;,</span>
+<span class="go"> ...&#39;apply&#39;,</span>
+<span class="go"> ...</span>
+<span class="go"> ...&#39;xgrid&#39;]</span>
+</pre></div>
+</div>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">db</span><span class="o">.</span><span class="n">apply</span>  
+<span class="go">Operator(db=DB(&#39;http://localhost:8080&#39;, None, None, None, None, None),</span>
+<span class="go">         name=&#39;apply&#39;,</span>
+<span class="go">         args=[])</span>
+</pre></div>
+</div>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">db</span><span class="o">.</span><span class="n">apply</span><span class="p">)</span>
+<span class="go">apply()</span>
+</pre></div>
+</div>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">db</span><span class="o">.</span><span class="n">missing</span>
+<span class="gt">Traceback (most recent call last):</span>
+    <span class="o">...</span>
+<span class="gr">AttributeError</span>: <span class="n">&#39;DB&#39; object has no attribute &#39;missing&#39;</span>
+</pre></div>
+</div>
+<p>In IPython, you can use &lt;TAB&gt; for auto-completion of operator names:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">In</span> <span class="p">[</span><span class="mi">1</span><span class="p">]:</span> <span class="n">db</span><span class="o">.&lt;</span><span class="n">TAB</span><span class="o">&gt;</span>
+<span class="n">In</span> <span class="p">[</span><span class="mi">1</span><span class="p">]:</span> <span class="n">db</span><span class="o">.</span><span class="n">apply</span>
+</pre></div>
+</div>
+<p>The operators can be execute immediately or can be lazy and executed
+at a later time. Operators that return arrays are lazy operators (e.g.,
+<code class="docutils literal"><span class="pre">apply</span></code>, <code class="docutils literal"><span class="pre">scan</span></code>, etc.). Operator which do not return arrays
+execute immediately (e.g., <code class="docutils literal"><span class="pre">create_array</span></code>, <code class="docutils literal"><span class="pre">remove</span></code>, etc.).</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">db</span><span class="o">.</span><span class="n">create_array</span><span class="p">(</span><span class="s1">&#39;foo&#39;</span><span class="p">,</span> <span class="s1">&#39;&lt;x:int64&gt;[i]&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">dir</span><span class="p">(</span><span class="n">db</span><span class="o">.</span><span class="n">arrays</span><span class="p">)</span>  
+<span class="go">[...&#39;foo&#39;]</span>
+</pre></div>
+</div>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">db</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">db</span><span class="o">.</span><span class="n">arrays</span><span class="o">.</span><span class="n">foo</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">dir</span><span class="p">(</span><span class="n">db</span><span class="o">.</span><span class="n">arrays</span><span class="p">)</span>
+<span class="go">[]</span>
+</pre></div>
+</div>
+<div class="section" id="download-data-from-scidb">
+<h3>Download Data from SciDB<a class="headerlink" href="#download-data-from-scidb" title="Permalink to this headline">¶</a></h3>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">db</span><span class="o">.</span><span class="n">build</span><span class="p">(</span><span class="s1">&#39;&lt;x:int8 not null&gt;[i=0:2]&#39;</span><span class="p">,</span> <span class="s1">&#39;i + 10&#39;</span><span class="p">)[:]</span>
+<span class="gp">... </span>
+<span class="go">array([(0, 10), (1, 11), (2, 12)],</span>
+<span class="go">      dtype=[(&#39;i&#39;, &#39;&lt;i8&#39;), (&#39;x&#39;, &#39;i1&#39;)])</span>
+</pre></div>
+</div>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">db</span><span class="o">.</span><span class="n">build</span><span class="p">(</span><span class="s1">&#39;&lt;x:int8 not null&gt;[i=0:2]&#39;</span><span class="p">,</span> <span class="s1">&#39;i + 10&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">fetch</span><span class="p">(</span><span class="n">as_dataframe</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="go">   i   x</span>
+<span class="go">0  0  10</span>
+<span class="go">1  1  11</span>
+<span class="go">2  2  12</span>
+</pre></div>
+</div>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">db</span><span class="o">.</span><span class="n">build</span><span class="p">(</span><span class="s1">&#39;&lt;x:int8 not null&gt;[i=0:2]&#39;</span><span class="p">,</span> <span class="s1">&#39;i + 10&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="s1">&#39;y&#39;</span><span class="p">,</span> <span class="s1">&#39;x - 5&#39;</span><span class="p">)[:]</span>
+<span class="gp">... </span>
+<span class="go">array([(0, 10, 5), (1, 11, 6), (2, 12, 7)],</span>
+<span class="go">      dtype=[(&#39;i&#39;, &#39;&lt;i8&#39;), (&#39;x&#39;, &#39;i1&#39;), (&#39;y&#39;, &#39;&lt;i8&#39;)])</span>
+</pre></div>
+</div>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">db</span><span class="o">.</span><span class="n">build</span><span class="p">(</span><span class="s1">&#39;&lt;x:int8 not null&gt;[i=0:2]&#39;</span><span class="p">,</span> <span class="s1">&#39;i + 10&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="s1">&#39;foo&#39;</span><span class="p">)</span>
+<span class="go">Array(DB(&#39;http://localhost:8080&#39;, None, None, None, None, None), &#39;foo&#39;)</span>
+</pre></div>
+</div>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">db</span><span class="o">.</span><span class="n">scan</span><span class="p">(</span><span class="n">db</span><span class="o">.</span><span class="n">arrays</span><span class="o">.</span><span class="n">foo</span><span class="p">)[:]</span>
+<span class="gp">... </span>
+<span class="go">array([(0, 10), (1, 11), (2, 12)],</span>
+<span class="go">      dtype=[(&#39;i&#39;, &#39;&lt;i8&#39;), (&#39;x&#39;, &#39;i1&#39;)])</span>
+</pre></div>
+</div>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">db</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">db</span><span class="o">.</span><span class="n">arrays</span><span class="o">.</span><span class="n">foo</span><span class="p">,</span> <span class="s1">&#39;y&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">arrays</span><span class="o">.</span><span class="n">foo</span><span class="o">.</span><span class="n">x</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)[:]</span>
+<span class="gp">... </span>
+<span class="go">array([(0, 10, 11), (1, 11, 12), (2, 12, 13)],</span>
+<span class="go">      dtype=[(&#39;i&#39;, &#39;&lt;i8&#39;), (&#39;x&#39;, &#39;i1&#39;), (&#39;y&#39;, &#39;&lt;i8&#39;)])</span>
+</pre></div>
+</div>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">db</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">db</span><span class="o">.</span><span class="n">arrays</span><span class="o">.</span><span class="n">foo</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="upload-data-to-scidb">
+<h3>Upload Data to SciDB<a class="headerlink" href="#upload-data-to-scidb" title="Permalink to this headline">¶</a></h3>
+<p><code class="docutils literal"><span class="pre">input</span></code> and <code class="docutils literal"><span class="pre">load</span></code> operators can be used to upload data. If the
+schema and the format are not specified, they are inferred from the
+uploaded data. If an array name is not specified for the store
+operator, an array name is generated. Arrays with generated names are
+removed when the returned Array object is garbage collected. This
+behavior can be changed by specifying the <code class="docutils literal"><span class="pre">gc=False</span></code> argument to the
+store operator:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">ar</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">input</span><span class="p">(</span><span class="n">upload_data</span><span class="o">=</span><span class="n">numpy</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">3</span><span class="p">))</span><span class="o">.</span><span class="n">store</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ar</span>  
+<span class="go">Array(DB(&#39;http://localhost:8080&#39;, None, None, None, None, None), &#39;py_...&#39;)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">del</span> <span class="n">ar</span>
+</pre></div>
+</div>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">db</span><span class="o">.</span><span class="n">input</span><span class="p">(</span><span class="s1">&#39;&lt;x:int64&gt;[i]&#39;</span><span class="p">,</span> <span class="n">upload_data</span><span class="o">=</span><span class="n">numpy</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">3</span><span class="p">))[:]</span>
+<span class="gp">... </span>
+<span class="go">array([(0, (255, 0)), (1, (255, 1)), (2, (255, 2))],</span>
+<span class="go">      dtype=[(&#39;i&#39;, &#39;&lt;i8&#39;), (&#39;x&#39;, [(&#39;null&#39;, &#39;u1&#39;), (&#39;val&#39;, &#39;&lt;i8&#39;)])])</span>
+</pre></div>
+</div>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">db</span><span class="o">.</span><span class="n">input</span><span class="p">(</span><span class="s1">&#39;&lt;x:int64&gt;[i]&#39;</span><span class="p">,</span> <span class="n">upload_data</span><span class="o">=</span><span class="n">numpy</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">3</span><span class="p">))</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">db</span><span class="o">.</span><span class="n">arrays</span><span class="o">.</span><span class="n">foo</span><span class="p">)</span>
+<span class="gp">... </span>
+<span class="go">Array(DB(&#39;http://localhost:8080&#39;, None, None, None, None, None), &#39;foo&#39;)</span>
+</pre></div>
+</div>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">db</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">db</span><span class="o">.</span><span class="n">arrays</span><span class="o">.</span><span class="n">foo</span><span class="p">,</span> <span class="n">upload_data</span><span class="o">=</span><span class="n">numpy</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">3</span><span class="p">))</span>
+</pre></div>
+</div>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">db</span><span class="o">.</span><span class="n">input</span><span class="p">(</span><span class="s1">&#39;&lt;x:int64&gt;[j]&#39;</span><span class="p">,</span> <span class="n">upload_data</span><span class="o">=</span><span class="n">numpy</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">6</span><span class="p">)</span>
+<span class="gp">... </span> <span class="p">)</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="s1">&#39;i&#39;</span><span class="p">,</span> <span class="s1">&#39;j + 3&#39;</span>
+<span class="gp">... </span> <span class="p">)</span><span class="o">.</span><span class="n">redimension</span><span class="p">(</span><span class="n">db</span><span class="o">.</span><span class="n">arrays</span><span class="o">.</span><span class="n">foo</span>
+<span class="gp">... </span> <span class="p">)</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="n">db</span><span class="o">.</span><span class="n">arrays</span><span class="o">.</span><span class="n">foo</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">db</span><span class="o">.</span><span class="n">arrays</span><span class="o">.</span><span class="n">foo</span><span class="p">[:]</span>  
+<span class="go">array([(0, (255, 0)), (1, (255, 1)), (2, (255, 2)), (3, (255, 3)),</span>
+<span class="go">       (4, (255, 4)), (5, (255, 5))],</span>
+<span class="go">      dtype=[(&#39;i&#39;, &#39;&lt;i8&#39;), (&#39;x&#39;, [(&#39;null&#39;, &#39;u1&#39;), (&#39;val&#39;, &#39;&lt;i8&#39;)])])</span>
+</pre></div>
+</div>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">db</span><span class="o">.</span><span class="n">input</span><span class="p">(</span><span class="s1">&#39;&lt;i:int64 not null, x:int64&gt;[j]&#39;</span><span class="p">,</span> <span class="n">upload_data</span><span class="o">=</span><span class="n">db</span><span class="o">.</span><span class="n">arrays</span><span class="o">.</span><span class="n">foo</span><span class="p">[:]</span>
+<span class="gp">... </span> <span class="p">)</span><span class="o">.</span><span class="n">redimension</span><span class="p">(</span><span class="n">db</span><span class="o">.</span><span class="n">arrays</span><span class="o">.</span><span class="n">foo</span>
+<span class="gp">... </span> <span class="p">)</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="s1">&#39;bar&#39;</span><span class="p">)</span>
+<span class="go">Array(DB(&#39;http://localhost:8080&#39;, None, None, None, None, None), &#39;bar&#39;)</span>
+</pre></div>
+</div>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">numpy</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">db</span><span class="o">.</span><span class="n">arrays</span><span class="o">.</span><span class="n">bar</span><span class="p">[:]</span> <span class="o">==</span> <span class="n">db</span><span class="o">.</span><span class="n">arrays</span><span class="o">.</span><span class="n">foo</span><span class="p">[:])</span>
+<span class="go">True</span>
+</pre></div>
+</div>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">db</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">db</span><span class="o">.</span><span class="n">arrays</span><span class="o">.</span><span class="n">foo</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">db</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">db</span><span class="o">.</span><span class="n">arrays</span><span class="o">.</span><span class="n">bar</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>For files already available on the server the <code class="docutils literal"><span class="pre">input</span></code> or <code class="docutils literal"><span class="pre">load</span></code>
+operators can be invoked with the full set of arguments supported by
+SciDB. Arguments that need to be quoted in SciDB need to be
+double-quoted in SciDB-Py. For example:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">db</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s1">&#39;foo&#39;</span><span class="p">,</span> <span class="s2">&quot;&#39;/data.csv&#39;&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;&#39;CSV&#39;&quot;</span><span class="p">)</span>  
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="the-iquery-function">
+<h2>The iquery Function<a class="headerlink" href="#the-iquery-function" title="Permalink to this headline">¶</a></h2>
+<p>Use the <a class="reference internal" href="api.html#scidbpy.db.DB.iquery" title="scidbpy.db.DB.iquery"><code class="xref py py-meth docutils literal"><span class="pre">DB.iquery()</span></code></a> function to execute
+literal queries against SciDB:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">db</span><span class="o">.</span><span class="n">iquery</span><span class="p">(</span><span class="s1">&#39;store(build(&lt;x:int64&gt;[i=0:2], i), foo)&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="section" id="id1">
+<h3>Download Data from SciDB<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h3>
+<p>The <code class="docutils literal"><span class="pre">iquery</span></code> function can be used to download data from SciDB by
+specifying the <code class="docutils literal"><span class="pre">fetch=True</span></code> argument:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">db</span><span class="o">.</span><span class="n">iquery</span><span class="p">(</span><span class="s1">&#39;scan(foo)&#39;</span><span class="p">,</span> <span class="n">fetch</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>  
+<span class="go">array([(0, (255, 0)), (1, (255, 1)), (2, (255, 2))],</span>
+<span class="go">      dtype=[(&#39;i&#39;, &#39;&lt;i8&#39;), (&#39;x&#39;, [(&#39;null&#39;, &#39;u1&#39;), (&#39;val&#39;, &#39;&lt;i8&#39;)])])</span>
+</pre></div>
+</div>
+<p>To avoid downloading the dimension information and only download the
+attributes, use the <code class="docutils literal"><span class="pre">atts_only=True</span></code> argument:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">db</span><span class="o">.</span><span class="n">iquery</span><span class="p">(</span><span class="s1">&#39;scan(foo)&#39;</span><span class="p">,</span> <span class="n">fetch</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">atts_only</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="gp">... </span>
+<span class="go">array([((255, 0),), ((255, 1),), ((255, 2),)],</span>
+<span class="go">      dtype=[(&#39;x&#39;, [(&#39;null&#39;, &#39;u1&#39;), (&#39;val&#39;, &#39;&lt;i8&#39;)])])</span>
+</pre></div>
+</div>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">db</span><span class="o">.</span><span class="n">iquery</span><span class="p">(</span><span class="s1">&#39;remove(foo)&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Download operator output directly:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">db</span><span class="o">.</span><span class="n">iquery</span><span class="p">(</span><span class="s1">&#39;build(&lt;x:int64 not null&gt;[i=0:2], i)&#39;</span><span class="p">,</span>
+<span class="gp">... </span>          <span class="n">fetch</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>  
+<span class="go">array([(0, 0), (1, 1), (2, 2)],</span>
+<span class="go">      dtype=[(&#39;i&#39;, &#39;&lt;i8&#39;), (&#39;x&#39;, &#39;&lt;i8&#39;)])</span>
+</pre></div>
+</div>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">db</span><span class="o">.</span><span class="n">iquery</span><span class="p">(</span><span class="s1">&#39;build(&lt;x:int64 not null&gt;[i=0:2], i)&#39;</span><span class="p">,</span>
+<span class="gp">... </span>          <span class="n">fetch</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<span class="gp">... </span>          <span class="n">atts_only</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>  
+<span class="go">array([(0,), (1,), (2,)],</span>
+<span class="go">      dtype=[(&#39;x&#39;, &#39;&lt;i8&#39;)])</span>
+</pre></div>
+</div>
+<p>If dimension names collide with attribute names, unique dimension
+names are created:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">db</span><span class="o">.</span><span class="n">iquery</span><span class="p">(</span><span class="s1">&#39;apply(build(&lt;x:int64 not null&gt;[i=0:2], i), i, i)&#39;</span><span class="p">,</span> <span class="n">fetch</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="gp">... </span>
+<span class="go">array([(0, 0, 0), (1, 1, 1), (2, 2, 2)],</span>
+<span class="go">      dtype=[(&#39;i_1&#39;, &#39;&lt;i8&#39;), (&#39;x&#39;, &#39;&lt;i8&#39;), (&#39;i&#39;, &#39;&lt;i8&#39;)])</span>
+</pre></div>
+</div>
+<p>If schema is known, it can be provided to <code class="docutils literal"><span class="pre">iquery</span></code> using the
+<code class="docutils literal"><span class="pre">schema</span></code> argument. This speeds up the execution as <code class="docutils literal"><span class="pre">iquery</span></code> does
+not need to issue a <code class="docutils literal"><span class="pre">show()</span></code> query first in order to determine the
+schema:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">scidbpy</span> <span class="k">import</span> <span class="n">Schema</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">iquery</span><span class="p">(</span><span class="n">db</span><span class="p">,</span>
+<span class="gp">... </span>       <span class="s1">&#39;build(&lt;x:int64 not null&gt;[i=0:2], i)&#39;</span><span class="p">,</span>
+<span class="gp">... </span>       <span class="n">fetch</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<span class="gp">... </span>       <span class="n">schema</span><span class="o">=</span><span class="n">Schema</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span>
+<span class="gp">... </span>                     <span class="p">(</span><span class="n">Attribute</span><span class="p">(</span><span class="s1">&#39;x&#39;</span><span class="p">,</span> <span class="s1">&#39;int64&#39;</span><span class="p">,</span> <span class="n">not_null</span><span class="o">=</span><span class="kc">True</span><span class="p">),),</span>
+<span class="gp">... </span>                     <span class="p">(</span><span class="n">Dimension</span><span class="p">(</span><span class="s1">&#39;i&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">),)))</span>
+<span class="gp">... </span>
+<span class="go">array([(0, 0), (1, 1), (2, 2)],</span>
+<span class="go">      dtype=[(&#39;i&#39;, &#39;&lt;i8&#39;), (&#39;x&#39;, &#39;&lt;i8&#39;)])</span>
+</pre></div>
+</div>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">iquery</span><span class="p">(</span><span class="n">db</span><span class="p">,</span>
+<span class="gp">... </span>       <span class="s1">&#39;build(&lt;x:int64 not null&gt;[i=0:2], i)&#39;</span><span class="p">,</span>
+<span class="gp">... </span>       <span class="n">fetch</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<span class="gp">... </span>       <span class="n">atts_only</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<span class="gp">... </span>       <span class="n">schema</span><span class="o">=</span><span class="n">Schema</span><span class="o">.</span><span class="n">fromstring</span><span class="p">(</span><span class="s1">&#39;&lt;x:int64 not null&gt;[i=0:2]&#39;</span><span class="p">))</span>
+<span class="gp">... </span>
+<span class="go">array([(0,), (1,), (2,)],</span>
+<span class="go">      dtype=[(&#39;x&#39;, &#39;&lt;i8&#39;)])</span>
+</pre></div>
+</div>
+<p>Download as Pandas DataFrame:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">iquery</span><span class="p">(</span><span class="n">db</span><span class="p">,</span>
+<span class="gp">... </span>       <span class="s1">&#39;build(&lt;x:int64&gt;[i=0:2], i)&#39;</span><span class="p">,</span>
+<span class="gp">... </span>       <span class="n">fetch</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<span class="gp">... </span>       <span class="n">as_dataframe</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="gp">... </span>
+<span class="go">   i x</span>
+<span class="go">0  0 0.0</span>
+<span class="go">1  1 1.0</span>
+<span class="go">2  2 2.0</span>
+</pre></div>
+</div>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">iquery</span><span class="p">(</span><span class="n">db</span><span class="p">,</span>
+<span class="gp">... </span>       <span class="s1">&#39;build(&lt;x:int64&gt;[i=0:2], i)&#39;</span><span class="p">,</span>
+<span class="gp">... </span>       <span class="n">fetch</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<span class="gp">... </span>       <span class="n">atts_only</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<span class="gp">... </span>       <span class="n">as_dataframe</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="gp">... </span>
+<span class="go">   x</span>
+<span class="go">0  0.0</span>
+<span class="go">1  1.0</span>
+<span class="go">2  2.0</span>
+</pre></div>
+</div>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">iquery</span><span class="p">(</span><span class="n">db</span><span class="p">,</span>
+<span class="gp">... </span>       <span class="s1">&#39;build(&lt;x:int64&gt;[i=0:2], i)&#39;</span><span class="p">,</span>
+<span class="gp">... </span>       <span class="n">fetch</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<span class="gp">... </span>       <span class="n">atts_only</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<span class="gp">... </span>       <span class="n">as_dataframe</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<span class="gp">... </span>       <span class="n">dataframe_promo</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="gp">... </span>
+<span class="go">   x</span>
+<span class="go">0  (255, 0)</span>
+<span class="go">1  (255, 1)</span>
+<span class="go">2  (255, 2)</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="id2">
+<h3>Upload Data to SciDB<a class="headerlink" href="#id2" title="Permalink to this headline">¶</a></h3>
+<p>Data can be uploaded using the <code class="docutils literal"><span class="pre">iquery</span></code> function by providing an
+<code class="docutils literal"><span class="pre">upload_data</span></code> argument.</p>
+<div class="section" id="upload-numpy-arrays">
+<h4>Upload NumPy Arrays<a class="headerlink" href="#upload-numpy-arrays" title="Permalink to this headline">¶</a></h4>
+<p>Provide a SciDB <code class="docutils literal"><span class="pre">input</span></code>, <code class="docutils literal"><span class="pre">store</span></code>, <code class="docutils literal"><span class="pre">insert</span></code>, <code class="docutils literal"><span class="pre">load</span></code> query and a
+NumPy array. The upload array schema and format can be provided
+explicitly or as placeholders in the SciDB query string. If the schema
+or format are provided as placeholders, they are inferred from the
+NumPy array <em>dtype</em>. The placeholders are replaces with the explicit
+values by the <code class="docutils literal"><span class="pre">iquery</span></code> function.</p>
+<p>The SciDB query placeholders are:</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">'{fn}'</span></code>: <strong>mandatory</strong> placeholder which is replaced with the
+filename of the server file where the uploaded data is stored. It
+has to be <em>quoted</em> with single quotes in the query string.</li>
+<li><code class="docutils literal"><span class="pre">{sch}</span></code>: <em>optional</em> placeholder which is replaced with the upload
+array schema. It does <em>not</em> need to be quoted.</li>
+<li><code class="docutils literal"><span class="pre">'{fmt}'</span></code>: <em>optional</em> placeholder which is replaced with the
+upload array format.  It has to be <em>quoted</em> with single quotes in
+the query string.</li>
+</ul>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">db</span><span class="o">.</span><span class="n">iquery</span><span class="p">(</span><span class="s2">&quot;store(input(&lt;x:int64&gt;[i], &#39;</span><span class="si">{fn}</span><span class="s2">&#39;, 0, &#39;</span><span class="si">{fmt}</span><span class="s2">&#39;), foo)&quot;</span><span class="p">,</span>
+<span class="gp">... </span>          <span class="n">upload_data</span><span class="o">=</span><span class="n">numpy</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">3</span><span class="p">))</span>
+</pre></div>
+</div>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">db</span><span class="o">.</span><span class="n">arrays</span><span class="o">.</span><span class="n">foo</span><span class="p">[:]</span>  
+<span class="go">array([(0, (255, 0)), (1, (255, 1)), (2, (255, 2))],</span>
+<span class="go">      dtype=[(&#39;i&#39;, &#39;&lt;i8&#39;), (&#39;x&#39;, [(&#39;null&#39;, &#39;u1&#39;), (&#39;val&#39;, &#39;&lt;i8&#39;)])])</span>
+</pre></div>
+</div>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">db</span><span class="o">.</span><span class="n">iquery</span><span class="p">(</span><span class="s2">&quot;insert(input(</span><span class="si">{sch}</span><span class="s2">, &#39;</span><span class="si">{fn}</span><span class="s2">&#39;, 0, &#39;(int64)&#39;), foo)&quot;</span><span class="p">,</span>
+<span class="gp">... </span>          <span class="n">upload_data</span><span class="o">=</span><span class="n">numpy</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">3</span><span class="p">))</span>
+</pre></div>
+</div>
+<p>Optionally, a <code class="docutils literal"><span class="pre">Schema</span></code> object can be used to specify the upload data
+schema using the <code class="docutils literal"><span class="pre">upload_schema</span></code> argument:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">db</span><span class="o">.</span><span class="n">iquery</span><span class="p">(</span><span class="s2">&quot;load(foo, &#39;</span><span class="si">{fn}</span><span class="s2">&#39;, 0, &#39;</span><span class="si">{fmt}</span><span class="s2">&#39;)&quot;</span><span class="p">,</span>
+<span class="gp">... </span>          <span class="n">upload_data</span><span class="o">=</span><span class="n">numpy</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">3</span><span class="p">),</span>
+<span class="gp">... </span>          <span class="n">upload_schema</span><span class="o">=</span><span class="n">Schema</span><span class="o">.</span><span class="n">fromstring</span><span class="p">(</span><span class="s1">&#39;&lt;x:int64 not null&gt;[i]&#39;</span><span class="p">))</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="upload-binary-data">
+<h4>Upload Binary Data<a class="headerlink" href="#upload-binary-data" title="Permalink to this headline">¶</a></h4>
+<p>Provide SciDB <code class="docutils literal"><span class="pre">input</span></code>, <code class="docutils literal"><span class="pre">store</span></code>, <code class="docutils literal"><span class="pre">insert</span></code>, <code class="docutils literal"><span class="pre">load</span></code> query and
+binary data. The schema of the upload data needs to be provided either
+explicitly in the query string or using the <code class="docutils literal"><span class="pre">upload_schema</span></code>
+argument. If the schema is provided explicitly, the format needs to be
+provided explicitly in the query string as well:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">db</span><span class="o">.</span><span class="n">iquery</span><span class="p">(</span><span class="s2">&quot;store(input(</span><span class="si">{sch}</span><span class="s2">, &#39;</span><span class="si">{fn}</span><span class="s2">&#39;, 0, &#39;</span><span class="si">{fmt}</span><span class="s2">&#39;), foo)&quot;</span><span class="p">,</span>
+<span class="gp">... </span>          <span class="n">upload_data</span><span class="o">=</span><span class="n">numpy</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span><span class="o">.</span><span class="n">tobytes</span><span class="p">(),</span>
+<span class="gp">... </span>          <span class="n">upload_schema</span><span class="o">=</span><span class="n">Schema</span><span class="o">.</span><span class="n">fromstring</span><span class="p">(</span><span class="s1">&#39;&lt;x:int64 not null&gt;[i]&#39;</span><span class="p">))</span>
+</pre></div>
+</div>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">db</span><span class="o">.</span><span class="n">iquery</span><span class="p">(</span><span class="s2">&quot;insert(input(foo, &#39;</span><span class="si">{fn}</span><span class="s2">&#39;, 0, &#39;(int64)&#39;), foo)&quot;</span><span class="p">,</span>
+<span class="gp">... </span>          <span class="n">upload_data</span><span class="o">=</span><span class="n">numpy</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span><span class="o">.</span><span class="n">tobytes</span><span class="p">())</span>
+</pre></div>
+</div>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">db</span><span class="o">.</span><span class="n">iquery</span><span class="p">(</span><span class="s2">&quot;load(foo, &#39;</span><span class="si">{fn}</span><span class="s2">&#39;, 0, &#39;(int64)&#39;)&quot;</span><span class="p">,</span>
+<span class="gp">... </span>          <span class="n">upload_data</span><span class="o">=</span><span class="n">numpy</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span><span class="o">.</span><span class="n">tobytes</span><span class="p">())</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="upload-data-files">
+<h4>Upload Data Files<a class="headerlink" href="#upload-data-files" title="Permalink to this headline">¶</a></h4>
+<p>A binary or text file-like object can be used to specify the upload
+data. The content of the file has to be in one of the supported SciDB
+formats. A matching format specification has to be provided as well:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s1">&#39;array.bin&#39;</span><span class="p">,</span> <span class="s1">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">file</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">n</span> <span class="o">=</span> <span class="n">file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">numpy</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span><span class="o">.</span><span class="n">tobytes</span><span class="p">())</span>
+</pre></div>
+</div>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">db</span><span class="o">.</span><span class="n">iquery</span><span class="p">(</span><span class="s2">&quot;load(foo, &#39;</span><span class="si">{fn}</span><span class="s2">&#39;, 0, &#39;(int64)&#39;)&quot;</span><span class="p">,</span>
+<span class="gp">... </span>          <span class="n">upload_data</span><span class="o">=</span><span class="nb">open</span><span class="p">(</span><span class="s1">&#39;array.bin&#39;</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">))</span>
+</pre></div>
+</div>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s1">&#39;array.csv&#39;</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">file</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">n</span> <span class="o">=</span> <span class="n">file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;1</span><span class="se">\n</span><span class="s1">2</span><span class="se">\n</span><span class="s1">3</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">db</span><span class="o">.</span><span class="n">iquery</span><span class="p">(</span><span class="s2">&quot;load(foo, &#39;</span><span class="si">{fn}</span><span class="s2">&#39;, 0, &#39;CSV&#39;)&quot;</span><span class="p">,</span>
+<span class="gp">... </span>          <span class="n">upload_data</span><span class="o">=</span><span class="nb">open</span><span class="p">(</span><span class="s1">&#39;array.csv&#39;</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">))</span>
+</pre></div>
+</div>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">os</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="s1">&#39;array.bin&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="s1">&#39;array.csv&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">db</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">db</span><span class="o">.</span><span class="n">arrays</span><span class="o">.</span><span class="n">foo</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Please note that the data file is not read into the SciDB-Py
+library. The data file object is passed directly to the <code class="docutils literal"><span class="pre">requests</span></code>
+library which handles the HTTP communication with <em>Shim</em>.</p>
+</div>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">SciDB-Py</a></h1>
+
+
+
+<p class="blurb">Python library for SciDB</p>
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=Paradigm4&repo=SciDB-Py&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+    
+
+<p>
+<a href="https://travis-ci.org/Paradigm4/SciDB-Py">
+    <img
+        alt="https://secure.travis-ci.org/Paradigm4/SciDB-Py.svg?branch=master"
+        src="https://secure.travis-ci.org/Paradigm4/SciDB-Py.svg?branch=master"
+    />
+</a>
+</p>
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">User Guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#quick-start">Quick Start</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#connect-to-scidb">Connect to SciDB</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#advanced-connection">Advanced Connection</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#use-scidb-arrays">Use SciDB Arrays</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#use-scidb-operators">Use SciDB Operators</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#download-data-from-scidb">Download Data from SciDB</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#upload-data-to-scidb">Upload Data to SciDB</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#the-iquery-function">The iquery Function</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id1">Download Data from SciDB</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id2">Upload Data to SciDB</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#upload-numpy-arrays">Upload NumPy Arrays</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#upload-binary-data">Upload Binary Data</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#upload-data-files">Upload Data Files</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="api.html">SciDB-Py API</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://paradigm4.atlassian.net/wiki/display/ESD169">SciDB Documentation</a></li>
+</ul>
+
+
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2017, Rares Vernica.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.6.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      
+      |
+      <a href="_sources/guide.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

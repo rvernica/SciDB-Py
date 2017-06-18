@@ -1,0 +1,396 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>SciDB-Py API &#8212; SciDB-Py 16.9 documentation</title>
+    
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '16.9',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="User Guide" href="guide.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="module-scidbpy.db">
+<span id="scidb-py-api"></span><h1>SciDB-Py API<a class="headerlink" href="#module-scidbpy.db" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="db-array-and-operator">
+<h2>DB, Array, and Operator<a class="headerlink" href="#db-array-and-operator" title="Permalink to this headline">¶</a></h2>
+<p>Classes for connecting to SciDB and executing queries.</p>
+<dl class="class">
+<dt id="scidbpy.db.Array">
+<em class="property">class </em><code class="descclassname">scidbpy.db.</code><code class="descname">Array</code><span class="sig-paren">(</span><em>db</em>, <em>name</em>, <em>gc=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/scidbpy/db.html#Array"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scidbpy.db.Array" title="Permalink to this definition">¶</a></dt>
+<dd><p>Access to individual array</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="scidbpy.db.ArrayExp">
+<em class="property">class </em><code class="descclassname">scidbpy.db.</code><code class="descname">ArrayExp</code><span class="sig-paren">(</span><em>exp</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/scidbpy/db.html#ArrayExp"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scidbpy.db.ArrayExp" title="Permalink to this definition">¶</a></dt>
+<dd><p>Access to individual attribute or dimension</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="scidbpy.db.Arrays">
+<em class="property">class </em><code class="descclassname">scidbpy.db.</code><code class="descname">Arrays</code><span class="sig-paren">(</span><em>db</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/scidbpy/db.html#Arrays"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scidbpy.db.Arrays" title="Permalink to this definition">¶</a></dt>
+<dd><p>Access to arrays available in SciDB</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="scidbpy.db.DB">
+<em class="property">class </em><code class="descclassname">scidbpy.db.</code><code class="descname">DB</code><span class="sig-paren">(</span><em>scidb_url=’http://localhost:8080’</em>, <em>scidb_auth=None</em>, <em>http_auth=None</em>, <em>role=None</em>, <em>namespace=None</em>, <em>verify=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/scidbpy/db.html#DB"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scidbpy.db.DB" title="Permalink to this definition">¶</a></dt>
+<dd><p>SciDB Shim connection object.</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">DB</span><span class="p">()</span>
+<span class="go">DB(&#39;http://localhost:8080&#39;, None, None, None, None, None)</span>
+</pre></div>
+</div>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">DB</span><span class="p">())</span>
+<span class="go">scidb_url  = &#39;http://localhost:8080&#39;</span>
+<span class="go">scidb_auth = None</span>
+<span class="go">http_auth  = None</span>
+<span class="go">role       = None</span>
+<span class="go">namespace  = None</span>
+<span class="go">verify     = None</span>
+</pre></div>
+</div>
+<dl class="method">
+<dt id="scidbpy.db.DB.iquery">
+<code class="descname">iquery</code><span class="sig-paren">(</span><em>query</em>, <em>fetch=False</em>, <em>atts_only=False</em>, <em>as_dataframe=False</em>, <em>dataframe_promo=True</em>, <em>schema=None</em>, <em>upload_data=None</em>, <em>upload_schema=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/scidbpy/db.html#DB.iquery"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scidbpy.db.DB.iquery" title="Permalink to this definition">¶</a></dt>
+<dd><p>Execute query in SciDB</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>fetch</strong> (<em>bool</em>) – If <cite>True</cite>, download SciDB array (default
+<cite>False</cite>)</li>
+<li><strong>atts_only</strong> (<em>bool</em>) – If <cite>True</cite>, download only SciDB array
+attributes without dimensions (default <cite>False</cite>)</li>
+<li><strong>as_dataframe</strong> (<em>bool</em>) – If <cite>True</cite>, return a Pandas
+DataFrame. If <cite>False</cite>, return a NumPy array (default
+<cite>False</cite>)</li>
+<li><strong>dataframe_promo</strong> (<em>bool</em>) – If <cite>True</cite>, null-able types are
+promoted as per Pandas ‘promotion scheme
+&lt;<a class="reference external" href="http://pandas.pydata.org/pandas-docs/stable/gotchas.html">http://pandas.pydata.org/pandas-docs/stable/gotchas.html</a>
+#na-type-promotions&gt;`_ If <cite>False</cite>, object records are used
+for null-able types (default <cite>True</cite>)</li>
+<li><strong>schema</strong> – Schema of the SciDB array to use when
+downloading the array. Schema is not verified. If schema is
+a Schema instance, it is copied. Otherwise, a
+<code class="xref py py-class docutils literal"><span class="pre">Schema</span></code> object is built using
+<code class="xref py py-func docutils literal"><span class="pre">Schema.fromstring()</span></code> (default <cite>None</cite>).</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">DB</span><span class="p">()</span><span class="o">.</span><span class="n">iquery</span><span class="p">(</span><span class="s1">&#39;build(&lt;x:int64&gt;[i=0:1; j=0:1], i + j)&#39;</span><span class="p">,</span> <span class="n">fetch</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="gp">... </span>
+<span class="go">array([(0, 0, (255, 0)),</span>
+<span class="go">       (0, 1, (255, 1)),</span>
+<span class="go">       (1, 0, (255, 1)),</span>
+<span class="go">       (1, 1, (255, 2))],</span>
+<span class="go">      dtype=[(&#39;i&#39;, &#39;&lt;i8&#39;), (&#39;j&#39;, &#39;&lt;i8&#39;),</span>
+<span class="go">             (&#39;x&#39;, [(&#39;null&#39;, &#39;u1&#39;), (&#39;val&#39;, &#39;&lt;i8&#39;)])])</span>
+</pre></div>
+</div>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">DB</span><span class="p">()</span><span class="o">.</span><span class="n">iquery</span><span class="p">(</span><span class="s2">&quot;input(</span><span class="si">{sch}</span><span class="s2">, &#39;</span><span class="si">{fn}</span><span class="s2">&#39;, 0, &#39;</span><span class="si">{fmt}</span><span class="s2">&#39;)&quot;</span><span class="p">,</span>
+<span class="gp">... </span>            <span class="n">fetch</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<span class="gp">... </span>            <span class="n">upload_data</span><span class="o">=</span><span class="n">numpy</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">6</span><span class="p">))</span>
+<span class="gp">... </span>
+<span class="go">array([(0, 3), (1, 4), (2, 5)],</span>
+<span class="go">      dtype=[(&#39;i&#39;, &#39;&lt;i8&#39;), (&#39;x&#39;, &#39;&lt;i8&#39;)])</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="method">
+<dt id="scidbpy.db.DB.iquery_readlines">
+<code class="descname">iquery_readlines</code><span class="sig-paren">(</span><em>query</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/scidbpy/db.html#DB.iquery_readlines"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scidbpy.db.DB.iquery_readlines" title="Permalink to this definition">¶</a></dt>
+<dd><p>Execute query in SciDB</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">DB</span><span class="p">()</span><span class="o">.</span><span class="n">iquery_readlines</span><span class="p">(</span><span class="s1">&#39;build(&lt;x:int64&gt;[i=0:2], i * i)&#39;</span><span class="p">)</span>
+<span class="gp">... </span>
+<span class="go">[...&#39;0&#39;, ...&#39;1&#39;, ...&#39;4&#39;]</span>
+</pre></div>
+</div>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">DB</span><span class="p">()</span><span class="o">.</span><span class="n">iquery_readlines</span><span class="p">(</span>
+<span class="gp">... </span>  <span class="s1">&#39;apply(build(&lt;x:int64&gt;[i=0:2], i), y, i + 10)&#39;</span><span class="p">)</span>
+<span class="gp">... </span>
+<span class="go">[[...&#39;0&#39;, ...&#39;10&#39;], [...&#39;1&#39;, ...&#39;11&#39;], [...&#39;2&#39;, ...&#39;12&#39;]]</span>
+</pre></div>
+</div>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="scidbpy.db.Operator">
+<em class="property">class </em><code class="descclassname">scidbpy.db.</code><code class="descname">Operator</code><span class="sig-paren">(</span><em>db</em>, <em>name</em>, <em>upload_data=None</em>, <em>*args</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/scidbpy/db.html#Operator"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scidbpy.db.Operator" title="Permalink to this definition">¶</a></dt>
+<dd><p>Store SciDB operator and arguments. Hungry operators (e.g., remove,
+store, etc.) evaluate immediately. Lazy operators evaluate on data
+fetch.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="scidbpy.db.connect">
+<code class="descclassname">scidbpy.db.</code><code class="descname">connect</code><a class="headerlink" href="#scidbpy.db.connect" title="Permalink to this definition">¶</a></dt>
+<dd><p>alias of <a class="reference internal" href="#scidbpy.db.DB" title="scidbpy.db.DB"><code class="xref py py-class docutils literal"><span class="pre">DB</span></code></a></p>
+</dd></dl>
+
+</div>
+<span class="target" id="module-scidbpy.schema"></span><div class="section" id="attribute-dimension-and-schema">
+<h2>Attribute, Dimension, and Schema<a class="headerlink" href="#attribute-dimension-and-schema" title="Permalink to this headline">¶</a></h2>
+<p>Classes for accessing SciDB data and schemas.</p>
+<dl class="class">
+<dt id="scidbpy.schema.Attribute">
+<em class="property">class </em><code class="descclassname">scidbpy.schema.</code><code class="descname">Attribute</code><span class="sig-paren">(</span><em>name</em>, <em>type_name</em>, <em>not_null=False</em>, <em>default=None</em>, <em>compression=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/scidbpy/schema.html#Attribute"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scidbpy.schema.Attribute" title="Permalink to this definition">¶</a></dt>
+<dd><p>Represent SciDB array attribute</p>
+<p>Construct an attribute using Attribute constructor:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">Attribute</span><span class="p">(</span><span class="s1">&#39;foo&#39;</span><span class="p">,</span> <span class="s1">&#39;int64&#39;</span><span class="p">,</span> <span class="n">not_null</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="go">Attribute(&#39;foo&#39;, &#39;int64&#39;, True, None, None)</span>
+</pre></div>
+</div>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">Attribute</span><span class="p">(</span><span class="s1">&#39;foo&#39;</span><span class="p">,</span> <span class="s1">&#39;int64&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">compression</span><span class="o">=</span><span class="s1">&#39;zlib&#39;</span><span class="p">)</span>
+<span class="go">Attribute(&#39;foo&#39;, &#39;int64&#39;, False, 100, &#39;zlib&#39;)</span>
+</pre></div>
+</div>
+<p>Construct an attribute from a string:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">Attribute</span><span class="o">.</span><span class="n">fromstring</span><span class="p">(</span><span class="s1">&#39;foo:int64&#39;</span><span class="p">)</span>
+<span class="go">Attribute(&#39;foo&#39;, &#39;int64&#39;, False, None, None)</span>
+</pre></div>
+</div>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">Attribute</span><span class="o">.</span><span class="n">fromstring</span><span class="p">(</span>
+<span class="gp">... </span>    <span class="s2">&quot;taz : string NOT null DEFAULT &#39;&#39; compression bzlib&quot;</span><span class="p">)</span>
+<span class="go">Attribute(&#39;taz&#39;, &#39;string&#39;, True, &quot;&#39;&#39;&quot;, &#39;bzlib&#39;)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="class">
+<dt id="scidbpy.schema.Dimension">
+<em class="property">class </em><code class="descclassname">scidbpy.schema.</code><code class="descname">Dimension</code><span class="sig-paren">(</span><em>name</em>, <em>low_value=None</em>, <em>high_value=None</em>, <em>chunk_overlap=None</em>, <em>chunk_length=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/scidbpy/schema.html#Dimension"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scidbpy.schema.Dimension" title="Permalink to this definition">¶</a></dt>
+<dd><p>Represent SciDB array dimension</p>
+<p>Construct a dimension using the Dimension constructor:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">Dimension</span><span class="p">(</span><span class="s1">&#39;foo&#39;</span><span class="p">)</span>
+<span class="go">Dimension(&#39;foo&#39;, None, None, None, None)</span>
+</pre></div>
+</div>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">Dimension</span><span class="p">(</span><span class="s1">&#39;foo&#39;</span><span class="p">,</span> <span class="o">-</span><span class="mi">100</span><span class="p">,</span> <span class="s1">&#39;10&#39;</span><span class="p">,</span> <span class="s1">&#39;?&#39;</span><span class="p">,</span> <span class="s1">&#39;1000&#39;</span><span class="p">)</span>
+<span class="go">Dimension(&#39;foo&#39;, -100, 10, &#39;?&#39;, 1000)</span>
+</pre></div>
+</div>
+<p>Construct a dimension from a string:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">Dimension</span><span class="o">.</span><span class="n">fromstring</span><span class="p">(</span><span class="s1">&#39;foo&#39;</span><span class="p">)</span>
+<span class="go">Dimension(&#39;foo&#39;, None, None, None, None)</span>
+</pre></div>
+</div>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">Dimension</span><span class="o">.</span><span class="n">fromstring</span><span class="p">(</span><span class="s1">&#39;foo=-100:*:?:10&#39;</span><span class="p">)</span>
+<span class="go">Dimension(&#39;foo&#39;, -100, &#39;*&#39;, &#39;?&#39;, 10)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="class">
+<dt id="scidbpy.schema.Schema">
+<em class="property">class </em><code class="descclassname">scidbpy.schema.</code><code class="descname">Schema</code><span class="sig-paren">(</span><em>name=None</em>, <em>atts=()</em>, <em>dims=()</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/scidbpy/schema.html#Schema"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scidbpy.schema.Schema" title="Permalink to this definition">¶</a></dt>
+<dd><p>Represent SciDB array schema</p>
+<p>Construct a schema using Schema, Attribute, and Dimension
+constructors:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">Schema</span><span class="p">(</span><span class="s1">&#39;foo&#39;</span><span class="p">,</span> <span class="p">(</span><span class="n">Attribute</span><span class="p">(</span><span class="s1">&#39;x&#39;</span><span class="p">,</span> <span class="s1">&#39;int64&#39;</span><span class="p">),),</span> <span class="p">(</span><span class="n">Dimension</span><span class="p">(</span><span class="s1">&#39;i&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">10</span><span class="p">),))</span>
+<span class="gp">... </span>
+<span class="go">Schema(&#39;foo&#39;,</span>
+<span class="go">       (Attribute(&#39;x&#39;, &#39;int64&#39;, False, None, None),),</span>
+<span class="go">       (Dimension(&#39;i&#39;, 0, 10, None, None),))</span>
+</pre></div>
+</div>
+<p>Construct a schema using Schema constructor and fromstring methods
+of Attribute and Dimension:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">Schema</span><span class="p">(</span><span class="s1">&#39;foo&#39;</span><span class="p">,</span>
+<span class="gp">... </span>       <span class="p">(</span><span class="n">Attribute</span><span class="o">.</span><span class="n">fromstring</span><span class="p">(</span><span class="s1">&#39;x:int64&#39;</span><span class="p">),),</span>
+<span class="gp">... </span>       <span class="p">(</span><span class="n">Dimension</span><span class="o">.</span><span class="n">fromstring</span><span class="p">(</span><span class="s1">&#39;i=0:10&#39;</span><span class="p">),))</span>
+<span class="gp">... </span>
+<span class="go">Schema(&#39;foo&#39;,</span>
+<span class="go">       (Attribute(&#39;x&#39;, &#39;int64&#39;, False, None, None),),</span>
+<span class="go">       (Dimension(&#39;i&#39;, 0, 10, None, None),))</span>
+</pre></div>
+</div>
+<p>Construct a schema from a string:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">Schema</span><span class="o">.</span><span class="n">fromstring</span><span class="p">(</span>
+<span class="gp">... </span>    <span class="s1">&#39;foo@1&lt;x:int64 not null, y:double&gt;[i=0:*; j=-100:0:0:10]&#39;</span><span class="p">)</span>
+<span class="gp">... </span>
+<span class="go">Schema(&#39;foo@1&#39;,</span>
+<span class="go">       (Attribute(&#39;x&#39;,  &#39;int64&#39;,  True, None, None),</span>
+<span class="go">        Attribute(&#39;y&#39;, &#39;double&#39;, False, None, None)),</span>
+<span class="go">       (Dimension(&#39;i&#39;,    0, &#39;*&#39;, None, None),</span>
+<span class="go">        Dimension(&#39;j&#39;, -100,   0,    0, 10)))</span>
+</pre></div>
+</div>
+<p>Print a schema constructed from a string:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">Schema</span><span class="o">.</span><span class="n">fromstring</span><span class="p">(</span><span class="s1">&#39;&lt;x:int64,y:float&gt; [i=0:2:0:1000000; j=0:*]&#39;</span><span class="p">))</span>
+<span class="gp">... </span>
+<span class="go">&lt;x:int64,y:float&gt; [i=0:2:0:1000000; j=0:*]</span>
+</pre></div>
+</div>
+<p>Format Schema object to only print the schema part without the
+array name:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="s1">&#39;{:h}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">Schema</span><span class="o">.</span><span class="n">fromstring</span><span class="p">(</span><span class="s1">&#39;foo&lt;x:int64&gt;[i]&#39;</span><span class="p">))</span>
+<span class="go">&#39;&lt;x:int64&gt; [i]&#39;</span>
+</pre></div>
+</div>
+<dl class="method">
+<dt id="scidbpy.schema.Schema.make_dims_atts">
+<code class="descname">make_dims_atts</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/scidbpy/schema.html#Schema.make_dims_atts"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scidbpy.schema.Schema.make_dims_atts" title="Permalink to this definition">¶</a></dt>
+<dd><p>Make attributes from dimensions and pre-append them to the
+attributes list.</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">s</span> <span class="o">=</span> <span class="n">Schema</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="p">(</span><span class="n">Attribute</span><span class="p">(</span><span class="s1">&#39;x&#39;</span><span class="p">,</span> <span class="s1">&#39;bool&#39;</span><span class="p">),),</span> <span class="p">(</span><span class="n">Dimension</span><span class="p">(</span><span class="s1">&#39;i&#39;</span><span class="p">),))</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+<span class="go">&lt;x:bool&gt; [i]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">s</span><span class="o">.</span><span class="n">make_dims_atts</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+<span class="go">&lt;i:int64 NOT NULL,x:bool&gt; [i]</span>
+</pre></div>
+</div>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">s</span> <span class="o">=</span> <span class="n">Schema</span><span class="o">.</span><span class="n">fromstring</span><span class="p">(</span><span class="s1">&#39;&lt;x:bool&gt;[i;j]&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">s</span><span class="o">.</span><span class="n">make_dims_atts</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+<span class="go">&lt;i:int64 NOT NULL,j:int64 NOT NULL,x:bool&gt; [i; j]</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="method">
+<dt id="scidbpy.schema.Schema.make_unique">
+<code class="descname">make_unique</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/scidbpy/schema.html#Schema.make_unique"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scidbpy.schema.Schema.make_unique" title="Permalink to this definition">¶</a></dt>
+<dd><p>Make dimension and attribute names unique within the schema. Return
+<code class="docutils literal"><span class="pre">True</span></code> if any dimension or attribute was renamed.</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">s</span> <span class="o">=</span> <span class="n">Schema</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="p">(</span><span class="n">Attribute</span><span class="p">(</span><span class="s1">&#39;i&#39;</span><span class="p">,</span> <span class="s1">&#39;bool&#39;</span><span class="p">),),</span> <span class="p">(</span><span class="n">Dimension</span><span class="p">(</span><span class="s1">&#39;i&#39;</span><span class="p">),))</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+<span class="go">&lt;i:bool&gt; [i]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">s</span><span class="o">.</span><span class="n">make_unique</span><span class="p">()</span>
+<span class="go">True</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+<span class="go">&lt;i:bool&gt; [i_1]</span>
+</pre></div>
+</div>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">s</span> <span class="o">=</span> <span class="n">Schema</span><span class="o">.</span><span class="n">fromstring</span><span class="p">(</span><span class="s1">&#39;&lt;i:bool, i:int64&gt;[i;i_1;i]&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">s</span><span class="o">.</span><span class="n">make_unique</span><span class="p">()</span>
+<span class="go">True</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+<span class="go">&lt;i:bool,i_2:int64&gt; [i_3; i_1; i_4]</span>
+</pre></div>
+</div>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">SciDB-Py</a></h1>
+
+
+
+<p class="blurb">Python library for SciDB</p>
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=Paradigm4&repo=SciDB-Py&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+    
+
+<p>
+<a href="https://travis-ci.org/Paradigm4/SciDB-Py">
+    <img
+        alt="https://secure.travis-ci.org/Paradigm4/SciDB-Py.svg?branch=master"
+        src="https://secure.travis-ci.org/Paradigm4/SciDB-Py.svg?branch=master"
+    />
+</a>
+</p>
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="guide.html">User Guide</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">SciDB-Py API</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#db-array-and-operator">DB, Array, and Operator</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#attribute-dimension-and-schema">Attribute, Dimension, and Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference external" href="https://paradigm4.atlassian.net/wiki/display/ESD169">SciDB Documentation</a></li>
+</ul>
+
+
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2017, Rares Vernica.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.6.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      
+      |
+      <a href="_sources/api.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

@@ -1,0 +1,654 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>scidbpy.db &#8212; SciDB-Py 16.9 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '16.9',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for scidbpy.db</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;DB, Array, and Operator</span>
+<span class="sd">=======================</span>
+
+<span class="sd">Classes for connecting to SciDB and executing queries.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">copy</span>
+<span class="kn">import</span> <span class="nn">enum</span>
+<span class="kn">import</span> <span class="nn">itertools</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">numpy</span>
+<span class="kn">import</span> <span class="nn">pandas</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">requests</span>
+<span class="kn">import</span> <span class="nn">threading</span>
+
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">from</span> <span class="nn">weakref</span> <span class="k">import</span> <span class="n">finalize</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+    <span class="kn">from</span> <span class="nn">backports.weakref</span> <span class="k">import</span> <span class="n">finalize</span>
+
+<span class="kn">from</span> <span class="nn">.ops_hungry</span> <span class="k">import</span> <span class="n">ops_hungry</span>
+<span class="kn">from</span> <span class="nn">.schema</span> <span class="k">import</span> <span class="n">Attribute</span><span class="p">,</span> <span class="n">Dimension</span><span class="p">,</span> <span class="n">Schema</span>
+
+
+<span class="k">class</span> <span class="nc">Shim</span><span class="p">(</span><span class="n">enum</span><span class="o">.</span><span class="n">Enum</span><span class="p">):</span>
+    <span class="n">cancel</span> <span class="o">=</span> <span class="s1">&#39;cancel&#39;</span>
+    <span class="n">execute_query</span> <span class="o">=</span> <span class="s1">&#39;execute_query&#39;</span>
+    <span class="n">new_session</span> <span class="o">=</span> <span class="s1">&#39;new_session&#39;</span>
+    <span class="n">read_bytes</span> <span class="o">=</span> <span class="s1">&#39;read_bytes&#39;</span>
+    <span class="n">release_session</span> <span class="o">=</span> <span class="s1">&#39;release_session&#39;</span>
+    <span class="n">upload</span> <span class="o">=</span> <span class="s1">&#39;upload&#39;</span>
+
+
+<span class="k">class</span> <span class="nc">Password_Placeholder</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s1">&#39;PASSWORD_PROVIDED&#39;</span>
+
+
+<div class="viewcode-block" id="DB"><a class="viewcode-back" href="../../api.html#scidbpy.db.DB">[docs]</a><span class="k">class</span> <span class="nc">DB</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;SciDB Shim connection object.</span>
+
+<span class="sd">    &gt;&gt;&gt; DB()</span>
+<span class="sd">    DB(&#39;http://localhost:8080&#39;, None, None, None, None, None)</span>
+
+<span class="sd">    &gt;&gt;&gt; print(DB())</span>
+<span class="sd">    scidb_url  = &#39;http://localhost:8080&#39;</span>
+<span class="sd">    scidb_auth = None</span>
+<span class="sd">    http_auth  = None</span>
+<span class="sd">    role       = None</span>
+<span class="sd">    namespace  = None</span>
+<span class="sd">    verify     = None</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">_show_query</span> <span class="o">=</span> <span class="s2">&quot;show(&#39;</span><span class="si">{}</span><span class="s2">&#39;, &#39;afl&#39;)&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">scidb_url</span><span class="o">=</span><span class="s1">&#39;http://localhost:8080&#39;</span><span class="p">,</span>
+            <span class="n">scidb_auth</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">http_auth</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">role</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">namespace</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">verify</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">scidb_url</span> <span class="o">=</span> <span class="n">scidb_url</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">role</span> <span class="o">=</span> <span class="n">role</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">namespace</span> <span class="o">=</span> <span class="n">namespace</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">verify</span> <span class="o">=</span> <span class="n">verify</span>
+
+        <span class="k">if</span> <span class="n">http_auth</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_http_auth</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">auth</span><span class="o">.</span><span class="n">HTTPDigestAuth</span><span class="p">(</span><span class="o">*</span><span class="n">http_auth</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">http_auth</span> <span class="o">=</span> <span class="p">(</span><span class="n">http_auth</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">Password_Placeholder</span><span class="p">())</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_http_auth</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">http_auth</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="k">if</span> <span class="n">scidb_auth</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">scidb_url</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;https&#39;</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                    <span class="s1">&#39;SciDB credentials can only be used &#39;</span> <span class="o">+</span>
+                    <span class="s1">&#39;with https connections&#39;</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">_scidb_auth</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;user&#39;</span><span class="p">:</span> <span class="n">scidb_auth</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                                <span class="s1">&#39;password&#39;</span><span class="p">:</span> <span class="n">scidb_auth</span><span class="p">[</span><span class="mi">1</span><span class="p">]}</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">scidb_auth</span> <span class="o">=</span> <span class="p">(</span><span class="n">scidb_auth</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">Password_Placeholder</span><span class="p">())</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_scidb_auth</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scidb_auth</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">arrays</span> <span class="o">=</span> <span class="n">Arrays</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+
+        <span class="c1"># get list of operators and macros</span>
+        <span class="nb">id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_shim</span><span class="p">(</span><span class="n">Shim</span><span class="o">.</span><span class="n">new_session</span><span class="p">)</span><span class="o">.</span><span class="n">text</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_shim</span><span class="p">(</span>
+            <span class="n">Shim</span><span class="o">.</span><span class="n">execute_query</span><span class="p">,</span>
+            <span class="nb">id</span><span class="o">=</span><span class="nb">id</span><span class="p">,</span>
+            <span class="n">query</span><span class="o">=</span><span class="s2">&quot;project(list(&#39;operators&#39;), name)&quot;</span><span class="p">,</span>
+            <span class="n">save</span><span class="o">=</span><span class="s1">&#39;tsv&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">text</span>  <span class="c1"># set query ID as DB instance ID</span>
+        <span class="n">operators</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_shim_readlines</span><span class="p">(</span><span class="nb">id</span><span class="o">=</span><span class="nb">id</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_shim</span><span class="p">(</span>
+            <span class="n">Shim</span><span class="o">.</span><span class="n">execute_query</span><span class="p">,</span>
+            <span class="nb">id</span><span class="o">=</span><span class="nb">id</span><span class="p">,</span>
+            <span class="n">query</span><span class="o">=</span><span class="s2">&quot;project(list(&#39;macros&#39;), name)&quot;</span><span class="p">,</span>
+            <span class="n">save</span><span class="o">=</span><span class="s1">&#39;tsv&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">content</span>
+        <span class="n">macros</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_shim_readlines</span><span class="p">(</span><span class="nb">id</span><span class="o">=</span><span class="nb">id</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_shim</span><span class="p">(</span><span class="n">Shim</span><span class="o">.</span><span class="n">release_session</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="nb">id</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">operators</span> <span class="o">=</span> <span class="n">operators</span> <span class="o">+</span> <span class="n">macros</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_dir</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">operators</span> <span class="o">+</span>
+                     <span class="p">[</span><span class="s1">&#39;arrays&#39;</span><span class="p">,</span>
+                      <span class="s1">&#39;gc&#39;</span><span class="p">,</span>
+                      <span class="s1">&#39;iquery&#39;</span><span class="p">,</span>
+                      <span class="s1">&#39;iquery_readlines&#39;</span><span class="p">,</span>
+                      <span class="s1">&#39;upload&#39;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_dir</span><span class="o">.</span><span class="n">sort</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Lock</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_array_cnt</span> <span class="o">=</span> <span class="mi">0</span>
+
+    <span class="k">def</span> <span class="nf">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">scidb_url</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">scidb_auth</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">http_auth</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">role</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">namespace</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">verify</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s1">&#39;</span><span class="si">{}</span><span class="s1">(</span><span class="si">{!r}</span><span class="s1">, </span><span class="si">{!r}</span><span class="s1">, </span><span class="si">{!r}</span><span class="s1">, </span><span class="si">{!r}</span><span class="s1">, </span><span class="si">{!r}</span><span class="s1">, </span><span class="si">{!r}</span><span class="s1">)&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span> <span class="o">*</span><span class="bp">self</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s1">&#39;&#39;&#39;</span><span class="se">\</span>
+<span class="s1">scidb_url  = &#39;</span><span class="si">{}</span><span class="s1">&#39;</span>
+<span class="s1">scidb_auth = </span><span class="si">{}</span><span class="s1"></span>
+<span class="s1">http_auth  = </span><span class="si">{}</span><span class="s1"></span>
+<span class="s1">role       = </span><span class="si">{}</span><span class="s1"></span>
+<span class="s1">namespace  = </span><span class="si">{}</span><span class="s1"></span>
+<span class="s1">verify     = </span><span class="si">{}</span><span class="s1">&#39;&#39;&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="o">*</span><span class="bp">self</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__getattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">operators</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">Operator</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span>
+                <span class="s1">&#39;{.__name__!r} object has no attribute </span><span class="si">{!r}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">),</span> <span class="n">name</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">__dir__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dir</span>
+
+<div class="viewcode-block" id="DB.iquery"><a class="viewcode-back" href="../../api.html#scidbpy.db.DB.iquery">[docs]</a>    <span class="k">def</span> <span class="nf">iquery</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+               <span class="n">query</span><span class="p">,</span>
+               <span class="n">fetch</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+               <span class="n">atts_only</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+               <span class="n">as_dataframe</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+               <span class="n">dataframe_promo</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+               <span class="n">schema</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+               <span class="n">upload_data</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+               <span class="n">upload_schema</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Execute query in SciDB</span>
+
+<span class="sd">        :param bool fetch: If `True`, download SciDB array (default</span>
+<span class="sd">          `False`)</span>
+
+<span class="sd">        :param bool atts_only: If `True`, download only SciDB array</span>
+<span class="sd">          attributes without dimensions (default `False`)</span>
+
+<span class="sd">        :param bool as_dataframe: If `True`, return a Pandas</span>
+<span class="sd">          DataFrame. If `False`, return a NumPy array (default</span>
+<span class="sd">          `False`)</span>
+
+<span class="sd">        :param bool dataframe_promo: If `True`, null-able types are</span>
+<span class="sd">          promoted as per Pandas &#39;promotion scheme</span>
+<span class="sd">          &lt;http://pandas.pydata.org/pandas-docs/stable/gotchas.html</span>
+<span class="sd">          #na-type-promotions&gt;`_ If `False`, object records are used</span>
+<span class="sd">          for null-able types (default `True`)</span>
+
+<span class="sd">        :param schema: Schema of the SciDB array to use when</span>
+<span class="sd">          downloading the array. Schema is not verified. If schema is</span>
+<span class="sd">          a Schema instance, it is copied. Otherwise, a</span>
+<span class="sd">          :py:class:`Schema` object is built using</span>
+<span class="sd">          :py:func:`Schema.fromstring` (default `None`).</span>
+
+<span class="sd">        &gt;&gt;&gt; DB().iquery(&#39;build(&lt;x:int64&gt;[i=0:1; j=0:1], i + j)&#39;, fetch=True)</span>
+<span class="sd">        ... # doctest: +NORMALIZE_WHITESPACE</span>
+<span class="sd">        array([(0, 0, (255, 0)),</span>
+<span class="sd">               (0, 1, (255, 1)),</span>
+<span class="sd">               (1, 0, (255, 1)),</span>
+<span class="sd">               (1, 1, (255, 2))],</span>
+<span class="sd">              dtype=[(&#39;i&#39;, &#39;&lt;i8&#39;), (&#39;j&#39;, &#39;&lt;i8&#39;),</span>
+<span class="sd">                     (&#39;x&#39;, [(&#39;null&#39;, &#39;u1&#39;), (&#39;val&#39;, &#39;&lt;i8&#39;)])])</span>
+
+<span class="sd">        &gt;&gt;&gt; DB().iquery(&quot;input({sch}, &#39;{fn}&#39;, 0, &#39;{fmt}&#39;)&quot;,</span>
+<span class="sd">        ...             fetch=True,</span>
+<span class="sd">        ...             upload_data=numpy.arange(3, 6))</span>
+<span class="sd">        ... # doctest: +NORMALIZE_WHITESPACE</span>
+<span class="sd">        array([(0, 3), (1, 4), (2, 5)],</span>
+<span class="sd">              dtype=[(&#39;i&#39;, &#39;&lt;i8&#39;), (&#39;x&#39;, &#39;&lt;i8&#39;)])</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="nb">id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_shim</span><span class="p">(</span><span class="n">Shim</span><span class="o">.</span><span class="n">new_session</span><span class="p">)</span><span class="o">.</span><span class="n">text</span>
+
+        <span class="k">if</span> <span class="n">upload_data</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">upload_data</span><span class="p">,</span> <span class="n">numpy</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">upload_schema</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">upload_schema</span> <span class="o">=</span> <span class="n">Schema</span><span class="o">.</span><span class="n">fromdtype</span><span class="p">(</span><span class="n">upload_data</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+
+                <span class="c1"># Convert upload data to bytes</span>
+                <span class="k">if</span> <span class="n">upload_schema</span><span class="o">.</span><span class="n">is_fixsize</span><span class="p">():</span>
+                    <span class="n">upload_data</span> <span class="o">=</span> <span class="n">upload_data</span><span class="o">.</span><span class="n">tobytes</span><span class="p">()</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">upload_data</span> <span class="o">=</span> <span class="n">upload_schema</span><span class="o">.</span><span class="n">tobytes</span><span class="p">(</span><span class="n">upload_data</span><span class="p">)</span>
+            <span class="c1"># TODO</span>
+            <span class="c1"># Assume upload data is already in bytes format</span>
+            <span class="n">fn</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_shim</span><span class="p">(</span><span class="n">Shim</span><span class="o">.</span><span class="n">upload</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="nb">id</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">upload_data</span><span class="p">)</span><span class="o">.</span><span class="n">text</span>
+            <span class="n">query</span> <span class="o">=</span> <span class="n">query</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">sch</span><span class="o">=</span><span class="n">upload_schema</span><span class="p">,</span>
+                <span class="n">fn</span><span class="o">=</span><span class="n">fn</span><span class="p">,</span>
+                <span class="n">fmt</span><span class="o">=</span><span class="n">upload_schema</span><span class="o">.</span><span class="n">atts_fmt_scidb</span> <span class="k">if</span> <span class="n">upload_schema</span> <span class="k">else</span> <span class="kc">None</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">fetch</span><span class="p">:</span>
+            <span class="c1"># Use provided schema or get schema from SciDB</span>
+            <span class="k">if</span> <span class="n">schema</span><span class="p">:</span>
+                <span class="c1"># Deep-copy schema since we might be mutating it</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">schema</span><span class="p">,</span> <span class="n">Schema</span><span class="p">):</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="n">atts_only</span><span class="p">:</span>
+                        <span class="n">schema</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">schema</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">schema</span> <span class="o">=</span> <span class="n">Schema</span><span class="o">.</span><span class="n">fromstring</span><span class="p">(</span><span class="n">schema</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># Execute &#39;show(...)&#39; and Download text</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_shim</span><span class="p">(</span>
+                    <span class="n">Shim</span><span class="o">.</span><span class="n">execute_query</span><span class="p">,</span>
+                    <span class="nb">id</span><span class="o">=</span><span class="nb">id</span><span class="p">,</span>
+                    <span class="n">query</span><span class="o">=</span><span class="n">DB</span><span class="o">.</span><span class="n">_show_query</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">query</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;&#39;&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="se">\\</span><span class="s2">&#39;&quot;</span><span class="p">)),</span>
+                    <span class="n">save</span><span class="o">=</span><span class="s1">&#39;tsv&#39;</span><span class="p">)</span>
+                <span class="n">schema</span> <span class="o">=</span> <span class="n">Schema</span><span class="o">.</span><span class="n">fromstring</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_shim</span><span class="p">(</span><span class="n">Shim</span><span class="o">.</span><span class="n">read_bytes</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="nb">id</span><span class="p">,</span> <span class="n">n</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">text</span><span class="p">)</span>
+
+            <span class="c1"># Attributes and dimensions can collide. Run make_unique to</span>
+            <span class="c1"># remove any collisions.</span>
+            <span class="c1">#</span>
+            <span class="c1"># make_unique fixes any collision, but if we don&#39;t</span>
+            <span class="c1"># download the dimensions, we don&#39;t need to fix collisions</span>
+            <span class="c1"># between dimensions and attributes. So, we use</span>
+            <span class="c1"># make_unique only if there are collisions within the</span>
+            <span class="c1"># attribute names.</span>
+            <span class="k">if</span> <span class="p">((</span><span class="ow">not</span> <span class="n">atts_only</span> <span class="ow">or</span>
+                 <span class="nb">len</span><span class="p">(</span><span class="nb">set</span><span class="p">((</span><span class="n">a</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">schema</span><span class="o">.</span><span class="n">atts</span><span class="p">)))</span> <span class="o">&lt;</span>
+                 <span class="nb">len</span><span class="p">(</span><span class="n">schema</span><span class="o">.</span><span class="n">atts</span><span class="p">))</span> <span class="ow">and</span> <span class="n">schema</span><span class="o">.</span><span class="n">make_unique</span><span class="p">()):</span>
+                <span class="c1"># Dimensions or attributes were renamed due to</span>
+                <span class="c1"># collisions. We need to cast.</span>
+                <span class="n">query</span> <span class="o">=</span> <span class="s1">&#39;cast(</span><span class="si">{}</span><span class="s1">, {:h})&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">schema</span><span class="p">)</span>
+
+            <span class="c1"># Unpack</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">atts_only</span><span class="p">:</span>
+                <span class="c1"># apply: add dimensions as attributes</span>
+                <span class="c1"># project: place dimensions first</span>
+                <span class="n">query</span> <span class="o">=</span> <span class="s1">&#39;project(apply(</span><span class="si">{}</span><span class="s1">, </span><span class="si">{}</span><span class="s1">), </span><span class="si">{}</span><span class="s1">)&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">query</span><span class="p">,</span>
+                    <span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">{0}</span><span class="s1">, </span><span class="si">{0}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">name</span><span class="p">)</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">schema</span><span class="o">.</span><span class="n">dims</span><span class="p">),</span>
+                    <span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">i</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">itertools</span><span class="o">.</span><span class="n">chain</span><span class="p">(</span>
+                        <span class="n">schema</span><span class="o">.</span><span class="n">dims</span><span class="p">,</span> <span class="n">schema</span><span class="o">.</span><span class="n">atts</span><span class="p">)))</span>
+
+                <span class="c1"># update schema after apply</span>
+                <span class="n">schema</span><span class="o">.</span><span class="n">make_dims_atts</span><span class="p">()</span>
+
+            <span class="c1"># Execute Query and Download content</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_shim</span><span class="p">(</span><span class="n">Shim</span><span class="o">.</span><span class="n">execute_query</span><span class="p">,</span>
+                       <span class="nb">id</span><span class="o">=</span><span class="nb">id</span><span class="p">,</span>
+                       <span class="n">query</span><span class="o">=</span><span class="n">query</span><span class="p">,</span>
+                       <span class="n">save</span><span class="o">=</span><span class="n">schema</span><span class="o">.</span><span class="n">atts_fmt_scidb</span><span class="p">)</span>
+            <span class="n">buf</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_shim</span><span class="p">(</span><span class="n">Shim</span><span class="o">.</span><span class="n">read_bytes</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="nb">id</span><span class="p">,</span> <span class="n">n</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">content</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">_shim</span><span class="p">(</span><span class="n">Shim</span><span class="o">.</span><span class="n">release_session</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="nb">id</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">schema</span><span class="o">.</span><span class="n">is_fixsize</span><span class="p">()</span> <span class="ow">and</span> <span class="p">(</span><span class="ow">not</span> <span class="n">as_dataframe</span> <span class="ow">or</span>
+                                        <span class="ow">not</span> <span class="n">dataframe_promo</span><span class="p">):</span>
+                <span class="n">data</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">frombuffer</span><span class="p">(</span><span class="n">buf</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">schema</span><span class="o">.</span><span class="n">atts_dtype</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">data</span> <span class="o">=</span> <span class="n">schema</span><span class="o">.</span><span class="n">frombytes</span><span class="p">(</span><span class="n">buf</span><span class="p">,</span> <span class="n">as_dataframe</span><span class="p">,</span> <span class="n">dataframe_promo</span><span class="p">)</span>
+
+            <span class="c1"># Return NumPy array or Pandas dataframe</span>
+            <span class="k">if</span> <span class="n">as_dataframe</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">pandas</span><span class="o">.</span><span class="n">DataFrame</span><span class="o">.</span><span class="n">from_records</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">data</span>
+
+        <span class="k">else</span><span class="p">:</span>                   <span class="c1"># fetch=False</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_shim</span><span class="p">(</span><span class="n">Shim</span><span class="o">.</span><span class="n">execute_query</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="nb">id</span><span class="p">,</span> <span class="n">query</span><span class="o">=</span><span class="n">query</span><span class="p">,</span> <span class="n">release</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="DB.iquery_readlines"><a class="viewcode-back" href="../../api.html#scidbpy.db.DB.iquery_readlines">[docs]</a>    <span class="k">def</span> <span class="nf">iquery_readlines</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">query</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Execute query in SciDB</span>
+
+<span class="sd">        &gt;&gt;&gt; DB().iquery_readlines(&#39;build(&lt;x:int64&gt;[i=0:2], i * i)&#39;)</span>
+<span class="sd">        ... # doctest: +ELLIPSIS</span>
+<span class="sd">        [...&#39;0&#39;, ...&#39;1&#39;, ...&#39;4&#39;]</span>
+
+<span class="sd">        &gt;&gt;&gt; DB().iquery_readlines(</span>
+<span class="sd">        ...   &#39;apply(build(&lt;x:int64&gt;[i=0:2], i), y, i + 10)&#39;)</span>
+<span class="sd">        ... # doctest: +ELLIPSIS</span>
+<span class="sd">        [[...&#39;0&#39;, ...&#39;10&#39;], [...&#39;1&#39;, ...&#39;11&#39;], [...&#39;2&#39;, ...&#39;12&#39;]]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_shim</span><span class="p">(</span><span class="n">Shim</span><span class="o">.</span><span class="n">new_session</span><span class="p">)</span><span class="o">.</span><span class="n">text</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_shim</span><span class="p">(</span><span class="n">Shim</span><span class="o">.</span><span class="n">execute_query</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="nb">id</span><span class="p">,</span> <span class="n">query</span><span class="o">=</span><span class="n">query</span><span class="p">,</span> <span class="n">save</span><span class="o">=</span><span class="s1">&#39;tsv&#39;</span><span class="p">)</span>
+        <span class="n">ret</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_shim_readlines</span><span class="p">(</span><span class="nb">id</span><span class="o">=</span><span class="nb">id</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_shim</span><span class="p">(</span><span class="n">Shim</span><span class="o">.</span><span class="n">release_session</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="nb">id</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">ret</span></div>
+
+    <span class="k">def</span> <span class="nf">next_array_name</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># Thread-safe counter</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_array_cnt</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="k">return</span> <span class="s1">&#39;py_</span><span class="si">{}</span><span class="s1">_</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_id</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_array_cnt</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_shim</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">endpoint</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+
+        <span class="sd">&quot;&quot;&quot;Make request on Shim endpoint&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_scidb_auth</span> <span class="ow">and</span> <span class="n">endpoint</span> <span class="ow">in</span> <span class="p">(</span><span class="n">Shim</span><span class="o">.</span><span class="n">cancel</span><span class="p">,</span> <span class="n">Shim</span><span class="o">.</span><span class="n">execute_query</span><span class="p">):</span>
+            <span class="n">kwargs</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_scidb_auth</span><span class="p">)</span>
+        <span class="n">url</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">compat</span><span class="o">.</span><span class="n">urljoin</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scidb_url</span><span class="p">,</span> <span class="n">endpoint</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">endpoint</span> <span class="o">==</span> <span class="n">Shim</span><span class="o">.</span><span class="n">upload</span><span class="p">:</span>
+            <span class="n">req</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span>
+                <span class="s1">&#39;</span><span class="si">{}</span><span class="s1">?id=</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]),</span>
+                <span class="n">data</span><span class="o">=</span><span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;data&#39;</span><span class="p">],</span>
+                <span class="n">auth</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_http_auth</span><span class="p">,</span>
+                <span class="n">verify</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">verify</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">req</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                <span class="n">url</span><span class="p">,</span>
+                <span class="n">params</span><span class="o">=</span><span class="n">kwargs</span><span class="p">,</span>
+                <span class="n">auth</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_http_auth</span><span class="p">,</span>
+                <span class="n">verify</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">verify</span><span class="p">)</span>
+        <span class="n">req</span><span class="o">.</span><span class="n">reason</span> <span class="o">=</span> <span class="n">req</span><span class="o">.</span><span class="n">content</span>
+        <span class="n">req</span><span class="o">.</span><span class="n">raise_for_status</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">req</span>
+
+    <span class="k">def</span> <span class="nf">_shim_readlines</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">id</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Read data from Shim and parse as text lines&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">line</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\t</span><span class="s1">&#39;</span><span class="p">)</span> <span class="k">if</span> <span class="s1">&#39;</span><span class="se">\t</span><span class="s1">&#39;</span> <span class="ow">in</span> <span class="n">line</span> <span class="k">else</span> <span class="n">line</span>
+                <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_shim</span><span class="p">(</span>
+                        <span class="n">Shim</span><span class="o">.</span><span class="n">read_bytes</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="nb">id</span><span class="p">,</span> <span class="n">n</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">text</span><span class="o">.</span><span class="n">splitlines</span><span class="p">()]</span></div>
+
+
+<div class="viewcode-block" id="Arrays"><a class="viewcode-back" href="../../api.html#scidbpy.db.Arrays">[docs]</a><span class="k">class</span> <span class="nc">Arrays</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Access to arrays available in SciDB&quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">db</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">db</span> <span class="o">=</span> <span class="n">db</span>
+
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s1">&#39;</span><span class="si">{}</span><span class="s1">(</span><span class="si">{!r}</span><span class="s1">)&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">db</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s1">&#39;&#39;&#39;DB:</span>
+<span class="si">{}</span><span class="s1">&#39;&#39;&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">db</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__getattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">Array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">db</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__dir__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Download the list of SciDB arrays. Use &#39;project(list(), name)&#39; to</span>
+<span class="sd">        download only names and schemas</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">iquery_readlines</span><span class="p">(</span><span class="s1">&#39;project(list(), name)&#39;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Array"><a class="viewcode-back" href="../../api.html#scidbpy.db.Array">[docs]</a><span class="k">class</span> <span class="nc">Array</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Access to individual array&quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">db</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">gc</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">db</span> <span class="o">=</span> <span class="n">db</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+
+        <span class="k">if</span> <span class="n">gc</span><span class="p">:</span>
+            <span class="n">finalize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                     <span class="bp">self</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">iquery</span><span class="p">,</span>
+                     <span class="s1">&#39;remove(</span><span class="si">{}</span><span class="s1">)&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s1">&#39;</span><span class="si">{}</span><span class="s1">(</span><span class="si">{!r}</span><span class="s1">, </span><span class="si">{!r}</span><span class="s1">)&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">db</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span>
+
+    <span class="k">def</span> <span class="nf">__getattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">ArrayExp</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">.</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">key</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">fetch</span><span class="p">()[</span><span class="n">key</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">__dir__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Download the schema of the SciDB array, using `show()`&quot;&quot;&quot;</span>
+        <span class="n">sh</span> <span class="o">=</span> <span class="n">Schema</span><span class="o">.</span><span class="n">fromstring</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">iquery_readlines</span><span class="p">(</span><span class="s1">&#39;show(</span><span class="si">{}</span><span class="s1">)&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="p">))[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">ls</span> <span class="o">=</span> <span class="p">[</span><span class="n">i</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">itertools</span><span class="o">.</span><span class="n">chain</span><span class="p">(</span><span class="n">sh</span><span class="o">.</span><span class="n">atts</span><span class="p">,</span> <span class="n">sh</span><span class="o">.</span><span class="n">dims</span><span class="p">)]</span>
+        <span class="n">ls</span><span class="o">.</span><span class="n">sort</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">ls</span>
+
+    <span class="k">def</span> <span class="nf">fetch</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">as_dataframe</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">iquery</span><span class="p">(</span>
+            <span class="s1">&#39;scan(</span><span class="si">{}</span><span class="s1">)&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="p">),</span> <span class="n">fetch</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">as_dataframe</span><span class="o">=</span><span class="n">as_dataframe</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="ArrayExp"><a class="viewcode-back" href="../../api.html#scidbpy.db.ArrayExp">[docs]</a><span class="k">class</span> <span class="nc">ArrayExp</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Access to individual attribute or dimension&quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exp</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">exp</span> <span class="o">=</span> <span class="n">exp</span>
+
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s1">&#39;</span><span class="si">{}</span><span class="s1">(</span><span class="si">{!r}</span><span class="s1">)&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">exp</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s1">&#39;</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">exp</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__add__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">ArrayExp</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1"> + </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="Operator"><a class="viewcode-back" href="../../api.html#scidbpy.db.Operator">[docs]</a><span class="k">class</span> <span class="nc">Operator</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Store SciDB operator and arguments. Hungry operators (e.g., remove,</span>
+<span class="sd">    store, etc.) evaluate immediately. Lazy operators evaluate on data</span>
+<span class="sd">    fetch.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">db</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">upload_data</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">db</span> <span class="o">=</span> <span class="n">db</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">upload_data</span> <span class="o">=</span> <span class="n">upload_data</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">args</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">is_lazy</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">ops_hungry</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">operators</span> <span class="o">+</span> <span class="p">[</span><span class="s1">&#39;fetch&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_dir</span><span class="o">.</span><span class="n">sort</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s1">&#39;</span><span class="si">{}</span><span class="s1">(db=</span><span class="si">{!r}</span><span class="s1">, name=</span><span class="si">{!r}</span><span class="s1">, args=[</span><span class="si">{}</span><span class="s1">])&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">db</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+            <span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">{!r}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">args_fmt_scidb</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="p">)</span>
+        <span class="k">return</span> <span class="s1">&#39;</span><span class="si">{}</span><span class="s1">(</span><span class="si">{}</span><span class="s1">)&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">args_fmt_scidb</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns self for lazy expressions. Executes immediate expressions.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
+
+        <span class="c1"># Special case: -- - create_array - --</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;create_array&#39;</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="c1"># Set &quot;temporary&quot;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
+
+        <span class="c1"># Special case: -- - input &amp; load - --</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;input&#39;</span><span class="p">,</span> <span class="s1">&#39;load&#39;</span><span class="p">):</span>
+            <span class="c1"># Set upload data</span>
+            <span class="k">if</span> <span class="s1">&#39;upload_data&#39;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">upload_data</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;upload_data&#39;</span><span class="p">]</span>
+
+            <span class="n">ln</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="p">)</span>
+            <span class="c1"># Check if &quot;format&quot; is present (4th argument)</span>
+            <span class="k">if</span> <span class="n">ln</span> <span class="o">&lt;</span> <span class="mi">4</span><span class="p">:</span>
+                <span class="c1"># Check if &quot;instance_id&quot; is present (3rd argument)</span>
+                <span class="k">if</span> <span class="n">ln</span> <span class="o">&lt;</span> <span class="mi">3</span><span class="p">:</span>
+                    <span class="c1"># Check if &quot;input_file&quot; is present (2nd argument)</span>
+                    <span class="k">if</span> <span class="n">ln</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+                        <span class="c1"># Check if &quot;existing_array|anonymous_schema&quot;</span>
+                        <span class="c1"># is present (1st argument)</span>
+                        <span class="k">if</span> <span class="n">ln</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">{sch}</span><span class="s1">&#39;</span><span class="p">)</span>  <span class="c1"># anonymous_schema</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;&#39;</span><span class="si">{fn}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>     <span class="c1"># input_file</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>                <span class="c1"># instance_id</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;&#39;</span><span class="si">{fmt}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>            <span class="c1"># format</span>
+
+        <span class="c1"># Special case: -- - store - --</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;store&#39;</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="c1"># Set &quot;named_array&quot;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">next_array_name</span><span class="p">())</span>
+            <span class="c1"># Garbage collect (if not specified)</span>
+            <span class="k">if</span> <span class="s1">&#39;gc&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;gc&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+
+        <span class="c1"># Lazy or hungry</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_lazy</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">iquery</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="p">),</span> <span class="n">upload_data</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">upload_data</span><span class="p">)</span>
+
+            <span class="c1"># Special case: -- - store - --</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;store&#39;</span><span class="p">:</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">Array</span><span class="p">):</span>
+                    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="n">Array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">db</span><span class="p">,</span>
+                                 <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+                                 <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;gc&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">fetch</span><span class="p">()[</span><span class="n">key</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">__getattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">operators</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">Operator</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">db</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">upload_data</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span>
+                <span class="s1">&#39;{.__name__!r} object has no attribute </span><span class="si">{!r}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">),</span> <span class="n">name</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">__dir__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dir</span>
+
+    <span class="k">def</span> <span class="nf">fetch</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">as_dataframe</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_lazy</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">iquery</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="p">),</span>
+                                  <span class="n">fetch</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                                  <span class="n">as_dataframe</span><span class="o">=</span><span class="n">as_dataframe</span><span class="p">,</span>
+                                  <span class="n">upload_data</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">upload_data</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="kc">None</span></div>
+
+<span class="n">connect</span> <span class="o">=</span> <span class="n">DB</span>
+<span class="n">iquery</span> <span class="o">=</span> <span class="n">DB</span><span class="o">.</span><span class="n">iquery</span>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="c1"># logging.basicConfig(level=logging.DEBUG)</span>
+    <span class="kn">import</span> <span class="nn">doctest</span>
+    <span class="n">doctest</span><span class="o">.</span><span class="n">testmod</span><span class="p">(</span><span class="n">optionflags</span><span class="o">=</span><span class="n">doctest</span><span class="o">.</span><span class="n">REPORT_ONLY_FIRST_FAILURE</span><span class="p">)</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">SciDB-Py</a></h1>
+
+
+
+<p class="blurb">Python library for SciDB</p>
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=Paradigm4&repo=SciDB-Py&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+    
+
+<p>
+<a href="https://travis-ci.org/Paradigm4/SciDB-Py">
+    <img
+        alt="https://secure.travis-ci.org/Paradigm4/SciDB-Py.svg?branch=master"
+        src="https://secure.travis-ci.org/Paradigm4/SciDB-Py.svg?branch=master"
+    />
+</a>
+</p>
+
+
+<h3>Navigation</h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../guide.html">User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api.html">SciDB-Py API</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://paradigm4.atlassian.net/wiki/display/ESD169">SciDB Documentation</a></li>
+</ul>
+
+
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2017, Rares Vernica.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.6.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>
