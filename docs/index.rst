@@ -3,17 +3,18 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-SciDB-Py documentation
+SciDB-Py Documentation
 ======================
 
 .. toctree::
-   :maxdepth: 2
-   :caption: Contents:
+   :maxdepth: 4
 
+   guide
    api
+   SciDB Documentation <https://paradigm4.atlassian.net/wiki/display/ESD169>
 
 
-Indices and tables
+Indices and Tables
 ==================
 
 * :ref:`genindex`
