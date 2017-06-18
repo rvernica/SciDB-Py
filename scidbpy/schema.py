@@ -1,3 +1,10 @@
+"""Attribute, Dimension, and Schema
+================================
+
+Classes for accessing SciDB data and schemas.
+
+"""
+
 import itertools
 import logging
 import numpy
@@ -48,7 +55,7 @@ for key in list(type_map_struct.keys()):
     if key.startswith('int'):
         type_map_struct['u' + key] = type_map_struct[key].upper()
 
-# Add nullable type
+# Add null-able type
 for (key, val) in type_map_struct.items():
     if len(val) > 1:
         val_null = val[0] + 'B' + val[1]
@@ -110,7 +117,7 @@ class Attribute(object):
         (?: DEFAULT     \s+ (?P<default>     \S+ )           )? \s*
         (?: COMPRESSION \s+ (?P<compression> \w+ )           )? \s*
         $''', re.VERBOSE | re.IGNORECASE)
-    # length dtype for vairable-size ScidDB types
+    # length dtype for variable-size SciDB types
     _length_dtype = numpy.dtype(numpy.uint32)
 
     def __init__(self,
@@ -339,7 +346,7 @@ class Dimension(object):
 class Schema(object):
     """Represent SciDB array schema
 
-    Cunstruct a schema using Schema, Attribute, and Dimension
+    Construct a schema using Schema, Attribute, and Dimension
     constructors:
 
     >>> Schema('foo', (Attribute('x', 'int64'),), (Dimension('i', 0, 10),))
@@ -476,7 +483,7 @@ class Schema(object):
             for a in self.atts:
                 # Start renaming after the first copy. First copy
                 # will not be in all_after. From second copy
-                # onwards, a copy will be in all_after.
+                # on-wards, a copy will be in all_after.
                 if a.name in all_after:
                     new_name_tmpl = a.name + '_{}'
                     count = 1
@@ -583,7 +590,7 @@ class Schema(object):
     def tobytes(self, data):
         buf_lst = []
         if len(data.dtype) > 0:
-            # NumPy strucutred array
+            # NumPy structured array
             if len(self.atts_dtype) == 1:
                 # One attribute
                 atr = self.atts[0]

@@ -1,3 +1,10 @@
+"""DB, Array, and Operator
+=======================
+
+Classes for connecting to SciDB and executing queries.
+
+"""
+
 import copy
 import enum
 import itertools
@@ -166,11 +173,11 @@ verify     = {}'''.format(*self)
           DataFrame. If `False`, return a NumPy array (default
           `False`)
 
-        :param bool dataframe_promo: If `True`, nullable types are
-          promoted as per Pandas promotion scheme
-          http://pandas.pydata.org/pandas-docs/stable/gotchas.html
-          #na-type-promotions If `False`, object records are used for
-          nullable types (default `True`)
+        :param bool dataframe_promo: If `True`, null-able types are
+          promoted as per Pandas 'promotion scheme
+          <http://pandas.pydata.org/pandas-docs/stable/gotchas.html
+          #na-type-promotions>`_ If `False`, object records are used
+          for null-able types (default `True`)
 
         :param schema: Schema of the SciDB array to use when
           downloading the array. Schema is not verified. If schema is
@@ -193,6 +200,7 @@ verify     = {}'''.format(*self)
         ... # doctest: +NORMALIZE_WHITESPACE
         array([(0, 3), (1, 4), (2, 5)],
               dtype=[('i', '<i8'), ('x', '<i8')])
+
         """
 
         id = self._shim(Shim.new_session).text
@@ -234,11 +242,11 @@ verify     = {}'''.format(*self)
                 schema = Schema.fromstring(
                     self._shim(Shim.read_bytes, id=id, n=0).text)
 
-            # Attributes and dimensions can collide. Run make_unque to
+            # Attributes and dimensions can collide. Run make_unique to
             # remove any collisions.
             #
             # make_unique fixes any collision, but if we don't
-            # download the diemsnions, we don't need to fix collisons
+            # download the dimensions, we don't need to fix collisions
             # between dimensions and attributes. So, we use
             # make_unique only if there are collisions within the
             # attribute names.
@@ -465,10 +473,10 @@ class Operator(object):
                 if ln < 3:
                     # Check if "input_file" is present (2nd argument)
                     if ln < 2:
-                        # Check if "existing_array|annonymous_schema"
+                        # Check if "existing_array|anonymous_schema"
                         # is present (1st argument)
                         if ln < 1:
-                            self.args.append('{sch}')  # annonymous_schema
+                            self.args.append('{sch}')  # anonymous_schema
                         self.args.append("'{fn}'")     # input_file
                     self.args.append(0)                # instance_id
                 self.args.append("'{fmt}'")            # format

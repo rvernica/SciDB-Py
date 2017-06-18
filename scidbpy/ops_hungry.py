@@ -1,5 +1,9 @@
-# list of hungry operators, they execute immediately, e.g.,
-# "db.remove(...)", they are not lazy
+# List of hungry operators, they execute immediately, e.g.,
+# ``db.remove``.
+#
+# Operators **not** listed here are lazy. They will execute at a later
+# time.
+#
 ops_hungry = (
     # list('operators');
     # ---
