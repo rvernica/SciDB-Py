@@ -49,7 +49,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'SciDB-Py'
-copyright = u'2017, Rares Vernica'
+copyright = u'2017, Paradigm4'
 author = u'Rares Vernica'
 
 # The version info for the project you're documenting, acts as replacement for
