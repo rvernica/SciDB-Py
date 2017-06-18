@@ -25,3 +25,9 @@ Or to install in user space::
    Installing collected packages: scidb-py
      Running setup.py install for scidb-py ... done
    Successfully installed scidb-py-16.9
+
+
+Documentation
+-------------
+
+See `SciDB-Py Documentation <http://paradigm4.github.io/SciDB-Py/>`_.
