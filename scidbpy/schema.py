@@ -6,7 +6,6 @@ Classes for accessing SciDB data and schemas.
 """
 
 import itertools
-import logging
 import numpy
 import re
 import six
