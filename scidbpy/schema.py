@@ -34,6 +34,7 @@ type_map_numpy = dict(
     ])
 
 type_map_inv_numpy = {v: k for k, v in six.iteritems(type_map_numpy)}
+type_map_inv_numpy[numpy.string_] = 'string'
 
 type_map_struct = {
     'bool': '?',
@@ -118,6 +119,7 @@ class Attribute(object):
         $''', re.VERBOSE | re.IGNORECASE)
     # length dtype for variable-size SciDB types
     _length_dtype = numpy.dtype(numpy.uint32)
+    _length_fmt = '<I'
 
     def __init__(self,
                  name,
@@ -222,7 +224,10 @@ class Attribute(object):
 
     def tobytes(self, val):
         if self.dtype_val == numpy.object:
-            buf = None
+            # Assume string type
+            buf = b''.join([struct.pack(Attribute._length_fmt, len(val) + 1),
+                            val.encode(),
+                            b'\x00'])
         else:
             if self.not_null:
                 buf = struct.pack(self.fmt_struct[0], val)
