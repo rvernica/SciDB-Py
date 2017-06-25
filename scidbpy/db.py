@@ -57,12 +57,16 @@ class DB(object):
 
     def __init__(
             self,
-            scidb_url='http://localhost:8080',
+            scidb_url=None,
             scidb_auth=None,
             http_auth=None,
             role=None,
             namespace=None,
             verify=None):
+        # scidb_url fallback to SCIDB_URL or http://localhost:8080
+        if scidb_url is None:
+            scidb_url = os.getenv('SCIDB_URL', 'http://localhost:8080')
+
         self.scidb_url = scidb_url
         self.role = role
         self.namespace = namespace
