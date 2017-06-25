@@ -35,6 +35,7 @@ type_map_numpy = dict(
 
 type_map_inv_numpy = {v: k for k, v in six.iteritems(type_map_numpy)}
 type_map_inv_numpy[numpy.string_] = 'string'
+type_map_inv_numpy[numpy.str_] = 'string'
 
 type_map_struct = {
     'bool': '?',
