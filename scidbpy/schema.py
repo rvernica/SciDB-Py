@@ -276,8 +276,18 @@ class Attribute(object):
             else:
                 not_null = True
                 dtype_val = dtype_descr[1]
+
+        dtype_val = numpy.dtype(dtype_val)
+        if dtype_val in type_map_inv_numpy.keys():
+            type_name = type_map_inv_numpy[dtype_val]
+        else:
+            # if dtype_val not found in map, try the dtype_val.type
+            # (without the length)
+            # e.g. '<U3' --type--> '<U' --map--> numpy.str_
+            type_name = type_map_inv_numpy[numpy.dtype(dtype_val.type)]
+
         return cls(name=dtype_descr[0] if dtype_descr[0] else one_att_name,
-                   type_name=type_map_inv_numpy[numpy.dtype(dtype_val)],
+                   type_name=type_name,
                    not_null=not_null)
 
 
