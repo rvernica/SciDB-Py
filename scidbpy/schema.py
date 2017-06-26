@@ -14,6 +14,7 @@ import warnings
 
 
 type_map_numpy = dict(
+    (k, numpy.dtype(v)) for (k, v) in
     [(t.__name__, t) for t in (
         numpy.bool,
 
@@ -31,11 +32,20 @@ type_map_numpy = dict(
         ('double', numpy.float64),
         ('float', numpy.float32),
         ('string', numpy.object),
+        ('datetime', 'datetime64[s]'),
+        ('datetimetz', [('time', 'datetime64[s]'),
+                        ('tz', 'timedelta64[s]')]),
     ])
 
 type_map_inv_numpy = {v: k for k, v in six.iteritems(type_map_numpy)}
-type_map_inv_numpy[numpy.string_] = 'string'
-type_map_inv_numpy[numpy.str_] = 'string'
+type_map_inv_numpy.update(dict(
+    (numpy.dtype(k), v) for (k, v) in
+    [
+        (numpy.str_, 'string'),
+        (numpy.string_, 'string'),
+        (numpy.datetime64, 'datetime'),
+        (numpy.timedelta64, 'datetimetz'),
+    ]))
 
 type_map_struct = {
     'bool': '?',
@@ -49,6 +59,9 @@ type_map_struct = {
 
     'float': '<f',
     'double': '<d',
+
+    'datetime': '<q',
+    'datetimetz': '<qq',
     }
 
 # Add uint types
@@ -67,6 +80,7 @@ for (key, val) in type_map_struct.items():
 # Type promotion map for Pandas DataFrame
 # http://pandas.pydata.org/pandas-docs/stable/gotchas.html#na-type-promotions
 type_map_promo = dict(
+    (k, numpy.dtype(v)) for (k, v) in
     [
         ('bool', numpy.object),
         ('char', numpy.object),
@@ -81,8 +95,6 @@ type_map_promo = dict(
         ('uint32', numpy.float64),
         ('uint64', numpy.float64),
     ])
-
-# TODO datetime, datetimetz
 
 one_att_name = 'x'
 one_dim_name = 'i'
@@ -212,7 +224,9 @@ class Attribute(object):
                           offset + size]
         else:
             val = struct.unpack(
-                self.fmt_struct[0], buf[offset + null_size:offset + size])[0]
+                self.fmt_struct[0], buf[offset + null_size:offset + size])
+            if len(val) == 1:
+                val = val[0]
 
         if self.not_null:
             return val
@@ -245,15 +259,25 @@ class Attribute(object):
         return cls(**Attribute._regex.match(string).groupdict())
 
     @classmethod
-    def fromdtype(cls, dtype):
-        if isinstance(dtype[1], str):
-            dtype_val = dtype[1]
+    def fromdtype(cls, dtype_descr):
+        if isinstance(dtype_descr[1], str):
+            # e.g. ('name', 'int64')
+            dtype_val = dtype_descr[1]
             not_null = True
         else:
-            dtype_val = dtype[1][1][1]
-            not_null = False
-        return cls(name=dtype[0] if dtype[0] else one_att_name,
-                   type_name=type_map_inv_numpy[numpy.dtype(dtype_val).type],
+            # e.g. ('name', [('null': 'int8'), ('val': 'int64')]
+            #      ('name', [('time', 'datetime64'), ('tz', 'timedelta64')])
+            #      ('name', [('null': 'int8'),
+            #                ('val' : [('time', 'datetime64'),
+            #                          ('tz', 'timedelta64')])])
+            if dtype_descr[1][0][0] == 'null':
+                not_null = False
+                dtype_val = dtype_descr[1][1][1]
+            else:
+                not_null = True
+                dtype_val = dtype_descr[1]
+        return cls(name=dtype_descr[0] if dtype_descr[0] else one_att_name,
+                   type_name=type_map_inv_numpy[numpy.dtype(dtype_val)],
                    not_null=not_null)
 
 
