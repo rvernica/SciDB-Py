@@ -256,7 +256,10 @@ class Attribute(object):
 
     @classmethod
     def fromstring(cls, string):
-        return cls(**Attribute._regex.match(string).groupdict())
+        try:
+            return cls(**Attribute._regex.match(string).groupdict())
+        except AttributeError:
+            raise Exception('Failed to parse attribute: {}'.format(string))
 
     @classmethod
     def fromdtype(cls, dtype_descr):
@@ -379,7 +382,10 @@ class Dimension(object):
 
     @classmethod
     def fromstring(cls, string):
-        return cls(**Dimension._regex.match(string).groupdict())
+        try:
+            return cls(**Dimension._regex.match(string).groupdict())
+        except AttributeError:
+            raise Exception('Failed to parse dimension: {}'.format(string))
 
 
 class Schema(object):
