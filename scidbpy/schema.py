@@ -217,7 +217,7 @@ class Attribute(object):
             if self.type_name == 'string':
                 val = buf[offset + null_size +
                           Attribute._length_dtype.itemsize:
-                          offset + size - 1].decode()
+                          offset + size - 1].decode('utf-8')
             else:
                 val = buf[offset + null_size +
                           Attribute._length_dtype.itemsize:
