@@ -24,9 +24,10 @@ before_install:
 
 install:
   - pip install
+    --upgrade
     --only-binary=scipy
     mock
-    numpy
+    "numpy<1.12"
     pandas
     pytest
     requests
