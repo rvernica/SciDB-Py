@@ -770,7 +770,7 @@ class SciDBArray(object):
 
     def __repr__(self):
         show = self.interface._show_array(self.name, fmt='csv').split('\n')
-        return "SciDBArray({0})".format(show[1])
+        return "SciDBArray({0})".format(show[0])
 
     def contents(self, **kwargs):
         """
