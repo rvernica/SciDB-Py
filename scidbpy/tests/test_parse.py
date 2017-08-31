@@ -4,6 +4,7 @@
 from __future__ import absolute_import, print_function, division, unicode_literals
 
 
+import pytest
 import numpy as np
 from numpy.testing import assert_allclose, assert_array_equal
 
@@ -12,6 +13,7 @@ from . import sdb, TestBase, teardown_function
 
 
 class TestScalar(TestBase):
+
 
     def check(self, array, expected):
         result = toarray(array)
@@ -26,67 +28,83 @@ class TestScalar(TestBase):
         except TypeError:
             assert_array_equal(result, expected)
 
+
     def scalar(self, typ, value, null):
         # build a single-element array
         if not null:
             typ = typ + ' NOT NULL'
         return sdb.afl.build('<x: %s>[i=0:0,10,0]' % typ, value)
 
-    def check_scalar(self, typ, value, null, expected=None):
+
+    @pytest.mark.parametrize(
+        ('typ', 'value', 'expected'),
+
+        ## Numeric and Boolean Sclars
+        [(typ, value, None)
+         for (typ, values) in [
+                 # FLT_MIN = 1.175494e-38, FLT_MAX = 3.402823e+38
+                 ('float',  (-1.0, 0.0, 1.0, 3e35)),
+                 ('double', (-1, 0, 1, 1e100, 1e900)),
+                 ('int8',   (0, 17, -5)),
+                 ('uint8',  (0, 17, 255)),
+                 ('int16',  (0, 17, 300, -5)),
+                 ('uint16', (0, 17, 300, 2 * 16 - 1)),
+                 ('int32',  (0, 256, -2 ** 29)),
+                 ('uint32', (0, 256, 2 ** 32 - 1)),
+                 ('int64',  (0, 2 ** 35, -300)),
+                 ('uint64', (0, 2 ** 63 - 1)),
+                 ('bool',   (True, False))]
+         for value in values] +
+
+        ## DateTime Scalar
+        [('datetime', "'{}'".format(value), [np.datetime64(value + '+0000')])
+         for value in ['1970-01-02 00:00:00',
+                       '1950-01-01 00:00:00',
+                       '2520-12-31 11:59:59']] +
+
+        ## DateTimeTZ Scalar
+        [pytest.mark.skip('SciDB 16.9 issue https://github.com/Paradigm4/SciDB/issues/9')(
+            ('datetimetz', "'{}'".format(value), [np.datetime64(expect)]))
+         for value, expect in [
+                 ('1970-01-02 00:00:00 +00:30', '1970-01-02 00:00:00+0030'),
+                 ('1970-01-02 00:00:00 -01:30', '1970-01-02 00:00:00-0130')]] +
+
+        ## Char Scalar
+        [('char', "'{}'".format(char), [char])
+         for char in 'abAB12_ '] +
+
+        ## String Scalar
+        [('string', "'{}'".format(value), [value])
+         for val in ['a', 'hi', 'hi ho', 'å∫√∂']])
+    @pytest.mark.parametrize('null', [False, True])
+    def test_scalar(self, typ, value, null, expected):
         if expected is None:
             expected = [value]
         self.check(self.scalar(typ, value, null), expected)
 
-    def check_null(self, typ):
+
+    @pytest.mark.parametrize(
+        'typ',
+        ['float',
+         'double',
+         'int8',
+         'uint8',
+         'int16',
+         'uint16',
+         'int32',
+         'uint32',
+         'int64',
+         'uint64',
+         'bool',
+         'datetime',
+         pytest.mark.skip('SciDB 16.9 issue https://github.com/Paradigm4/SciDB/issues/9')(
+             'datetimetz'),
+         'char',
+         'string'])
+    def test_null(self, typ):
         x = sdb.afl.build('<x: %s>[i=0:0,10,0]' % typ, 'null')
         self.check(x, [NULLS[typ]])
 
-    def test_scalar_numbers(self):
-        for typ, cases in [('float', (-1.0, 0.0, 1.0, 3e35)), # FLT_MIN      = 1.175494e-38, FLT_MAX      = 3.402823e+38
-                           ('double', (-1, 0, 1, 1e100, 1e900)),
-                           ('int8', (0, 17, -5)),
-                           ('uint8', (0, 17, 255)),
-                           ('int16', (0, 17, 300, -5)),
-                           ('uint16', (0, 17, 300, 2 * 16 - 1)),
-                           ('int32', (0, 256, -2 ** 29)),
-                           ('uint32', (0, 256, 2 ** 32 - 1)),
-                           ('int64', (0, 2 ** 35, -300)),
-                           ('uint64', (0, 2 ** 63 - 1)),
-                           ('bool', (True, False)),
-                           ]:
-            for case in cases:
-                for null in [False, True]:
-                    yield self.check_scalar, typ, case, null
-
-    def test_null(self):
-        for dtyp in ('float double int8 uint8 int16 uint16 '
-                     'int32 uint32 int64 uint64 bool datetime '
-                     'datetimetz char string').split():
-            yield self.check_null, dtyp
-
-    def test_datetime(self):
-        for val in ['1970-01-02 00:00:00',
-                    '1950-01-01 00:00:00',
-                    '2520-12-31 11:59:59']:
-            expected = [np.datetime64(val + '+0000')]
-            for null in [False, True]:
-                yield self.check_scalar, 'datetime', "'%s'" % val, null, expected
-
-    def test_datetimetz(self):
-        for val, exp in [('1970-01-02 00:00:00 +00:30', '1970-01-02 00:00:00+0030'),
-                         ('1970-01-02 00:00:00 -01:30', '1970-01-02 00:00:00-0130')]:
-            for null in [False, True]:
-                yield self.check_scalar, 'datetimetz', "'%s'" % val, null, [np.datetime64(exp)]
-
-    def test_char(self):
-        for char in 'abAB12_ ':
-            for null in [False, True]:
-                yield self.check_scalar, 'char', "'%s'" % char, null, [char]
-
-    def test_string(self):
-        for val in ['a', 'hi', 'hi ho', 'å∫√∂']:
-            for null in [False, True]:
-                yield self.check_scalar, 'string', "'%s'" % val, null, [val]
 
     def test_parse_std(self):
         # regression test
