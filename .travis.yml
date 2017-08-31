@@ -10,7 +10,8 @@ python:
 
 env: SCIDB_VER=16.9
 
-services: docker
+services:
+  - docker
 
 before_install:
   - docker pull rvernica/scidb:${SCIDB_VER}
