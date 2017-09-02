@@ -1,5 +1,6 @@
 import numpy
 import pytest
+import random
 
 from scidbpy.db import connect, iquery
 from scidbpy.schema import Schema
@@ -446,3 +447,51 @@ class TestVariety:
         assert ar[0:1].to_records(index=False) == variety_array_obj[0]
         assert ar[4:5].to_records(index=False) == variety_array_obj[1]
         assert ar[8:9].to_records(index=False) == variety_array_obj[2]
+
+
+class TestUpload:
+
+    @pytest.mark.parametrize('query', [
+        pre + "(foo, '{fn}', 0, '" + fmt + "'" + suf + ')'
+        for fmt in ('(int64)', '{fmt}')
+        for (pre, suf) in (('store(input', '), foo'),
+                           ('insert(input', '), foo'),
+                           ('load', ''))
+    ] + [
+        (pre + '(' +
+         'input(<val:int64 ' + null + ">[i], '{fn}', 0, '" + fmt + "'), " +
+         'foo)')
+        for fmt in ('(int64)', '{fmt}')
+        for null in ('', 'null')
+        for pre in ('store',
+                    'insert')
+    ])
+    def test_numpy(self, db, query):
+        foo_np = numpy.random.randint(1e3, size=10)
+        assert db.create_array('foo', '<val:int64>[i]') is None
+        assert db.iquery(query, upload_data=foo_np) is None
+        assert db.remove('foo') is None
+
+    @pytest.mark.parametrize('query', [
+        pre + "(foo, '{fn}', 0, '" + fmt + "'" + suf + ')'
+        for fmt in ('(int64 null)', '{fmt}')
+        for (pre, suf) in (('store(input', '), foo'),
+                           ('insert(input', '), foo'),
+                           ('load', ''))
+    ] + [
+        (pre + '(' +
+         'input(<val:int64 ' + null + ">[i], '{fn}', 0, '" + fmt + "'), " +
+         'foo)')
+        for fmt in ('(int64 null)', '{fmt}')
+        for null in ('', 'null')
+        for pre in ('store',
+                    'insert')
+    ])
+    def test_numpy_w_null(self, db, query):
+        foo_np = numpy.array(
+            [((random.randint(0, 1), random.randint(0, 1e3)),)
+             for _ in range(10)],
+            dtype=[('val', [('null', 'u1'), ('val', '<i8')])])
+        assert db.create_array('foo', '<val:int64>[i]') is None
+        assert db.iquery(query, upload_data=foo_np) is None
+        assert db.remove('foo') is None
