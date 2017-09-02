@@ -2,7 +2,7 @@ import numpy
 import pytest
 import random
 
-from scidbpy.db import connect, iquery
+from scidbpy.db import Array, connect, iquery
 from scidbpy.schema import Schema
 
 
@@ -449,6 +449,12 @@ class TestVariety:
         assert ar[8:9].to_records(index=False) == variety_array_obj[2]
 
 
+foo_np = numpy.random.randint(1e3, size=10)
+foo_np_w_null = numpy.array([((255, random.randint(0, 1e3)),)
+                             for _ in range(10)],
+                            dtype=[('val', [('null', 'u1'), ('val', '<i8')])])
+
+
 class TestUpload:
 
     @pytest.mark.parametrize('query', [
@@ -466,11 +472,10 @@ class TestUpload:
         for pre in ('store',
                     'insert')
     ])
-    def test_numpy(self, db, query):
-        foo_np = numpy.random.randint(1e3, size=10)
-        assert db.create_array('foo', '<val:int64>[i]') is None
+    def test_iquery_numpy(self, db, query):
+        db.create_array('foo', '<val:int64>[i]')
         assert db.iquery(query, upload_data=foo_np) is None
-        assert db.remove('foo') is None
+        db.remove('foo')
 
     @pytest.mark.parametrize('query', [
         pre + "(foo, '{fn}', 0, '" + fmt + "'" + suf + ')'
@@ -484,14 +489,101 @@ class TestUpload:
          'foo)')
         for fmt in ('(int64 null)', '{fmt}')
         for null in ('', 'null')
-        for pre in ('store',
-                    'insert')
+        for pre in ('store', 'insert')
     ])
-    def test_numpy_w_null(self, db, query):
-        foo_np = numpy.array(
-            [((random.randint(0, 1), random.randint(0, 1e3)),)
-             for _ in range(10)],
-            dtype=[('val', [('null', 'u1'), ('val', '<i8')])])
-        assert db.create_array('foo', '<val:int64>[i]') is None
-        assert db.iquery(query, upload_data=foo_np) is None
-        assert db.remove('foo') is None
+    def test_iquery_numpy_w_null(self, db, query):
+        db.create_array('foo', '<val:int64>[i]')
+        assert db.iquery(query, upload_data=foo_np_w_null) is None
+        db.remove('foo')
+
+    @pytest.mark.parametrize('args', [
+        (arr, inp, ins, fmt) if all((arr, inp, ins, fmt)) else
+        (arr, inp, ins) if all((arr, inp, ins)) else
+        (arr, inp) if arr and inp else
+        (arr,) if arr else
+        ()
+        for arr in ('',
+                    'foo',
+                    'foo_not_null',
+                    '<val:int64>[i]',
+                    '<val:int64 not null>[i]')
+        for inp in ('', "'{fn}'")
+        for ins in ('', '0')
+        for fmt in ('', "'(int64)'", "'{fmt}'")
+    ])
+    def test_input_numpy(self, db, args):
+        if args and args[0].startswith('foo'):
+            if args[0].endswith('not_null'):
+                args = ('foo',) + args[1:]
+                db.create_array('foo', '<val:int64 not null>[i]')
+            else:
+                db.create_array('foo', '<val:int64>[i]')
+        assert type(db.input(*args, upload_data=foo_np).store('foo')) == Array
+        db.remove('foo')
+
+    @pytest.mark.parametrize('args', [
+        (arr, inp, ins, fmt) if all((arr, inp, ins, fmt)) else
+        (arr, inp, ins) if all((arr, inp, ins)) else
+        (arr, inp) if arr and inp else
+        (arr,) if arr else
+        ()
+        for arr in ('',
+                    'foo',
+                    'foo_not_null',
+                    '<val:int64>[i]',
+                    '<val:int64 not null>[i]')
+        for inp in ('', "'{fn}'")
+        for ins in ('', '0')
+        for fmt in ('', "'(int64 null)'", "'{fmt}'")
+    ])
+    def test_input_numpy_w_null(self, db, args):
+        if args and args[0].startswith('foo'):
+            if args[0].endswith('not_null'):
+                args = ('foo',) + args[1:]
+                db.create_array('foo', '<val:int64 not null>[i]')
+            else:
+                db.create_array('foo', '<val:int64>[i]')
+        assert type(
+            db.input(*args, upload_data=foo_np_w_null).store('foo')) == Array
+        db.remove('foo')
+
+    @pytest.mark.parametrize('args', [
+        (arr, inp, ins, fmt) if all((arr, inp, ins, fmt)) else
+        (arr, inp, ins) if all((arr, inp, ins)) else
+        (arr, inp) if arr and inp else
+        (arr,)
+        for arr in ('foo', 'foo_not_null')
+        for inp in ('', "'{fn}'")
+        for ins in ('', '0')
+        for fmt in ('', "'(int64)'", "'{fmt}'")
+    ])
+    def test_load_numpy(self, db, args):
+        if args and args[0].startswith('foo'):
+            if args[0].endswith('not_null'):
+                args = ('foo',) + args[1:]
+                db.create_array('foo', '<val:int64 not null>[i]')
+            else:
+                db.create_array('foo', '<val:int64>[i]')
+        assert type(db.load('foo', *args[1:], upload_data=foo_np)) == Array
+        db.remove('foo')
+
+    @pytest.mark.parametrize('args', [
+        (arr, inp, ins, fmt) if all((arr, inp, ins, fmt)) else
+        (arr, inp, ins) if all((arr, inp, ins)) else
+        (arr, inp) if arr and inp else
+        (arr,)
+        for arr in ('foo', 'foo_not_null')
+        for inp in ('', "'{fn}'")
+        for ins in ('', '0')
+        for fmt in ('', "'(int64 null)'", "'{fmt}'")
+    ])
+    def test_load_numpy_w_null(self, db, args):
+        if args and args[0].startswith('foo'):
+            if args[0].endswith('not_null'):
+                args = ('foo',) + args[1:]
+                db.create_array('foo', '<val:int64 not null>[i]')
+            else:
+                db.create_array('foo', '<val:int64>[i]')
+        assert type(
+            db.load('foo', *args[1:], upload_data=foo_np_w_null)) == Array
+        db.remove('foo')
