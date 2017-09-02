@@ -503,8 +503,12 @@ class Operator(object):
                 self.upload_schema = kwargs['upload_schema']
             else:
                 # Try to infer upload schema from the first argument,
-                # if present
-                if self.name.lower() == 'input' and ln > 1:
+                # if the operator is input and the upload data is not
+                # a NumPy array (upload schema for NumPy arrays is
+                # inferred in iquery)
+                if (self.name.lower() == 'input' and
+                    not isinstance(self.upload_data, numpy.ndarray) and
+                    ln > 1):
                     try:
                         self.upload_schema = Schema.fromstring(args[0])
                     except:
@@ -542,7 +546,7 @@ class Operator(object):
                            upload_schema=self.upload_schema)
 
             # Special case: -- - store - --
-            if self.name.lower() == 'store':
+            if self.name.lower() in ('load', 'store'):
                 if isinstance(self.args[1], Array):
                     return self.args[1]
                 else:
