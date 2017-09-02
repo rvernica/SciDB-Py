@@ -130,7 +130,7 @@ def _iter_strings(contents, nullable):
         else:
             masked = False
 
-        sz = np.fromstring(contents[offset: offset + 4], '<i')
+        sz = np.fromstring(contents[offset: offset + 4], '<i')[0]
         offset += 4
         yield None if masked else contents[offset: offset + sz - 1].decode('utf-8')
         offset += sz  # skip null terminated string
