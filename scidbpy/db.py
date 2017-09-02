@@ -14,7 +14,9 @@ import os
 import pandas
 import re
 import requests
+import string
 import threading
+import warnings
 
 try:
     from weakref import finalize
@@ -124,6 +126,8 @@ class DB(object):
         self._lock = threading.Lock()
         self._array_cnt = 0
 
+        self._formatter = string.Formatter()
+
     def __iter__(self):
         return (i for i in (
             self.scidb_url,
@@ -220,8 +224,29 @@ verify     = {}'''.format(*self)
                     upload_data = upload_data.tobytes()
                 else:
                     upload_data = upload_schema.tobytes(upload_data)
-            # TODO
-            # Assume upload data is already in bytes format
+
+            # Check if placeholders are present
+            place_holders = set(
+                field_name
+                for _1, field_name, _3, _4 in self._formatter.parse(query))
+            if 'fn' not in place_holders:
+                warnings.warn(
+                    'upload_data provided, but {fn} placeholder is missing',
+                    stacklevel=2)
+            if 'fmt' in place_holders and upload_schema is None:
+                warnings.warn(
+                    'upload_data and {fmt} placeholder provided, ' +
+                    'but upload_schema is None and cannot be inferred',
+                    stacklevel=2)
+
+            # Check if upload data is bytes or file-like object
+            if not (isinstance(upload_data, bytes) or
+                    hasattr(upload_data, 'read')):
+                print('data type')
+                warnings.warn(
+                    'upload_data is not bytes or file-like object',
+                    stacklevel=2)
+
             fn = self._shim(Shim.upload, id=id, data=upload_data).text
             query = query.format(
                 sch=upload_schema,
