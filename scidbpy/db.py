@@ -324,7 +324,6 @@ verify     = {}'''.format(*self)
             return 'py_{}_{}'.format(self._id, self._array_cnt)
 
     def _shim(self, endpoint, **kwargs):
-
         """Make request on Shim endpoint"""
         if self._scidb_auth and endpoint in (Shim.cancel, Shim.execute_query):
             kwargs.update(self._scidb_auth)
@@ -433,10 +432,11 @@ class Operator(object):
     fetch.
 
     """
-    def __init__(self, db, name, upload_data=None, *args):
+    def __init__(self, db, name, upload_data=None, upload_schema=None, *args):
         self.db = db
         self.name = name
         self.upload_data = upload_data
+        self.upload_schema = upload_schema
 
         self.args = list(args)
         self.is_lazy = self.name.lower() not in ops_hungry
@@ -467,11 +467,25 @@ class Operator(object):
 
         # Special case: -- - input & load - --
         elif self.name.lower() in ('input', 'load'):
+            ln = len(self.args)
+
             # Set upload data
             if 'upload_data' in kwargs.keys():
                 self.upload_data = kwargs['upload_data']
+            # Set upload schema
+            if 'upload_schema' in kwargs.keys():
+                # Pass through if provided as argument
+                self.upload_schema = kwargs['upload_schema']
+            else:
+                # Try to infer upload schema from the first argument,
+                # if present
+                if self.name.lower() == 'input' and ln > 1:
+                    try:
+                        self.upload_schema = Schema.fromstring(args[0])
+                    except:
+                        pass
 
-            ln = len(self.args)
+            # Set defaults if arguments are missing
             # Check if "format" is present (4th argument)
             if ln < 4:
                 # Check if "instance_id" is present (3rd argument)
@@ -498,7 +512,9 @@ class Operator(object):
         if self.is_lazy:
             return self
         else:
-            self.db.iquery(str(self), upload_data=self.upload_data)
+            self.db.iquery(str(self),
+                           upload_data=self.upload_data,
+                           upload_schema=self.upload_schema)
 
             # Special case: -- - store - --
             if self.name.lower() == 'store':
@@ -514,7 +530,8 @@ class Operator(object):
 
     def __getattr__(self, name):
         if name in self.db.operators:
-            return Operator(self.db, name, self.upload_data, self)
+            return Operator(
+                self.db, name, self.upload_data, self.upload_schema, self)
         else:
             raise AttributeError(
                 '{.__name__!r} object has no attribute {!r}'.format(
@@ -528,7 +545,8 @@ class Operator(object):
             return self.db.iquery(str(self),
                                   fetch=True,
                                   as_dataframe=as_dataframe,
-                                  upload_data=self.upload_data)
+                                  upload_data=self.upload_data,
+                                  upload_schema=self.upload_schema)
         else:
             None
 
