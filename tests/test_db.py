@@ -496,6 +496,62 @@ class TestUpload:
         assert db.iquery(query, upload_data=foo_np_w_null) is None
         db.remove('foo')
 
+    @pytest.mark.parametrize(('query', 'upload_schema_str'), [
+        (pre + "(foo, '{fn}', 0, '" + fmt + "'" + suf + ')', ups)
+        for fmt in ('(int64)', '{fmt}')
+        for (pre, suf) in (('store(input', '), foo'),
+                           ('insert(input', '), foo'),
+                           ('load', ''))
+        for ups in (['<val:int64 not null>[i]'] +
+                    ([None] if fmt[0] != '{' else []))
+    ] + [
+        ((pre + '(' +
+          'input(' + sch + ", '{fn}', 0, '" + fmt + "'), " +
+          'foo)'), ups)
+        for fmt in ('(int64)', '{fmt}')
+        for sch in ('<val:int64>[i]', '<val:int64 not null>[i]', '{sch}')
+        for pre in ('store', 'insert')
+        for ups in (['<val:int64 not null>[i]'] +
+                    ([None] if fmt[0] != '{' and sch[0] != '{' else []))
+    ])
+    def test_iquery_numpy_bytes(self, db, query, upload_schema_str):
+        db.create_array('foo', '<val:int64>[i]')
+        assert db.iquery(
+            query,
+            upload_data=foo_np,
+            upload_schema=(Schema.fromstring(upload_schema_str)
+                           if upload_schema_str else None)) is None
+        db.remove('foo')
+
+    @pytest.mark.parametrize(('query', 'upload_schema_str'), [
+        (pre + "(foo, '{fn}', 0, '" + fmt + "'" + suf + ')',
+         ups)
+        for fmt in ('(int64 null)', '{fmt}')
+        for (pre, suf) in (('store(input', '), foo'),
+                           ('insert(input', '), foo'),
+                           ('load', ''))
+        for ups in (['<val:int64>[i]'] +
+                    ([None] if fmt[0] != '{' else []))
+    ] + [
+        (pre + '(' +
+         'input(' + sch + ", '{fn}', 0, '" + fmt + "'), " +
+         'foo)',
+         ups)
+        for fmt in ('(int64 null)', '{fmt}')
+        for sch in ('<val:int64>[i]', '<val:int64 not null>[i]', '{sch}')
+        for pre in ('store', 'insert')
+        for ups in (['<val:int64>[i]'] +
+                    ([None] if fmt[0] != '{' and sch[0] != '{' else []))
+    ])
+    def test_iquery_numpy_w_null_bytes(self, db, query, upload_schema_str):
+        db.create_array('foo', '<val:int64>[i]')
+        assert db.iquery(
+            query,
+            upload_data=foo_np_w_null,
+            upload_schema=(Schema.fromstring(upload_schema_str)
+                           if upload_schema_str else None)) is None
+        db.remove('foo')
+
     @pytest.mark.parametrize('args', [
         (arr, inp, ins, fmt) if all((arr, inp, ins, fmt)) else
         (arr, inp, ins) if all((arr, inp, ins)) else
