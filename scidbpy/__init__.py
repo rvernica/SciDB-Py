@@ -420,22 +420,16 @@ Upload Data to SciDB
 --------------------
 
 Data can be uploaded using the ``iquery`` function by providing an
-``upload_data`` argument.
-
-Upload NumPy Arrays
-^^^^^^^^^^^^^^^^^^^
-
-Provide a SciDB ``input``, ``store``, ``insert``, ``load`` query and a
-NumPy array. The upload array schema and format can be provided
-explicitly or as placeholders in the SciDB query string. If the schema
-or format are provided as placeholders, they are inferred from the
-NumPy array *dtype*. The placeholders are replaces with the explicit
-values by the ``iquery`` function.
+``upload_data`` argument. A file name placeholder needs to be provided
+as part of the SciDB query string. The upload array schema and data
+format can be provided explicitly or as placeholders in the query
+string. The placeholders are replaced with the explicit values by the
+``iquery`` function, before the query is sent to SciDB.
 
 The SciDB query placeholders are:
 
 * ``'{fn}'``: **mandatory** placeholder which is replaced with the
-  filename of the server file where the uploaded data is stored. It
+  file name of the server file where the uploaded data is stored. It
   has to be *quoted* with single quotes in the query string.
 
 * ``{sch}``: *optional* placeholder which is replaced with the upload
@@ -444,6 +438,15 @@ The SciDB query placeholders are:
 * ``'{fmt}'``: *optional* placeholder which is replaced with the
   upload array format.  It has to be *quoted* with single quotes in
   the query string.
+
+See examples in the following subsections.
+
+Upload NumPy Arrays
+^^^^^^^^^^^^^^^^^^^
+
+Provide a SciDB ``input``, ``store``, ``insert``, or ``load`` query
+and a NumPy array. If the schema or format are provided as
+placeholders, they are inferred from the NumPy array *dtype*.
 
 >>> db.iquery("store(input(<x:int64>[i], '{fn}', 0, '{fmt}'), foo)",
 ...           upload_data=numpy.arange(3))
@@ -455,7 +458,7 @@ array([(0, (255, 0)), (1, (255, 1)), (2, (255, 2))],
 >>> db.iquery("insert(input({sch}, '{fn}', 0, '(int64)'), foo)",
 ...           upload_data=numpy.arange(3))
 
-Optionally, a ``Schema`` object can be used to specify the upload data
+Optionally, a ``Schema`` object can be used to specify the upload
 schema using the ``upload_schema`` argument:
 
 >>> db.iquery("load(foo, '{fn}', 0, '{fmt}')",
@@ -466,9 +469,9 @@ schema using the ``upload_schema`` argument:
 Upload Binary Data
 ^^^^^^^^^^^^^^^^^^
 
-Provide SciDB ``input``, ``store``, ``insert``, ``load`` query and
-binary data. The schema of the upload data needs to be provided either
-explicitly in the query string or using the ``upload_schema``
+Provide a SciDB ``input``, ``store``, ``insert``, or ``load`` query
+and binary data. The schema of the upload data needs to be provided
+either explicitly in the query string or using the ``upload_schema``
 argument. If the schema is provided explicitly, the format needs to be
 provided explicitly in the query string as well:
 
@@ -487,8 +490,10 @@ Upload Data Files
 ^^^^^^^^^^^^^^^^^
 
 A binary or text file-like object can be used to specify the upload
-data. The content of the file has to be in one of the supported SciDB
-formats. A matching format specification has to be provided as well:
+data. The content of the file has to be in one of the `supported SciDB
+formats
+<https://paradigm4.atlassian.net/wiki/spaces/ESD169/pages/50856232/input>`_. A
+matching format specification has to be provided as well:
 
 >>> with open('array.bin', 'wb') as file:
 ...     n = file.write(numpy.arange(3).tobytes())
