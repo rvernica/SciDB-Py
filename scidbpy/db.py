@@ -573,10 +573,11 @@ class Operator(object):
     def __dir__(self):
         return self._dir
 
-    def fetch(self, as_dataframe=False):
+    def fetch(self, atts_only=False, as_dataframe=False):
         if self.is_lazy:
             return self.db.iquery(str(self),
                                   fetch=True,
+                                  atts_only=atts_only,
                                   as_dataframe=as_dataframe,
                                   upload_data=self.upload_data,
                                   upload_schema=self.upload_schema)

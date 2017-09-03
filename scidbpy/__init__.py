@@ -222,6 +222,14 @@ array([(0, 10), (1, 11), (2, 12)],
 1  1  11
 2  2  12
 
+>>> db.build('<x:int8 not null>[i=0:2]', 'i + 10').fetch(
+...     atts_only=True,
+...     as_dataframe=True)
+    x
+0  10
+1  11
+2  12
+
 >>> db.build('<x:int8 not null>[i=0:2]', 'i + 10').apply('y', 'x - 5')[:]
 ... # doctest: +NORMALIZE_WHITESPACE
 array([(0, 10, 5), (1, 11, 6), (2, 12, 7)],
