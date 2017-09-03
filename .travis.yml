@@ -27,7 +27,7 @@ install:
     --upgrade
     --only-binary=scipy
     mock
-    "numpy<1.12"
+    numpy
     "pandas<0.20"
     pytest
     requests
