@@ -32,6 +32,7 @@ type_map_numpy = dict(
         ('double', numpy.float64),
         ('float', numpy.float32),
         ('string', numpy.object),
+        ('binary', numpy.object),
         ('datetime', 'datetime64[s]'),
         ('datetimetz', [('time', 'datetime64[s]'),
                         ('tz', 'timedelta64[s]')]),
@@ -239,10 +240,16 @@ class Attribute(object):
 
     def tobytes(self, val):
         if self.dtype_val == numpy.object:
-            # Assume string type
-            buf = b''.join([struct.pack(Attribute._length_fmt, len(val) + 1),
-                            val.encode(),
-                            b'\x00'])
+            if self.type_name == 'string':
+                buf = b''.join(
+                    [struct.pack(Attribute._length_fmt, len(val) + 1),
+                     val.encode(),
+                     b'\x00'])
+            elif self.type_name == 'binary':
+                buf = b''.join(
+                    [struct.pack(Attribute._length_fmt, len(val)), val])
+            else:
+                raise NotImplementedError('Convert <{}> to bytes'.format(self))
         else:
             if self.not_null:
                 buf = struct.pack(self.fmt_struct[0], val)
