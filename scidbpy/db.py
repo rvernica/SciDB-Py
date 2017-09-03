@@ -501,17 +501,18 @@ class Operator(object):
             if 'upload_schema' in kwargs.keys():
                 # Pass through if provided as argument
                 self.upload_schema = kwargs['upload_schema']
-            else:
+            if self.upload_schema is None:
                 # Try to infer upload schema from the first argument,
                 # if the operator is input and the upload data is not
                 # a NumPy array (upload schema for NumPy arrays is
                 # inferred in iquery)
                 if (self.name == 'input' and
                         not isinstance(self.upload_data, numpy.ndarray) and
-                        ln > 1):
+                        ln >= 1):
                     try:
                         self.upload_schema = Schema.fromstring(args[0])
                     except:
+                        # Fails if the argument is an array name
                         pass
 
             # Set defaults if arguments are missing
