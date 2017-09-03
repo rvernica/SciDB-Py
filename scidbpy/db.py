@@ -459,12 +459,12 @@ class Operator(object):
     """
     def __init__(self, db, name, upload_data=None, upload_schema=None, *args):
         self.db = db
-        self.name = name
+        self.name = name.lower()
         self.upload_data = upload_data
         self.upload_schema = upload_schema
 
         self.args = list(args)
-        self.is_lazy = self.name.lower() not in ops_hungry
+        self.is_lazy = self.name not in ops_hungry
 
         self._dir = self.db.operators + ['fetch']
         self._dir.sort()
@@ -486,12 +486,12 @@ class Operator(object):
         self.args.extend(args)
 
         # Special case: -- - create_array - --
-        if self.name.lower() == 'create_array' and len(self.args) < 3:
+        if self.name == 'create_array' and len(self.args) < 3:
             # Set "temporary"
             self.args.append(False)
 
         # Special case: -- - input & load - --
-        elif self.name.lower() in ('input', 'load'):
+        elif self.name in ('input', 'load'):
             ln = len(self.args)
 
             # Set upload data
@@ -506,7 +506,7 @@ class Operator(object):
                 # if the operator is input and the upload data is not
                 # a NumPy array (upload schema for NumPy arrays is
                 # inferred in iquery)
-                if (self.name.lower() == 'input' and
+                if (self.name == 'input' and
                         not isinstance(self.upload_data, numpy.ndarray) and
                         ln > 1):
                     try:
@@ -530,7 +530,7 @@ class Operator(object):
                 self.args.append("'{fmt}'")            # format
 
         # Special case: -- - store - --
-        elif self.name.lower() == 'store' and len(self.args) < 2:
+        elif self.name == 'store' and len(self.args) < 2:
             # Set "named_array"
             self.args.append(self.db.next_array_name())
             # Garbage collect (if not specified)
@@ -546,7 +546,7 @@ class Operator(object):
                            upload_schema=self.upload_schema)
 
             # Special case: -- - store - --
-            if self.name.lower() in ('load', 'store'):
+            if self.name in ('load', 'store'):
                 if isinstance(self.args[0], Array):    # load
                     return self.args[0]
                 elif isinstance(self.args[1], Array):  # store
