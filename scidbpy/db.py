@@ -507,8 +507,8 @@ class Operator(object):
                 # a NumPy array (upload schema for NumPy arrays is
                 # inferred in iquery)
                 if (self.name.lower() == 'input' and
-                    not isinstance(self.upload_data, numpy.ndarray) and
-                    ln > 1):
+                        not isinstance(self.upload_data, numpy.ndarray) and
+                        ln > 1):
                     try:
                         self.upload_schema = Schema.fromstring(args[0])
                     except:
@@ -547,9 +547,11 @@ class Operator(object):
 
             # Special case: -- - store - --
             if self.name.lower() in ('load', 'store'):
-                if isinstance(self.args[1], Array):
+                if isinstance(self.args[0], Array):    # load
+                    return self.args[0]
+                elif isinstance(self.args[1], Array):  # store
                     return self.args[1]
-                else:
+                else:                                  # load w/ generated name
                     return Array(self.db,
                                  self.args[1],
                                  kwargs.get('gc', False))

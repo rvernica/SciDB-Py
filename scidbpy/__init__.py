@@ -269,6 +269,8 @@ array([(0, (255, 0)), (1, (255, 1)), (2, (255, 2))],
 Array(DB('http://localhost:8080', None, None, None, None, None), 'foo')
 
 >>> db.load(db.arrays.foo, upload_data=numpy.arange(3))
+... # doctest: +NORMALIZE_WHITESPACE
+Array(DB('http://localhost:8080', None, None, None, None, None), 'foo')
 
 >>> db.input('<x:int64>[j]', upload_data=numpy.arange(3, 6)
 ...  ).apply('i', 'j + 3'
