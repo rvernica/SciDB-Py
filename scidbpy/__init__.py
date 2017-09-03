@@ -472,8 +472,9 @@ Upload Binary Data
 Provide a SciDB ``input``, ``store``, ``insert``, or ``load`` query
 and binary data. The schema of the upload data needs to be provided
 either explicitly in the query string or using the ``upload_schema``
-argument. If the schema is provided explicitly, the format needs to be
-provided explicitly in the query string as well:
+argument. If the schema is not provides using the ``upload_schema``
+argument, the format needs to be provided explicitly in the query
+string:
 
 >>> db.iquery("store(input({sch}, '{fn}', 0, '{fmt}'), foo)",
 ...           upload_data=numpy.arange(3).tobytes(),
