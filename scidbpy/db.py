@@ -241,6 +241,7 @@ verify     = {}'''.format(*self)
 
             # Check if upload data is bytes or file-like object
             if not (isinstance(upload_data, bytes) or
+                    isinstance(upload_data, bytearray) or
                     hasattr(upload_data, 'read')):
                 print('data type')
                 warnings.warn(
