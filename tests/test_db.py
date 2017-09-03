@@ -465,10 +465,10 @@ class TestUpload:
                            ('load', ''))
     ] + [
         (pre + '(' +
-         'input(<val:int64 ' + null + ">[i], '{fn}', 0, '" + fmt + "'), " +
+         'input(' + sch + ", '{fn}', 0, '" + fmt + "'), " +
          'foo)')
         for fmt in ('(int64)', '{fmt}')
-        for null in ('', 'null')
+        for sch in ('<val:int64>[i]', '<val:int64 not null>[i]', '{sch}')
         for pre in ('store',
                     'insert')
     ])
@@ -485,10 +485,10 @@ class TestUpload:
                            ('load', ''))
     ] + [
         (pre + '(' +
-         'input(<val:int64 ' + null + ">[i], '{fn}', 0, '" + fmt + "'), " +
+         'input(' + sch + ", '{fn}', 0, '" + fmt + "'), " +
          'foo)')
         for fmt in ('(int64 null)', '{fmt}')
-        for null in ('', 'null')
+        for sch in ('<val:int64>[i]', '<val:int64 not null>[i]', '{sch}')
         for pre in ('store', 'insert')
     ])
     def test_iquery_numpy_w_null(self, db, query):
@@ -506,7 +506,8 @@ class TestUpload:
                     'foo',
                     'foo_not_null',
                     '<val:int64>[i]',
-                    '<val:int64 not null>[i]')
+                    '<val:int64 not null>[i]',
+                    '{sch}')
         for inp in ('', "'{fn}'")
         for ins in ('', '0')
         for fmt in ('', "'(int64)'", "'{fmt}'")
@@ -531,7 +532,8 @@ class TestUpload:
                     'foo',
                     'foo_not_null',
                     '<val:int64>[i]',
-                    '<val:int64 not null>[i]')
+                    '<val:int64 not null>[i]',
+                    '{sch}')
         for inp in ('', "'{fn}'")
         for ins in ('', '0')
         for fmt in ('', "'(int64 null)'", "'{fmt}'")
