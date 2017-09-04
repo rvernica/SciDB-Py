@@ -254,13 +254,15 @@ array([(0, 10, 11), (1, 11, 12), (2, 12, 13)],
 Upload Data to SciDB
 --------------------
 
-``input`` and ``load`` operators can be used to upload data. If the
-schema and the format are not specified, they are inferred from the
-uploaded data. If an array name is not specified for the store
-operator, an array name is generated. Arrays with generated names are
-removed when the returned Array object is garbage collected. This
-behavior can be changed by specifying the ``gc=False`` argument to the
-store operator:
+``input`` and ``load`` operators can be used to upload data. An upload
+schema can also be provided. If the schema and the format are not
+specified, they are inferred from the uploaded data, the upload
+schema, or the annonymous schema (if provided).
+
+If an array name is not specified for the ``store`` operator, an array
+name is generated. Arrays with generated names are removed when the
+returned Array object is garbage collected. This behavior can be
+changed by specifying the ``gc=False`` argument to the store operator.
 
 >>> ar = db.input(upload_data=numpy.arange(3)).store()
 >>> ar  # doctest: +ELLIPSIS
@@ -273,11 +275,9 @@ array([(0, (255, 0)), (1, (255, 1)), (2, (255, 2))],
       dtype=[('i', '<i8'), ('x', [('null', 'u1'), ('val', '<i8')])])
 
 >>> db.input('<x:int64>[i]', upload_data=numpy.arange(3)).store(db.arrays.foo)
-... # doctest: +NORMALIZE_WHITESPACE
 Array(DB('http://localhost:8080', None, None, None, None, None), 'foo')
 
 >>> db.load(db.arrays.foo, upload_data=numpy.arange(3))
-... # doctest: +NORMALIZE_WHITESPACE
 Array(DB('http://localhost:8080', None, None, None, None, None), 'foo')
 
 >>> db.input('<x:int64>[j]', upload_data=numpy.arange(3, 6)
@@ -298,8 +298,13 @@ Array(DB('http://localhost:8080', None, None, None, None, None), 'bar')
 >>> numpy.all(db.arrays.bar[:] == db.arrays.foo[:])
 True
 
->>> db.remove(db.arrays.foo)
->>> db.remove(db.arrays.bar)
+>>> buf = numpy.array([bytes([10, 20, 30])], dtype='object')
+
+>>> db.input('<b:binary not null>[i]', upload_data=buf).store('taz')
+Array(DB('http://localhost:8080', None, None, None, None, None), 'taz')
+
+>>> db.load('taz', upload_data=buf)
+Array(DB('http://localhost:8080', None, None, None, None, None), 'taz')
 
 For files already available on the server the ``input`` or ``load``
 operators can be invoked with the full set of arguments supported by
@@ -308,6 +313,7 @@ double-quoted in SciDB-Py. For example:
 
 >>> db.load('foo', "'/data.csv'", 0, "'CSV'")  # doctest: +SKIP
 
+>>> for ar in ['foo', 'bar', 'taz']: db.remove(ar)
 
 The iquery Function
 ===================
