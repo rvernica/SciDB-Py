@@ -82,7 +82,9 @@
                         <span class="p">(</span><span class="s1">&#39;tz&#39;</span><span class="p">,</span> <span class="s1">&#39;timedelta64[s]&#39;</span><span class="p">)]),</span>
     <span class="p">])</span>
 
-<span class="n">type_map_inv_numpy</span> <span class="o">=</span> <span class="p">{</span><span class="n">v</span><span class="p">:</span> <span class="n">k</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">six</span><span class="o">.</span><span class="n">iteritems</span><span class="p">(</span><span class="n">type_map_numpy</span><span class="p">)}</span>
+<span class="n">type_map_inv_numpy</span> <span class="o">=</span> <span class="p">{</span><span class="n">v</span><span class="p">:</span> <span class="n">k</span>
+                      <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">six</span><span class="o">.</span><span class="n">iteritems</span><span class="p">(</span><span class="n">type_map_numpy</span><span class="p">)</span>
+                      <span class="k">if</span> <span class="n">v</span> <span class="o">!=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">dtype</span><span class="p">(</span><span class="n">numpy</span><span class="o">.</span><span class="n">object</span><span class="p">)}</span>
 <span class="n">type_map_inv_numpy</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="nb">dict</span><span class="p">(</span>
     <span class="p">(</span><span class="n">numpy</span><span class="o">.</span><span class="n">dtype</span><span class="p">(</span><span class="n">k</span><span class="p">),</span> <span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span> <span class="ow">in</span>
     <span class="p">[</span>
@@ -337,8 +339,14 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="c1"># if dtype_val not found in map, try the dtype_val.type</span>
             <span class="c1"># (without the length)</span>
+            <span class="n">ty</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">dtype</span><span class="p">(</span><span class="n">dtype_val</span><span class="o">.</span><span class="n">type</span><span class="p">)</span>
             <span class="c1"># e.g. &#39;&lt;U3&#39; --type--&gt; &#39;&lt;U&#39; --map--&gt; numpy.str_</span>
-            <span class="n">type_name</span> <span class="o">=</span> <span class="n">type_map_inv_numpy</span><span class="p">[</span><span class="n">numpy</span><span class="o">.</span><span class="n">dtype</span><span class="p">(</span><span class="n">dtype_val</span><span class="o">.</span><span class="n">type</span><span class="p">)]</span>
+            <span class="k">if</span> <span class="n">ty</span> <span class="ow">in</span> <span class="n">type_map_inv_numpy</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="n">type_name</span> <span class="o">=</span> <span class="n">type_map_inv_numpy</span><span class="p">[</span><span class="n">ty</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                    <span class="s1">&#39;No SciDB type mapping for NumPy type </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                        <span class="n">dtype_val</span><span class="p">))</span>
 
         <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">dtype_descr</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="n">dtype_descr</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">else</span> <span class="n">one_att_name</span><span class="p">,</span>
                    <span class="n">type_name</span><span class="o">=</span><span class="n">type_name</span><span class="p">,</span>

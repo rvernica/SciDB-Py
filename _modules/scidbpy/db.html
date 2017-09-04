@@ -261,7 +261,13 @@
         <span class="k">if</span> <span class="n">upload_data</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">upload_data</span><span class="p">,</span> <span class="n">numpy</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
                 <span class="k">if</span> <span class="n">upload_schema</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-                    <span class="n">upload_schema</span> <span class="o">=</span> <span class="n">Schema</span><span class="o">.</span><span class="n">fromdtype</span><span class="p">(</span><span class="n">upload_data</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="n">upload_schema</span> <span class="o">=</span> <span class="n">Schema</span><span class="o">.</span><span class="n">fromdtype</span><span class="p">(</span><span class="n">upload_data</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+                    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+                            <span class="s1">&#39;Mapping NumPy dtype to SciDB schema failed. &#39;</span> <span class="o">+</span>
+                            <span class="s1">&#39;Try providing an explicit upload_schema&#39;</span><span class="p">)</span>
+                        <span class="k">raise</span> <span class="n">e</span>
 
                 <span class="c1"># Convert upload data to bytes</span>
                 <span class="k">if</span> <span class="n">upload_schema</span><span class="o">.</span><span class="n">is_fixsize</span><span class="p">():</span>
@@ -280,7 +286,7 @@
             <span class="k">if</span> <span class="s1">&#39;fmt&#39;</span> <span class="ow">in</span> <span class="n">place_holders</span> <span class="ow">and</span> <span class="n">upload_schema</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
                     <span class="s1">&#39;upload_data and </span><span class="si">{fmt}</span><span class="s1"> placeholder provided, &#39;</span> <span class="o">+</span>
-                    <span class="s1">&#39;but upload_schema is None and cannot be inferred&#39;</span><span class="p">,</span>
+                    <span class="s1">&#39;but upload_schema is None&#39;</span><span class="p">,</span>
                     <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
 
             <span class="c1"># Check if upload data is bytes or file-like object</span>
@@ -547,12 +553,23 @@
                 <span class="c1"># Pass through if provided as argument</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">upload_schema</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;upload_schema&#39;</span><span class="p">]</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">upload_schema</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="c1"># Try to infer upload schema from the first argument,</span>
-                <span class="c1"># if the operator is input and the upload data is not</span>
-                <span class="c1"># a NumPy array (upload schema for NumPy arrays is</span>
-                <span class="c1"># inferred in iquery)</span>
-                <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="s1">&#39;input&#39;</span> <span class="ow">and</span>
-                        <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">upload_data</span><span class="p">,</span> <span class="n">numpy</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="ow">and</span>
+                <span class="c1"># If the upload_data is a NumPy array try to map the</span>
+                <span class="c1"># array dtype to upload schema</span>
+                <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">upload_data</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span>
+                        <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">upload_data</span><span class="p">,</span> <span class="n">numpy</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)):</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">upload_schema</span> <span class="o">=</span> <span class="n">Schema</span><span class="o">.</span><span class="n">fromdtype</span><span class="p">(</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">upload_data</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+                    <span class="k">except</span><span class="p">:</span>
+                        <span class="c1"># Might fail if the dtype contains</span>
+                        <span class="c1"># objects. The same type mapping is attempted</span>
+                        <span class="c1"># later in iquery, but there the exception is</span>
+                        <span class="c1"># propagated</span>
+                        <span class="k">pass</span>
+                <span class="c1"># If the oprator is input, try to map first argument</span>
+                <span class="c1"># to upload schema</span>
+                <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">upload_schema</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="s1">&#39;input&#39;</span> <span class="ow">and</span>
                         <span class="n">ln</span> <span class="o">&gt;=</span> <span class="mi">1</span><span class="p">):</span>
                     <span class="k">try</span><span class="p">:</span>
                         <span class="bp">self</span><span class="o">.</span><span class="n">upload_schema</span> <span class="o">=</span> <span class="n">Schema</span><span class="o">.</span><span class="n">fromstring</span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
