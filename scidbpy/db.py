@@ -484,8 +484,22 @@ class Operator(object):
             ', '.join('{!r}'.format(i) for i in self.args))
 
     def __str__(self):
-        args_fmt_scidb = ('{}'.format(i) for i in self.args)
-        return '{}({})'.format(self.name, ', '.join(args_fmt_scidb))
+        args_fmt = []
+        for (pos, arg) in enumerate(self.args):
+            # Format argument to string (possibly recursive)
+            arg_fmt = '{}'.format(arg)
+
+            # Special case: quote string argument if not quoted
+            if (self.name in string_args[pos] and
+                    arg and
+                    arg_fmt[0] != "'" and
+                    arg_fmt[-1] != "'"):
+
+                arg_fmt = "'{}'".format(arg_fmt)
+
+            # Add to arguments list
+            args_fmt.append(arg_fmt)
+        return '{}({})'.format(self.name, ', '.join(args_fmt))
 
     def __call__(self, *args, **kwargs):
         """Returns self for lazy expressions. Executes immediate expressions.
