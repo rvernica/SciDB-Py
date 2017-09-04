@@ -547,13 +547,18 @@ class Operator(object):
                            upload_data=self.upload_data,
                            upload_schema=self.upload_schema)
 
-            # Special case: -- - store - --
-            if self.name in ('load', 'store'):
-                if isinstance(self.args[0], Array):    # load
+            # Special case: -- - load - --
+            if self.name == 'load':
+                if isinstance(self.args[0], Array):
                     return self.args[0]
-                elif isinstance(self.args[1], Array):  # store
+                else:
+                    return Array(self.db, self.args[0])
+
+            # Special case: -- - store - --
+            elif self.name == 'store':
+                if isinstance(self.args[1], Array):
                     return self.args[1]
-                else:                                  # load w/ generated name
+                else:
                     return Array(self.db,
                                  self.args[1],
                                  kwargs.get('gc', False))
