@@ -23,7 +23,7 @@ try:
 except ImportError:
     from backports.weakref import finalize
 
-from .ops_hungry import ops_hungry
+from .meta import ops_hungry
 from .schema import Attribute, Dimension, Schema
 
 
