@@ -255,9 +255,10 @@ Upload Data to SciDB
 --------------------
 
 ``input`` and ``load`` operators can be used to upload data. An upload
-schema can also be provided. If the schema and the format are not
-specified, they are inferred from the uploaded data, the upload
-schema, or the annonymous schema (if provided).
+schema can also be provided. If the resulting array or schema is not
+provided, it can be generated from the upload data or upload
+schema. If the upload format is not provided, it can be constructed
+from the upload schema, upload data, or resulting array schema.
 
 If an array name is not specified for the ``store`` operator, an array
 name is generated. Arrays with generated names are removed when the
@@ -303,7 +304,9 @@ True
 >>> db.input('<b:binary not null>[i]', upload_data=buf).store('taz')
 Array(DB('http://localhost:8080', None, None, None, None, None), 'taz')
 
->>> db.load('taz', upload_data=buf)
+>>> db.load('taz',
+...         upload_data=buf,
+...         upload_schema=Schema.fromstring('<b:binary not null>[i]'))
 Array(DB('http://localhost:8080', None, None, None, None, None), 'taz')
 
 For files already available on the server the ``input`` or ``load``
@@ -460,7 +463,8 @@ Upload NumPy Arrays
 
 Provide a SciDB ``input``, ``store``, ``insert``, or ``load`` query
 and a NumPy array. If the schema or format are provided as
-placeholders, they are inferred from the NumPy array *dtype*.
+placeholders, the upload data *dtype* or upload schema is used to
+populate these placeholders.
 
 >>> db.iquery("store(input(<x:int64>[i], '{fn}', 0, '{fmt}'), foo)",
 ...           upload_data=numpy.arange(3))
