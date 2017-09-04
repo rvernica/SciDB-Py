@@ -211,6 +211,10 @@ verify     = {}'''.format(*self)
               dtype=[('i', '<i8'), ('x', '<i8')])
 
         """
+        # Special case: -- - set_namespace - --
+        if query.startswith('set_namespace(') and query[-1] == ')':
+            self.namespace = query[len('set_namespace('):-1]
+            return
 
         id = self._shim(Shim.new_session).text
 
@@ -357,16 +361,24 @@ verify     = {}'''.format(*self)
 
     def _shim(self, endpoint, **kwargs):
         """Make request on Shim endpoint"""
+
+        # Add credentails to request, if necessary
         if self._scidb_auth and endpoint in (Shim.cancel, Shim.execute_query):
             kwargs.update(self._scidb_auth)
+
+        # Add prefix to request, if necessary
+        if self.namespace and endpoint == Shim.execute_query:
+            kwargs['prefix'] = 'set_namespace({})'.format(self.namespace)
+
+        # Make request
         url = requests.compat.urljoin(self.scidb_url, endpoint.value)
-        if endpoint == Shim.upload:
+        if endpoint == Shim.upload:  # Post request
             req = requests.post(
                 '{}?id={}'.format(url, kwargs['id']),
                 data=kwargs['data'],
                 auth=self._http_auth,
                 verify=self.verify)
-        else:
+        else:                        # Get request
             req = requests.get(
                 url,
                 params=kwargs,
@@ -499,6 +511,7 @@ class Operator(object):
 
             # Add to arguments list
             args_fmt.append(arg_fmt)
+
         return '{}({})'.format(self.name, ', '.join(args_fmt))
 
     def __call__(self, *args, **kwargs):
@@ -620,8 +633,7 @@ class Operator(object):
                                   as_dataframe=as_dataframe,
                                   upload_data=self.upload_data,
                                   upload_schema=self.upload_schema)
-        else:
-            None
+
 
 connect = DB
 iquery = DB.iquery

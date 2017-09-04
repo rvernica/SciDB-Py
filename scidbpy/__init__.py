@@ -544,6 +544,49 @@ Please note that the data file is not read into the SciDB-Py
 library. The data file object is passed directly to the ``requests``
 library which handles the HTTP communication with *Shim*.
 
+
+SciDB Enterprise Edition Features
+=================================
+
+SciDB Enterprise Edition features can be used directly as any other
+operators. One special case is the ``set_namespace`` operator. The
+operator alters the ``DB`` object on which it is called. The effect
+persists until the next call to ``set_namespace``. The operator can be
+called directly (i.g., ``db.set_namespace``) or through the ``iquery``
+function. No immediate query is executed in SciDB, but the new
+namespace will take effect for any subsequent SciDB queries:
+
+>>> print(db)
+scidb_url  = 'http://localhost:8080'
+scidb_auth = None
+http_auth  = None
+role       = None
+namespace  = None
+verify     = None
+
+Notice the ``namespace`` field of the ``DB`` instance.
+
+>>> db.set_namespace('private')            # doctest: +SKIP
+>>> print(db)                              # doctest: +SKIP
+scidb_url  = 'http://localhost:8080'
+scidb_auth = None
+http_auth  = None
+role       = None
+namespace  = 'private'
+verify     = None
+>>> db.show_namespace()[0]['name']['val']  # doctest: +SKIP
+'private'
+
+>>> db.iquery("set_namespace('public')")
+>>> print(db)
+scidb_url  = 'http://localhost:8080'
+scidb_auth = None
+http_auth  = None
+role       = None
+namespace  = 'public'
+verify     = None
+>>> db.show_namespace()[0]['name']['val']  # doctest: +SKIP
+'public'
 """
 
 from .db import connect, iquery, Array
