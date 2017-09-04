@@ -571,13 +571,16 @@ class Operator(object):
                 kwargs['gc'] = True
 
         # Lazy or hungry
-        if self.is_lazy:
+        if self.is_lazy:        # Lazy
             return self
-        else:
+
+        else:                   # Hungry
+            # Execute query
             self.db.iquery(str(self),
                            upload_data=self.upload_data,
                            upload_schema=self.upload_schema)
 
+            # Handle output
             # Special case: -- - load - --
             if self.name == 'load':
                 if isinstance(self.args[0], Array):

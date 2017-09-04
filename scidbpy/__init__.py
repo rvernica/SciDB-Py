@@ -105,7 +105,16 @@ See Python `requests <http://docs.python-requests.org/en/master/>`_
 library `SSL Cert Verification
 <http://docs.python-requests.org/en/master/user/advanced/
 #ssl-cert-verification>`_ section for details on the ``verify``
-argument.
+argument. ``verify=False`` disables SSL certificate
+verification. Warnings about the unverified HTTPS requests are
+displayed. The warnings can be disables as well by either setting
+``PYTHONWARNINGS="ignore:Unverified HTTPS request"`` in the
+environment before starting Python or by doing:
+
+>>> import requests
+>>> requests.packages.urllib3.disable_warnings(
+...   requests.packages.urllib3.exceptions.InsecureRequestWarning)
+
 
 Use SSL and SciDB credentials:
 
