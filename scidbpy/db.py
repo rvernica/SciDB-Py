@@ -509,12 +509,23 @@ class Operator(object):
                 # Pass through if provided as argument
                 self.upload_schema = kwargs['upload_schema']
             if self.upload_schema is None:
-                # Try to infer upload schema from the first argument,
-                # if the operator is input and the upload data is not
-                # a NumPy array (upload schema for NumPy arrays is
-                # inferred in iquery)
-                if (self.name == 'input' and
-                        not isinstance(self.upload_data, numpy.ndarray) and
+                # If the upload_data is a NumPy array try to map the
+                # array dtype to upload schema
+                if (self.upload_data is not None and
+                        isinstance(self.upload_data, numpy.ndarray)):
+                    try:
+                        self.upload_schema = Schema.fromdtype(
+                            self.upload_data.dtype)
+                    except:
+                        # Might fail if the dtype contains
+                        # objects. The same type mapping is attempted
+                        # later in iquery, but there the exception is
+                        # propagated
+                        pass
+                # If the oprator is input, try to map first argument
+                # to upload schema
+                if (self.upload_schema is None and
+                        self.name == 'input' and
                         ln >= 1):
                     try:
                         self.upload_schema = Schema.fromstring(args[0])
