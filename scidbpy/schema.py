@@ -38,7 +38,9 @@ type_map_numpy = dict(
                         ('tz', 'timedelta64[s]')]),
     ])
 
-type_map_inv_numpy = {v: k for k, v in six.iteritems(type_map_numpy)}
+type_map_inv_numpy = {v: k
+                      for k, v in six.iteritems(type_map_numpy)
+                      if v != numpy.dtype(numpy.object)}
 type_map_inv_numpy.update(dict(
     (numpy.dtype(k), v) for (k, v) in
     [
