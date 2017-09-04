@@ -85,7 +85,7 @@ verify     = None
 To prompt the user for the password, use:
 
 >>> import getpass
->>> db = connect(http_auth=('foo', getpass.getpass())) # doctest: +SKIP
+>>> db = connect(http_auth=('foo', getpass.getpass()))  # doctest: +SKIP
 Password:
 
 
@@ -130,8 +130,8 @@ namespace  = None
 verify     = False
 
 
-Use SciDB Arrays
-================
+SciDB Arrays
+============
 
 SciDB arrays can be accessed using ``DB.arrays``:
 
@@ -172,8 +172,8 @@ array dimensions, and array attributes::
     In [2]: db.arrays.foo.x
 
 
-Use SciDB Operators
-===================
+SciDB Operators
+===============
 
 At connection time, the library downloads the list of available SciDB
 operators and macros and makes them available through the ``DB`` class
