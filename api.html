@@ -67,7 +67,7 @@
 
 <dl class="class">
 <dt id="scidbpy.db.DB">
-<em class="property">class </em><code class="descclassname">scidbpy.db.</code><code class="descname">DB</code><span class="sig-paren">(</span><em>scidb_url=’http://localhost:8080’</em>, <em>scidb_auth=None</em>, <em>http_auth=None</em>, <em>role=None</em>, <em>namespace=None</em>, <em>verify=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/scidbpy/db.html#DB"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scidbpy.db.DB" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="descclassname">scidbpy.db.</code><code class="descname">DB</code><span class="sig-paren">(</span><em>scidb_url=None</em>, <em>scidb_auth=None</em>, <em>http_auth=None</em>, <em>role=None</em>, <em>namespace=None</em>, <em>verify=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/scidbpy/db.html#DB"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scidbpy.db.DB" title="Permalink to this definition">¶</a></dt>
 <dd><p>SciDB Shim connection object.</p>
 <div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">DB</span><span class="p">()</span>
 <span class="go">DB(&#39;http://localhost:8080&#39;, None, None, None, None, None)</span>
@@ -154,7 +154,7 @@ a Schema instance, it is copied. Otherwise, a
 
 <dl class="class">
 <dt id="scidbpy.db.Operator">
-<em class="property">class </em><code class="descclassname">scidbpy.db.</code><code class="descname">Operator</code><span class="sig-paren">(</span><em>db</em>, <em>name</em>, <em>upload_data=None</em>, <em>*args</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/scidbpy/db.html#Operator"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scidbpy.db.Operator" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="descclassname">scidbpy.db.</code><code class="descname">Operator</code><span class="sig-paren">(</span><em>db</em>, <em>name</em>, <em>upload_data=None</em>, <em>upload_schema=None</em>, <em>*args</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/scidbpy/db.html#Operator"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scidbpy.db.Operator" title="Permalink to this definition">¶</a></dt>
 <dd><p>Store SciDB operator and arguments. Hungry operators (e.g., remove,
 store, etc.) evaluate immediately. Lazy operators evaluate on data
 fetch.</p>

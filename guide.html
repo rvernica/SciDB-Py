@@ -274,6 +274,15 @@ execute immediately (e.g., <code class="docutils literal"><span class="pre">crea
 <span class="go">2  2  12</span>
 </pre></div>
 </div>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">db</span><span class="o">.</span><span class="n">build</span><span class="p">(</span><span class="s1">&#39;&lt;x:int8 not null&gt;[i=0:2]&#39;</span><span class="p">,</span> <span class="s1">&#39;i + 10&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">fetch</span><span class="p">(</span>
+<span class="gp">... </span>    <span class="n">atts_only</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">as_dataframe</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="go">    x</span>
+<span class="go">0  10</span>
+<span class="go">1  11</span>
+<span class="go">2  12</span>
+</pre></div>
+</div>
 <div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">db</span><span class="o">.</span><span class="n">build</span><span class="p">(</span><span class="s1">&#39;&lt;x:int8 not null&gt;[i=0:2]&#39;</span><span class="p">,</span> <span class="s1">&#39;i + 10&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="s1">&#39;y&#39;</span><span class="p">,</span> <span class="s1">&#39;x - 5&#39;</span><span class="p">)[:]</span>
 <span class="gp">... </span>
 <span class="go">array([(0, 10, 5), (1, 11, 6), (2, 12, 7)],</span>
@@ -302,13 +311,14 @@ execute immediately (e.g., <code class="docutils literal"><span class="pre">crea
 </div>
 <div class="section" id="upload-data-to-scidb">
 <h3>Upload Data to SciDB<a class="headerlink" href="#upload-data-to-scidb" title="Permalink to this headline">¶</a></h3>
-<p><code class="docutils literal"><span class="pre">input</span></code> and <code class="docutils literal"><span class="pre">load</span></code> operators can be used to upload data. If the
-schema and the format are not specified, they are inferred from the
-uploaded data. If an array name is not specified for the store
-operator, an array name is generated. Arrays with generated names are
-removed when the returned Array object is garbage collected. This
-behavior can be changed by specifying the <code class="docutils literal"><span class="pre">gc=False</span></code> argument to the
-store operator:</p>
+<p><code class="docutils literal"><span class="pre">input</span></code> and <code class="docutils literal"><span class="pre">load</span></code> operators can be used to upload data. An upload
+schema can also be provided. If the schema and the format are not
+specified, they are inferred from the uploaded data, the upload
+schema, or the annonymous schema (if provided).</p>
+<p>If an array name is not specified for the <code class="docutils literal"><span class="pre">store</span></code> operator, an array
+name is generated. Arrays with generated names are removed when the
+returned Array object is garbage collected. This behavior can be
+changed by specifying the <code class="docutils literal"><span class="pre">gc=False</span></code> argument to the store operator.</p>
 <div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">ar</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">input</span><span class="p">(</span><span class="n">upload_data</span><span class="o">=</span><span class="n">numpy</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">3</span><span class="p">))</span><span class="o">.</span><span class="n">store</span><span class="p">()</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">ar</span>  
 <span class="go">Array(DB(&#39;http://localhost:8080&#39;, None, None, None, None, None), &#39;py_...&#39;)</span>
@@ -322,11 +332,11 @@ store operator:</p>
 </pre></div>
 </div>
 <div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">db</span><span class="o">.</span><span class="n">input</span><span class="p">(</span><span class="s1">&#39;&lt;x:int64&gt;[i]&#39;</span><span class="p">,</span> <span class="n">upload_data</span><span class="o">=</span><span class="n">numpy</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">3</span><span class="p">))</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">db</span><span class="o">.</span><span class="n">arrays</span><span class="o">.</span><span class="n">foo</span><span class="p">)</span>
-<span class="gp">... </span>
 <span class="go">Array(DB(&#39;http://localhost:8080&#39;, None, None, None, None, None), &#39;foo&#39;)</span>
 </pre></div>
 </div>
 <div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">db</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">db</span><span class="o">.</span><span class="n">arrays</span><span class="o">.</span><span class="n">foo</span><span class="p">,</span> <span class="n">upload_data</span><span class="o">=</span><span class="n">numpy</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">3</span><span class="p">))</span>
+<span class="go">Array(DB(&#39;http://localhost:8080&#39;, None, None, None, None, None), &#39;foo&#39;)</span>
 </pre></div>
 </div>
 <div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">db</span><span class="o">.</span><span class="n">input</span><span class="p">(</span><span class="s1">&#39;&lt;x:int64&gt;[j]&#39;</span><span class="p">,</span> <span class="n">upload_data</span><span class="o">=</span><span class="n">numpy</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">6</span><span class="p">)</span>
@@ -351,8 +361,15 @@ store operator:</p>
 <span class="go">True</span>
 </pre></div>
 </div>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">db</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">db</span><span class="o">.</span><span class="n">arrays</span><span class="o">.</span><span class="n">foo</span><span class="p">)</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">db</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">db</span><span class="o">.</span><span class="n">arrays</span><span class="o">.</span><span class="n">bar</span><span class="p">)</span>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">buf</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="nb">bytes</span><span class="p">([</span><span class="mi">10</span><span class="p">,</span> <span class="mi">20</span><span class="p">,</span> <span class="mi">30</span><span class="p">])],</span> <span class="n">dtype</span><span class="o">=</span><span class="s1">&#39;object&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">db</span><span class="o">.</span><span class="n">input</span><span class="p">(</span><span class="s1">&#39;&lt;b:binary not null&gt;[i]&#39;</span><span class="p">,</span> <span class="n">upload_data</span><span class="o">=</span><span class="n">buf</span><span class="p">)</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="s1">&#39;taz&#39;</span><span class="p">)</span>
+<span class="go">Array(DB(&#39;http://localhost:8080&#39;, None, None, None, None, None), &#39;taz&#39;)</span>
+</pre></div>
+</div>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">db</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s1">&#39;taz&#39;</span><span class="p">,</span> <span class="n">upload_data</span><span class="o">=</span><span class="n">buf</span><span class="p">)</span>
+<span class="go">Array(DB(&#39;http://localhost:8080&#39;, None, None, None, None, None), &#39;taz&#39;)</span>
 </pre></div>
 </div>
 <p>For files already available on the server the <code class="docutils literal"><span class="pre">input</span></code> or <code class="docutils literal"><span class="pre">load</span></code>
@@ -360,6 +377,9 @@ operators can be invoked with the full set of arguments supported by
 SciDB. Arguments that need to be quoted in SciDB need to be
 double-quoted in SciDB-Py. For example:</p>
 <div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">db</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s1">&#39;foo&#39;</span><span class="p">,</span> <span class="s2">&quot;&#39;/data.csv&#39;&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;&#39;CSV&#39;&quot;</span><span class="p">)</span>  
+</pre></div>
+</div>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="k">for</span> <span class="n">ar</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;foo&#39;</span><span class="p">,</span> <span class="s1">&#39;bar&#39;</span><span class="p">,</span> <span class="s1">&#39;taz&#39;</span><span class="p">]:</span> <span class="n">db</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">ar</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -480,19 +500,15 @@ schema:</p>
 <div class="section" id="id2">
 <h3>Upload Data to SciDB<a class="headerlink" href="#id2" title="Permalink to this headline">¶</a></h3>
 <p>Data can be uploaded using the <code class="docutils literal"><span class="pre">iquery</span></code> function by providing an
-<code class="docutils literal"><span class="pre">upload_data</span></code> argument.</p>
-<div class="section" id="upload-numpy-arrays">
-<h4>Upload NumPy Arrays<a class="headerlink" href="#upload-numpy-arrays" title="Permalink to this headline">¶</a></h4>
-<p>Provide a SciDB <code class="docutils literal"><span class="pre">input</span></code>, <code class="docutils literal"><span class="pre">store</span></code>, <code class="docutils literal"><span class="pre">insert</span></code>, <code class="docutils literal"><span class="pre">load</span></code> query and a
-NumPy array. The upload array schema and format can be provided
-explicitly or as placeholders in the SciDB query string. If the schema
-or format are provided as placeholders, they are inferred from the
-NumPy array <em>dtype</em>. The placeholders are replaces with the explicit
-values by the <code class="docutils literal"><span class="pre">iquery</span></code> function.</p>
+<code class="docutils literal"><span class="pre">upload_data</span></code> argument. A file name placeholder needs to be provided
+as part of the SciDB query string. The upload array schema and data
+format can be provided explicitly or as placeholders in the query
+string. The placeholders are replaced with the explicit values by the
+<code class="docutils literal"><span class="pre">iquery</span></code> function, before the query is sent to SciDB.</p>
 <p>The SciDB query placeholders are:</p>
 <ul class="simple">
 <li><code class="docutils literal"><span class="pre">'{fn}'</span></code>: <strong>mandatory</strong> placeholder which is replaced with the
-filename of the server file where the uploaded data is stored. It
+file name of the server file where the uploaded data is stored. It
 has to be <em>quoted</em> with single quotes in the query string.</li>
 <li><code class="docutils literal"><span class="pre">{sch}</span></code>: <em>optional</em> placeholder which is replaced with the upload
 array schema. It does <em>not</em> need to be quoted.</li>
@@ -500,6 +516,12 @@ array schema. It does <em>not</em> need to be quoted.</li>
 upload array format.  It has to be <em>quoted</em> with single quotes in
 the query string.</li>
 </ul>
+<p>See examples in the following subsections.</p>
+<div class="section" id="upload-numpy-arrays">
+<h4>Upload NumPy Arrays<a class="headerlink" href="#upload-numpy-arrays" title="Permalink to this headline">¶</a></h4>
+<p>Provide a SciDB <code class="docutils literal"><span class="pre">input</span></code>, <code class="docutils literal"><span class="pre">store</span></code>, <code class="docutils literal"><span class="pre">insert</span></code>, or <code class="docutils literal"><span class="pre">load</span></code> query
+and a NumPy array. If the schema or format are provided as
+placeholders, they are inferred from the NumPy array <em>dtype</em>.</p>
 <div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">db</span><span class="o">.</span><span class="n">iquery</span><span class="p">(</span><span class="s2">&quot;store(input(&lt;x:int64&gt;[i], &#39;</span><span class="si">{fn}</span><span class="s2">&#39;, 0, &#39;</span><span class="si">{fmt}</span><span class="s2">&#39;), foo)&quot;</span><span class="p">,</span>
 <span class="gp">... </span>          <span class="n">upload_data</span><span class="o">=</span><span class="n">numpy</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">3</span><span class="p">))</span>
 </pre></div>
@@ -513,7 +535,7 @@ the query string.</li>
 <span class="gp">... </span>          <span class="n">upload_data</span><span class="o">=</span><span class="n">numpy</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">3</span><span class="p">))</span>
 </pre></div>
 </div>
-<p>Optionally, a <code class="docutils literal"><span class="pre">Schema</span></code> object can be used to specify the upload data
+<p>Optionally, a <code class="docutils literal"><span class="pre">Schema</span></code> object can be used to specify the upload
 schema using the <code class="docutils literal"><span class="pre">upload_schema</span></code> argument:</p>
 <div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">db</span><span class="o">.</span><span class="n">iquery</span><span class="p">(</span><span class="s2">&quot;load(foo, &#39;</span><span class="si">{fn}</span><span class="s2">&#39;, 0, &#39;</span><span class="si">{fmt}</span><span class="s2">&#39;)&quot;</span><span class="p">,</span>
 <span class="gp">... </span>          <span class="n">upload_data</span><span class="o">=</span><span class="n">numpy</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">3</span><span class="p">),</span>
@@ -523,11 +545,12 @@ schema using the <code class="docutils literal"><span class="pre">upload_schema<
 </div>
 <div class="section" id="upload-binary-data">
 <h4>Upload Binary Data<a class="headerlink" href="#upload-binary-data" title="Permalink to this headline">¶</a></h4>
-<p>Provide SciDB <code class="docutils literal"><span class="pre">input</span></code>, <code class="docutils literal"><span class="pre">store</span></code>, <code class="docutils literal"><span class="pre">insert</span></code>, <code class="docutils literal"><span class="pre">load</span></code> query and
-binary data. The schema of the upload data needs to be provided either
-explicitly in the query string or using the <code class="docutils literal"><span class="pre">upload_schema</span></code>
-argument. If the schema is provided explicitly, the format needs to be
-provided explicitly in the query string as well:</p>
+<p>Provide a SciDB <code class="docutils literal"><span class="pre">input</span></code>, <code class="docutils literal"><span class="pre">store</span></code>, <code class="docutils literal"><span class="pre">insert</span></code>, or <code class="docutils literal"><span class="pre">load</span></code> query
+and binary data. The schema of the upload data needs to be provided
+either explicitly in the query string or using the <code class="docutils literal"><span class="pre">upload_schema</span></code>
+argument. If the schema is not provides using the <code class="docutils literal"><span class="pre">upload_schema</span></code>
+argument, the format needs to be provided explicitly in the query
+string:</p>
 <div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">db</span><span class="o">.</span><span class="n">iquery</span><span class="p">(</span><span class="s2">&quot;store(input(</span><span class="si">{sch}</span><span class="s2">, &#39;</span><span class="si">{fn}</span><span class="s2">&#39;, 0, &#39;</span><span class="si">{fmt}</span><span class="s2">&#39;), foo)&quot;</span><span class="p">,</span>
 <span class="gp">... </span>          <span class="n">upload_data</span><span class="o">=</span><span class="n">numpy</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span><span class="o">.</span><span class="n">tobytes</span><span class="p">(),</span>
 <span class="gp">... </span>          <span class="n">upload_schema</span><span class="o">=</span><span class="n">Schema</span><span class="o">.</span><span class="n">fromstring</span><span class="p">(</span><span class="s1">&#39;&lt;x:int64 not null&gt;[i]&#39;</span><span class="p">))</span>
@@ -545,8 +568,9 @@ provided explicitly in the query string as well:</p>
 <div class="section" id="upload-data-files">
 <h4>Upload Data Files<a class="headerlink" href="#upload-data-files" title="Permalink to this headline">¶</a></h4>
 <p>A binary or text file-like object can be used to specify the upload
-data. The content of the file has to be in one of the supported SciDB
-formats. A matching format specification has to be provided as well:</p>
+data. The content of the file has to be in one of the <a class="reference external" href="https://paradigm4.atlassian.net/wiki/spaces/ESD169/pages/50856232/input">supported SciDB
+formats</a>. A
+matching format specification has to be provided as well:</p>
 <div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s1">&#39;array.bin&#39;</span><span class="p">,</span> <span class="s1">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">file</span><span class="p">:</span>
 <span class="gp">... </span>    <span class="n">n</span> <span class="o">=</span> <span class="n">file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">numpy</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span><span class="o">.</span><span class="n">tobytes</span><span class="p">())</span>
 </pre></div>
