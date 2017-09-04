@@ -293,8 +293,14 @@ class Attribute(object):
         else:
             # if dtype_val not found in map, try the dtype_val.type
             # (without the length)
+            ty = numpy.dtype(dtype_val.type)
             # e.g. '<U3' --type--> '<U' --map--> numpy.str_
-            type_name = type_map_inv_numpy[numpy.dtype(dtype_val.type)]
+            if ty in type_map_inv_numpy.keys():
+                type_name = type_map_inv_numpy[ty]
+            else:
+                raise Exception(
+                    'No SciDB type mapping for NumPy type {}'.format(
+                        dtype_val))
 
         return cls(name=dtype_descr[0] if dtype_descr[0] else one_att_name,
                    type_name=type_name,

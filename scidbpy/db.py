@@ -217,7 +217,13 @@ verify     = {}'''.format(*self)
         if upload_data is not None:
             if isinstance(upload_data, numpy.ndarray):
                 if upload_schema is None:
-                    upload_schema = Schema.fromdtype(upload_data.dtype)
+                    try:
+                        upload_schema = Schema.fromdtype(upload_data.dtype)
+                    except Exception as e:
+                        warnings.warn(
+                            'Mapping NumPy dtype to SciDB schema failed. ' +
+                            'Try providing an explicit upload_schema')
+                        raise e
 
                 # Convert upload data to bytes
                 if upload_schema.is_fixsize():
@@ -236,7 +242,7 @@ verify     = {}'''.format(*self)
             if 'fmt' in place_holders and upload_schema is None:
                 warnings.warn(
                     'upload_data and {fmt} placeholder provided, ' +
-                    'but upload_schema is None and cannot be inferred',
+                    'but upload_schema is None',
                     stacklevel=2)
 
             # Check if upload data is bytes or file-like object
