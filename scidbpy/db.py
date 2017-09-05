@@ -95,38 +95,12 @@ class DB(object):
 
         self.arrays = Arrays(self)
 
-        # get list of operators and macros
-        id = self._shim(Shim.new_session).text
-
-        self._id = self._shim(
-            Shim.execute_query,
-            id=id,
-            query="project(list('operators'), name)",
-            save='tsv').text  # set query ID as DB instance ID
-        operators = self._shim_readlines(id=id)
-
-        self._shim(
-            Shim.execute_query,
-            id=id,
-            query="project(list('macros'), name)",
-            save='tsv').content
-        macros = self._shim_readlines(id=id)
-
-        self._shim(Shim.release_session, id=id)
-
-        self.operators = operators + macros
-        self._dir = (self.operators +
-                     ['arrays',
-                      'gc',
-                      'iquery',
-                      'iquery_readlines',
-                      'upload'])
-        self._dir.sort()
-
+        self._id = None
         self._lock = threading.Lock()
         self._array_cnt = 0
-
         self._formatter = string.Formatter()
+
+        self.load_ops()
 
     def __iter__(self):
         return (i for i in (
@@ -335,6 +309,10 @@ verify     = {}'''.format(*self)
         else:                   # fetch=False
             self._shim(Shim.execute_query, id=id, query=query, release=1)
 
+            # Special case: -- - load_library - --
+            if query.startswith('load_library('):
+                self.load_ops()
+
     def iquery_readlines(self, query):
         """Execute query in SciDB
 
@@ -354,10 +332,46 @@ verify     = {}'''.format(*self)
         return ret
 
     def next_array_name(self):
+        """Generate a uniqu array name. Keep track on these names using the
+           _id field and a conter
+        """
         # Thread-safe counter
         with self._lock:
             self._array_cnt += 1
             return 'py_{}_{}'.format(self._id, self._array_cnt)
+
+    def load_ops(self):
+        """Get list of operators and macros. Also sets the _id field used to
+           generate unique array names
+        """
+        id = self._shim(Shim.new_session).text
+
+        query_id = self._shim(
+            Shim.execute_query,
+            id=id,
+            query="project(list('operators'), name)",
+            save='tsv').text  # set query ID as DB instance ID
+        if self._id is None:
+            self._id = query_id
+        operators = self._shim_readlines(id=id)
+
+        self._shim(
+            Shim.execute_query,
+            id=id,
+            query="project(list('macros'), name)",
+            save='tsv').content
+        macros = self._shim_readlines(id=id)
+
+        self._shim(Shim.release_session, id=id)
+
+        self.operators = operators + macros
+        self._dir = (self.operators +
+                     ['arrays',
+                      'gc',
+                      'iquery',
+                      'iquery_readlines',
+                      'upload'])
+        self._dir.sort()
 
     def _shim(self, endpoint, **kwargs):
         """Make request on Shim endpoint"""

@@ -216,6 +216,27 @@ execute immediately (e.g., ``create_array``, ``remove``, etc.).
 >>> dir(db.arrays)
 []
 
+The list of available operators is re-loaded automatically when
+a ``load_library`` query is issued:
+
+>>> db.load_library('limit')
+>>> 'limit' in dir(db)
+True
+
+A similar functionality is **not** implemented for ``unload_library``
+operator. The ``unload_library`` operator requires a SciDB restart,
+which makes re-loading the list of operators not
+practical. Nevertheless, one can trigger the re-loading manually after
+SciDB restart without creating a new ``DB`` instance:
+
+>>> db.iquery("unload_library('limit')")  # doctest: +SKIP
+
+After SciDB restart:
+
+>>> db.load_ops()
+>>> 'limit' in dir(db)  # doctest: +SKIP
+False
+
 
 Download Data from SciDB
 ------------------------
@@ -587,6 +608,7 @@ namespace  = 'public'
 verify     = None
 >>> db.show_namespace()[0]['name']['val']  # doctest: +SKIP
 'public'
+
 """
 
 from .db import connect, iquery, Array
