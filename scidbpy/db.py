@@ -187,7 +187,11 @@ verify     = {}'''.format(*self)
         """
         # Special case: -- - set_namespace - --
         if query.startswith('set_namespace(') and query[-1] == ')':
-            self.namespace = query[len('set_namespace('):-1]
+            param = query[len('set_namespace('):-1]
+            # Unquote if quoted. Will be quoted when set in prefix.
+            if param[0] == "'" and param[-1] == "'":
+                param = param[1:-1]
+            self.namespace = param
             return
 
         id = self._shim(Shim.new_session).text
@@ -382,7 +386,7 @@ verify     = {}'''.format(*self)
 
         # Add prefix to request, if necessary
         if self.namespace and endpoint == Shim.execute_query:
-            kwargs['prefix'] = 'set_namespace({})'.format(self.namespace)
+            kwargs['prefix'] = "set_namespace('{}')".format(self.namespace)
 
         # Make request
         url = requests.compat.urljoin(self.scidb_url, endpoint.value)

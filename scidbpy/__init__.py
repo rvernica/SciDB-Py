@@ -631,7 +631,7 @@ Notice the ``namespace`` field of the ``DB`` instance.
 scidb_url  = 'http://localhost:8080'
 scidb_auth = None
 http_auth  = None
-namespace  = 'private'
+namespace  = private
 verify     = None
 >>> db.show_namespace()[0]['name']['val']
 ... # doctest: +SKIP
@@ -642,7 +642,7 @@ verify     = None
 scidb_url  = 'http://localhost:8080'
 scidb_auth = None
 http_auth  = None
-namespace  = 'public'
+namespace  = public
 verify     = None
 >>> db.show_namespace()[0]['name']['val']
 ... # doctest: +SKIP
