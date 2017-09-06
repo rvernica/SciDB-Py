@@ -220,7 +220,9 @@ The list of available operators is re-loaded automatically when
 a ``load_library`` query is issued:
 
 >>> db.load_library('limit')
+... # doctest: +SKIP
 >>> 'limit' in dir(db)
+... # doctest: +SKIP
 True
 
 A similar functionality is **not** implemented for ``unload_library``
