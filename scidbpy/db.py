@@ -48,7 +48,7 @@ class DB(object):
     DB('http://localhost:8080', None, None, None, None)
 
     >>> print(DB())
-    scidb_url  = 'http://localhost:8080'
+    scidb_url  = http://localhost:8080
     scidb_auth = None
     http_auth  = None
     namespace  = None
@@ -118,7 +118,7 @@ class DB(object):
 
     def __str__(self):
         return '''\
-scidb_url  = '{}'
+scidb_url  = {}
 scidb_auth = {}
 http_auth  = {}
 namespace  = {}

@@ -59,7 +59,7 @@ Display information about the ``db`` object:
 DB('http://localhost:8080', None, None, None, None)
 
 >>> print(db)
-scidb_url  = 'http://localhost:8080'
+scidb_url  = http://localhost:8080
 scidb_auth = None
 http_auth  = None
 namespace  = None
@@ -76,7 +76,7 @@ Provide `Shim <https://github.com/Paradigm4/shim>`_ credentials:
 DB('http://localhost:8080', None, ('foo', PASSWORD_PROVIDED), None, None)
 
 >>> print(db)
-scidb_url  = 'http://localhost:8080'
+scidb_url  = http://localhost:8080
 scidb_auth = None
 http_auth  = ('foo', PASSWORD_PROVIDED)
 namespace  = None
@@ -95,7 +95,7 @@ Use SSL:
 >>> db_ssl = connect('https://localhost:8083', verify=False)
 
 >>> print(db_ssl)
-scidb_url  = 'https://localhost:8083'
+scidb_url  = https://localhost:8083
 scidb_auth = None
 http_auth  = None
 namespace  = None
@@ -122,7 +122,7 @@ Use SSL and SciDB credentials:
 ...   'https://localhost:8083', scidb_auth=('foo', 'bar'), verify=False)
 
 >>> print(db_ssl)
-scidb_url  = 'https://localhost:8083'
+scidb_url  = https://localhost:8083
 scidb_auth = ('foo', PASSWORD_PROVIDED)
 http_auth  = None
 namespace  = None
@@ -616,7 +616,7 @@ function. No immediate query is executed in SciDB, but the new
 namespace will take effect for any subsequent SciDB queries:
 
 >>> print(db)
-scidb_url  = 'http://localhost:8080'
+scidb_url  = http://localhost:8080
 scidb_auth = None
 http_auth  = None
 namespace  = None
@@ -628,7 +628,7 @@ Notice the ``namespace`` field of the ``DB`` instance.
 ... # doctest: +SKIP
 >>> print(db)
 ... # doctest: +SKIP
-scidb_url  = 'http://localhost:8080'
+scidb_url  = http://localhost:8080
 scidb_auth = None
 http_auth  = None
 namespace  = private
@@ -639,7 +639,7 @@ verify     = None
 
 >>> db.iquery("set_namespace('public')")
 >>> print(db)
-scidb_url  = 'http://localhost:8080'
+scidb_url  = http://localhost:8080
 scidb_auth = None
 http_auth  = None
 namespace  = public
