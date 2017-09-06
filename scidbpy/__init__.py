@@ -56,13 +56,12 @@ is none is provided.
 Display information about the ``db`` object:
 
 >>> db
-DB('http://localhost:8080', None, None, None, None, None)
+DB('http://localhost:8080', None, None, None, None)
 
 >>> print(db)
 scidb_url  = 'http://localhost:8080'
 scidb_auth = None
 http_auth  = None
-role       = None
 namespace  = None
 verify     = None
 
@@ -74,13 +73,12 @@ Provide `Shim <https://github.com/Paradigm4/shim>`_ credentials:
 >>> db = connect(http_auth=('foo', 'bar'))
 
 >>> db
-DB('http://localhost:8080', None, ('foo', PASSWORD_PROVIDED), None, None, None)
+DB('http://localhost:8080', None, ('foo', PASSWORD_PROVIDED), None, None)
 
 >>> print(db)
 scidb_url  = 'http://localhost:8080'
 scidb_auth = None
 http_auth  = ('foo', PASSWORD_PROVIDED)
-role       = None
 namespace  = None
 verify     = None
 
@@ -100,7 +98,6 @@ Use SSL:
 scidb_url  = 'https://localhost:8083'
 scidb_auth = None
 http_auth  = None
-role       = None
 namespace  = None
 verify     = False
 
@@ -128,7 +125,6 @@ Use SSL and SciDB credentials:
 scidb_url  = 'https://localhost:8083'
 scidb_auth = ('foo', PASSWORD_PROVIDED)
 http_auth  = None
-role       = None
 namespace  = None
 verify     = False
 
@@ -153,7 +149,7 @@ No query has been issued to SciDB yet.
 >>> db_no_ops.load_ops()
 >>> db_no_ops.scan
 ... # doctest: +NORMALIZE_WHITESPACE
-Operator(db=DB('http://localhost:8080', None, None, None, None, None),
+Operator(db=DB('http://localhost:8080', None, None, None, None),
          name='scan',
          args=[])
 
@@ -216,7 +212,7 @@ instance:
 
 >>> db.apply
 ... # doctest: +NORMALIZE_WHITESPACE
-Operator(db=DB('http://localhost:8080', None, None, None, None, None),
+Operator(db=DB('http://localhost:8080', None, None, None, None),
          name='apply',
          args=[])
 
@@ -301,7 +297,7 @@ array([(0, 10, 5), (1, 11, 6), (2, 12, 7)],
       dtype=[('i', '<i8'), ('x', 'i1'), ('y', '<i8')])
 
 >>> db.build('<x:int8 not null>[i=0:2]', 'i + 10').store('foo')
-Array(DB('http://localhost:8080', None, None, None, None, None), 'foo')
+Array(DB('http://localhost:8080', None, None, None, None), 'foo')
 
 >>> db.scan(db.arrays.foo)[:]
 ... # doctest: +NORMALIZE_WHITESPACE
@@ -333,7 +329,7 @@ changed by specifying the ``gc=False`` argument to the store operator.
 >>> ar = db.input(upload_data=numpy.arange(3)).store()
 >>> ar
 ... # doctest: +ELLIPSIS
-Array(DB('http://localhost:8080', None, None, None, None, None), 'py_...')
+Array(DB('http://localhost:8080', None, None, None, None), 'py_...')
 >>> del ar
 
 >>> db.input('<x:int64>[i]', upload_data=numpy.arange(3))[:]
@@ -342,10 +338,10 @@ array([(0, (255, 0)), (1, (255, 1)), (2, (255, 2))],
       dtype=[('i', '<i8'), ('x', [('null', 'u1'), ('val', '<i8')])])
 
 >>> db.input('<x:int64>[i]', upload_data=numpy.arange(3)).store(db.arrays.foo)
-Array(DB('http://localhost:8080', None, None, None, None, None), 'foo')
+Array(DB('http://localhost:8080', None, None, None, None), 'foo')
 
 >>> db.load(db.arrays.foo, upload_data=numpy.arange(3))
-Array(DB('http://localhost:8080', None, None, None, None, None), 'foo')
+Array(DB('http://localhost:8080', None, None, None, None), 'foo')
 
 >>> db.input('<x:int64>[j]', upload_data=numpy.arange(3, 6)
 ...  ).apply('i', 'j + 3'
@@ -361,7 +357,7 @@ array([(0, (255, 0)), (1, (255, 1)), (2, (255, 2)), (3, (255, 3)),
 >>> db.input('<i:int64 not null, x:int64>[j]', upload_data=db.arrays.foo[:]
 ...  ).redimension(db.arrays.foo
 ...  ).store('bar')
-Array(DB('http://localhost:8080', None, None, None, None, None), 'bar')
+Array(DB('http://localhost:8080', None, None, None, None), 'bar')
 
 >>> numpy.all(db.arrays.bar[:] == db.arrays.foo[:])
 True
@@ -369,12 +365,12 @@ True
 >>> buf = numpy.array([bytes([10, 20, 30])], dtype='object')
 
 >>> db.input('<b:binary not null>[i]', upload_data=buf).store('taz')
-Array(DB('http://localhost:8080', None, None, None, None, None), 'taz')
+Array(DB('http://localhost:8080', None, None, None, None), 'taz')
 
 >>> db.load('taz',
 ...         upload_data=buf,
 ...         upload_schema=Schema.fromstring('<b:binary not null>[i]'))
-Array(DB('http://localhost:8080', None, None, None, None, None), 'taz')
+Array(DB('http://localhost:8080', None, None, None, None), 'taz')
 
 For files already available on the server the ``input`` or ``load``
 operators can be invoked with the full set of arguments supported by
@@ -623,7 +619,6 @@ namespace will take effect for any subsequent SciDB queries:
 scidb_url  = 'http://localhost:8080'
 scidb_auth = None
 http_auth  = None
-role       = None
 namespace  = None
 verify     = None
 
@@ -636,7 +631,6 @@ Notice the ``namespace`` field of the ``DB`` instance.
 scidb_url  = 'http://localhost:8080'
 scidb_auth = None
 http_auth  = None
-role       = None
 namespace  = 'private'
 verify     = None
 >>> db.show_namespace()[0]['name']['val']
@@ -648,7 +642,6 @@ verify     = None
 scidb_url  = 'http://localhost:8080'
 scidb_auth = None
 http_auth  = None
-role       = None
 namespace  = 'public'
 verify     = None
 >>> db.show_namespace()[0]['name']['val']

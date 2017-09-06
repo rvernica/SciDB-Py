@@ -45,13 +45,12 @@ class DB(object):
     """SciDB Shim connection object.
 
     >>> DB()
-    DB('http://localhost:8080', None, None, None, None, None)
+    DB('http://localhost:8080', None, None, None, None)
 
     >>> print(DB())
     scidb_url  = 'http://localhost:8080'
     scidb_auth = None
     http_auth  = None
-    role       = None
     namespace  = None
     verify     = None
     """
@@ -63,7 +62,6 @@ class DB(object):
             scidb_url=None,
             scidb_auth=None,
             http_auth=None,
-            role=None,
             namespace=None,
             verify=None,
             no_ops=False):
@@ -72,7 +70,6 @@ class DB(object):
             scidb_url = os.getenv('SCIDB_URL', 'http://localhost:8080')
 
         self.scidb_url = scidb_url
-        self.role = role
         self.namespace = namespace
         self.verify = verify
 
@@ -112,12 +109,11 @@ class DB(object):
             self.scidb_url,
             self.scidb_auth,
             self.http_auth,
-            self.role,
             self.namespace,
             self.verify))
 
     def __repr__(self):
-        return '{}({!r}, {!r}, {!r}, {!r}, {!r}, {!r})'.format(
+        return '{}({!r}, {!r}, {!r}, {!r}, {!r})'.format(
             type(self).__name__, *self)
 
     def __str__(self):
@@ -125,7 +121,6 @@ class DB(object):
 scidb_url  = '{}'
 scidb_auth = {}
 http_auth  = {}
-role       = {}
 namespace  = {}
 verify     = {}'''.format(*self)
 
