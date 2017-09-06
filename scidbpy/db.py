@@ -53,6 +53,42 @@ class DB(object):
     http_auth  = None
     namespace  = None
     verify     = None
+
+    Constructor parameters:
+
+    :param string scidb_url: SciDB connection URL. The URL for the
+      Shim server. If `None`, use the value of the `SCIDB_URL`
+      environment variable, if present (default
+      `http://localhost:8080`)
+
+    :param tuple scidb_auth: Tuple with username and password for
+      connecting to SciDB, if password authentication method is used
+      (default `None`)
+
+    :param tuple http_auth: Tuple with username and password for
+      connecting to Shim, if Shim authentication is used (default
+      `None`)
+
+    :param string namespace: Initial namespace for the
+      connection. Only applicable for SciDB Enterprise Edition. The
+      namespace can changed at any time using the `set_namespace`
+      SciDB operator (default `None`)
+
+    :param bool verify: If `False`, HTTPS certificates are not
+      verified. This value is passed to the Python `requests`
+      library. See Python `requests
+      <http://docs.python-requests.org/en/master/>`_ library `SSL Cert
+      Verification
+      <http://docs.python-requests.org/en/master/user/advanced/
+      #ssl-cert-verification>`_ section for details on the ``verify``
+      argument (default `None`)
+
+    :param bool no_ops: If `True`, the list of operators is not
+      fetched at this time and the connection is not implicitly
+      verified. This expedites the execution of the function but
+      disallows for calling the SciDB operators directly from the `DB`
+      instance e.g., `db.scan` (default `False`)
+
     """
 
     _show_query = "show('{}', 'afl')"
@@ -65,43 +101,6 @@ class DB(object):
             namespace=None,
             verify=None,
             no_ops=False):
-        """Initialize database connection. `connect()` is an alias of this
-        function
-
-        :param string scidb_url: SciDB connection URL. The URL for the
-          Shim server. If `None`, use the value of the `SCIDB_URL`
-          environment variable, if present (default
-          `http://localhost:8080`)
-
-        :param tuple scidb_auth: Tuple with username and password for
-          connecting to SciDB, if password authentication method is
-          used (default `None`)
-
-        :param tuple http_auth: Tuple with username and password for
-          connecting to Shim, if Shim authentication is used (default
-          `None`)
-
-        :param string namespace: Initial namespace for the
-          connection. Only applicable for SciDB Enterprise
-          Edition. The namespace can changed at any time using the
-          `set_namespace` SciDB operator (default `None`)
-
-        :param bool verify: If `False`, HTTPS certificates are not
-          verified. This value is passed to the Python `requests`
-          library. See Python `requests
-          <http://docs.python-requests.org/en/master/>`_ library `SSL
-          Cert Verification
-          <http://docs.python-requests.org/en/master/user/advanced/
-          #ssl-cert-verification>`_ section for details on the
-          ``verify`` argument (default `None`)
-
-        :param bool no_ops: If `True`, the list of operators is not
-          fetched at this time and the connection is not implicitly
-          verified. This expedites the execution of the function but
-          disallows for calling the SciDB operators directly from the
-          `DB` instance e.g., `db.scan` (default `False`)
-
-        """
         if scidb_url is None:
             scidb_url = os.getenv('SCIDB_URL', 'http://localhost:8080')
 
