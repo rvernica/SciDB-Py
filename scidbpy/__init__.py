@@ -9,7 +9,8 @@ Connect to SciDB and run a query:
 
 Download data from SciDB:
 
->>> db.arrays.foo[:]  # doctest: +NORMALIZE_WHITESPACE
+>>> db.arrays.foo[:]
+... # doctest: +NORMALIZE_WHITESPACE
 array([(0, (255, 0)), (1, (255, 1)), (2, (255, 2))],
       dtype=[('i', '<i8'), ('x', [('null', 'u1'), ('val', '<i8')])])
 
@@ -17,7 +18,8 @@ Upload data to SciDB and create an array:
 
 >>> import numpy
 >>> ar = db.input(upload_data=numpy.arange(3)).store()
->>> print(ar)  # doctest: +ELLIPSIS
+>>> print(ar)
+... # doctest: +ELLIPSIS
 py_..._1
 
 Run a query with chained operators and download the resulting array:
@@ -85,7 +87,8 @@ verify     = None
 To prompt the user for the password, use:
 
 >>> import getpass
->>> db = connect(http_auth=('foo', getpass.getpass()))  # doctest: +SKIP
+>>> db = connect(http_auth=('foo', getpass.getpass()))
+... # doctest: +SKIP
 Password:
 
 
@@ -179,13 +182,15 @@ At connection time, the library downloads the list of available SciDB
 operators and macros and makes them available through the ``DB`` class
 instance:
 
->>> dir(db)  # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
+>>> dir(db)
+... # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
 [...'aggregate',
  ...'apply',
  ...
  ...'xgrid']
 
->>> db.apply  # doctest: +NORMALIZE_WHITESPACE
+>>> db.apply
+... # doctest: +NORMALIZE_WHITESPACE
 Operator(db=DB('http://localhost:8080', None, None, None, None, None),
          name='apply',
          args=[])
@@ -209,7 +214,8 @@ at a later time. Operators that return arrays are lazy operators (e.g.,
 execute immediately (e.g., ``create_array``, ``remove``, etc.).
 
 >>> db.create_array('foo', '<x:int64>[i]')
->>> dir(db.arrays)  # doctest: +ELLIPSIS
+>>> dir(db.arrays)
+... # doctest: +ELLIPSIS
 [...'foo']
 
 >>> db.remove(db.arrays.foo)
@@ -231,12 +237,14 @@ which makes re-loading the list of operators not
 practical. Nevertheless, one can trigger the re-loading manually after
 SciDB restart without creating a new ``DB`` instance:
 
->>> db.iquery("unload_library('limit')")  # doctest: +SKIP
+>>> db.iquery("unload_library('limit')")
+... # doctest: +SKIP
 
 After SciDB restart:
 
 >>> db.load_ops()
->>> 'limit' in dir(db)  # doctest: +SKIP
+>>> 'limit' in dir(db)
+... # doctest: +SKIP
 False
 
 
@@ -298,7 +306,8 @@ returned Array object is garbage collected. This behavior can be
 changed by specifying the ``gc=False`` argument to the store operator.
 
 >>> ar = db.input(upload_data=numpy.arange(3)).store()
->>> ar  # doctest: +ELLIPSIS
+>>> ar
+... # doctest: +ELLIPSIS
 Array(DB('http://localhost:8080', None, None, None, None, None), 'py_...')
 >>> del ar
 
@@ -318,7 +327,8 @@ Array(DB('http://localhost:8080', None, None, None, None, None), 'foo')
 ...  ).redimension(db.arrays.foo
 ...  ).insert(db.arrays.foo)
 
->>> db.arrays.foo[:]  # doctest: +NORMALIZE_WHITESPACE
+>>> db.arrays.foo[:]
+... # doctest: +NORMALIZE_WHITESPACE
 array([(0, (255, 0)), (1, (255, 1)), (2, (255, 2)), (3, (255, 3)),
        (4, (255, 4)), (5, (255, 5))],
       dtype=[('i', '<i8'), ('x', [('null', 'u1'), ('val', '<i8')])])
@@ -346,7 +356,8 @@ operators can be invoked with the full set of arguments supported by
 SciDB. Arguments that need to be quoted in SciDB need to be
 double-quoted in SciDB-Py. For example:
 
->>> db.load('foo', "'/data.csv'", 0, "'CSV'")  # doctest: +SKIP
+>>> db.load('foo', "'/data.csv'", 0, "'CSV'")
+... # doctest: +SKIP
 
 >>> for ar in ['foo', 'bar', 'taz']: db.remove(ar)
 
@@ -365,7 +376,8 @@ Download Data from SciDB
 The ``iquery`` function can be used to download data from SciDB by
 specifying the ``fetch=True`` argument:
 
->>> db.iquery('scan(foo)', fetch=True)  # doctest: +NORMALIZE_WHITESPACE
+>>> db.iquery('scan(foo)', fetch=True)
+... # doctest: +NORMALIZE_WHITESPACE
 array([(0, (255, 0)), (1, (255, 1)), (2, (255, 2))],
       dtype=[('i', '<i8'), ('x', [('null', 'u1'), ('val', '<i8')])])
 
@@ -383,13 +395,15 @@ array([((255, 0),), ((255, 1),), ((255, 2),)],
 Download operator output directly:
 
 >>> db.iquery('build(<x:int64 not null>[i=0:2], i)',
-...           fetch=True)  # doctest: +NORMALIZE_WHITESPACE
+...           fetch=True)
+... # doctest: +NORMALIZE_WHITESPACE
 array([(0, 0), (1, 1), (2, 2)],
       dtype=[('i', '<i8'), ('x', '<i8')])
 
 >>> db.iquery('build(<x:int64 not null>[i=0:2], i)',
 ...           fetch=True,
-...           atts_only=True)  # doctest: +NORMALIZE_WHITESPACE
+...           atts_only=True)
+... # doctest: +NORMALIZE_WHITESPACE
 array([(0,), (1,), (2,)],
       dtype=[('x', '<i8')])
 
@@ -501,7 +515,8 @@ populate these placeholders.
 >>> db.iquery("store(input(<x:int64>[i], '{fn}', 0, '{fmt}'), foo)",
 ...           upload_data=numpy.arange(3))
 
->>> db.arrays.foo[:]  # doctest: +NORMALIZE_WHITESPACE
+>>> db.arrays.foo[:]
+... # doctest: +NORMALIZE_WHITESPACE
 array([(0, (255, 0)), (1, (255, 1)), (2, (255, 2))],
       dtype=[('i', '<i8'), ('x', [('null', 'u1'), ('val', '<i8')])])
 
@@ -589,15 +604,18 @@ verify     = None
 
 Notice the ``namespace`` field of the ``DB`` instance.
 
->>> db.set_namespace('private')            # doctest: +SKIP
->>> print(db)                              # doctest: +SKIP
+>>> db.set_namespace('private')
+... # doctest: +SKIP
+>>> print(db)
+... # doctest: +SKIP
 scidb_url  = 'http://localhost:8080'
 scidb_auth = None
 http_auth  = None
 role       = None
 namespace  = 'private'
 verify     = None
->>> db.show_namespace()[0]['name']['val']  # doctest: +SKIP
+>>> db.show_namespace()[0]['name']['val']
+... # doctest: +SKIP
 'private'
 
 >>> db.iquery("set_namespace('public')")
@@ -608,7 +626,8 @@ http_auth  = None
 role       = None
 namespace  = 'public'
 verify     = None
->>> db.show_namespace()[0]['name']['val']  # doctest: +SKIP
+>>> db.show_namespace()[0]['name']['val']
+... # doctest: +SKIP
 'public'
 
 """
