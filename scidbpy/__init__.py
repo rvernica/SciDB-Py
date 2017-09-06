@@ -133,6 +133,31 @@ namespace  = None
 verify     = False
 
 
+By default, the ``connect`` function queries SciDB for the list of
+available operators. This list is used for easy access to the SciDB
+operators, see the *SciDB Operators* section below. As a consequence
+the connection to SciDB is verified and a small delay might
+occur. This behavior can be disabled using the ``no_ops=True``
+parameter. Accessing the SciDB operators as described in *SciDB
+Operators* will not be possible until the ``load_ops()`` function is
+called on the ``DB`` instance:
+
+>>> db_no_ops = connect(no_ops=True)
+>>> db_no_ops.scan
+Traceback (most recent call last):
+    ...
+AttributeError: 'DB' object has no attribute 'scan'
+
+No query has been issued to SciDB yet.
+
+>>> db_no_ops.load_ops()
+>>> db_no_ops.scan
+... # doctest: +NORMALIZE_WHITESPACE
+Operator(db=DB('http://localhost:8080', None, None, None, None, None),
+         name='scan',
+         args=[])
+
+
 SciDB Arrays
 ============
 

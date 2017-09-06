@@ -65,7 +65,8 @@ class DB(object):
             http_auth=None,
             role=None,
             namespace=None,
-            verify=None):
+            verify=None,
+            no_ops=False):
         # scidb_url fallback to SCIDB_URL or http://localhost:8080
         if scidb_url is None:
             scidb_url = os.getenv('SCIDB_URL', 'http://localhost:8080')
@@ -100,7 +101,11 @@ class DB(object):
         self._array_cnt = 0
         self._formatter = string.Formatter()
 
-        self.load_ops()
+        if no_ops:
+            self.operators = None
+            self._dir = None
+        else:
+            self.load_ops()
 
     def __iter__(self):
         return (i for i in (
@@ -125,7 +130,7 @@ namespace  = {}
 verify     = {}'''.format(*self)
 
     def __getattr__(self, name):
-        if name in self.operators:
+        if self.operators and name in self.operators:
             return Operator(self, name)
         else:
             raise AttributeError(
