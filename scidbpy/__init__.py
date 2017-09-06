@@ -648,6 +648,21 @@ verify     = None
 ... # doctest: +SKIP
 'public'
 
+For convenience, an initial namespace can be provided at connection
+time:
+
+>>> db_ssl = connect('https://localhost:8083',
+...                  verify=False,
+...                  namespace='public')
+... # doctest: +SKIP
+>>> print(db_ssl)
+... # doctest: +SKIP
+scidb_url  = https://localhost:8083
+scidb_auth = None
+http_auth  = None
+namespace  = public
+verify     = False
+
 """
 
 from .db import connect, iquery, Array
