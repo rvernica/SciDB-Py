@@ -67,21 +67,55 @@
 
 <dl class="class">
 <dt id="scidbpy.db.DB">
-<em class="property">class </em><code class="descclassname">scidbpy.db.</code><code class="descname">DB</code><span class="sig-paren">(</span><em>scidb_url=None</em>, <em>scidb_auth=None</em>, <em>http_auth=None</em>, <em>role=None</em>, <em>namespace=None</em>, <em>verify=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/scidbpy/db.html#DB"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scidbpy.db.DB" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="descclassname">scidbpy.db.</code><code class="descname">DB</code><span class="sig-paren">(</span><em>scidb_url=None</em>, <em>scidb_auth=None</em>, <em>http_auth=None</em>, <em>namespace=None</em>, <em>verify=None</em>, <em>no_ops=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/scidbpy/db.html#DB"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scidbpy.db.DB" title="Permalink to this definition">¶</a></dt>
 <dd><p>SciDB Shim connection object.</p>
 <div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">DB</span><span class="p">()</span>
-<span class="go">DB(&#39;http://localhost:8080&#39;, None, None, None, None, None)</span>
+<span class="go">DB(&#39;http://localhost:8080&#39;, None, None, None, None)</span>
 </pre></div>
 </div>
 <div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">DB</span><span class="p">())</span>
-<span class="go">scidb_url  = &#39;http://localhost:8080&#39;</span>
+<span class="go">scidb_url  = http://localhost:8080</span>
 <span class="go">scidb_auth = None</span>
 <span class="go">http_auth  = None</span>
-<span class="go">role       = None</span>
 <span class="go">namespace  = None</span>
 <span class="go">verify     = None</span>
 </pre></div>
 </div>
+<p>Constructor parameters:</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>scidb_url</strong> (<em>string</em>) – SciDB connection URL. The URL for the
+Shim server. If <cite>None</cite>, use the value of the <cite>SCIDB_URL</cite>
+environment variable, if present (default
+<cite>http://localhost:8080</cite>)</li>
+<li><strong>scidb_auth</strong> (<em>tuple</em>) – Tuple with username and password for
+connecting to SciDB, if password authentication method is used
+(default <cite>None</cite>)</li>
+<li><strong>http_auth</strong> (<em>tuple</em>) – Tuple with username and password for
+connecting to Shim, if Shim authentication is used (default
+<cite>None</cite>)</li>
+<li><strong>namespace</strong> (<em>string</em>) – Initial namespace for the
+connection. Only applicable for SciDB Enterprise Edition. The
+namespace can changed at any time using the <cite>set_namespace</cite>
+SciDB operator (default <cite>None</cite>)</li>
+<li><strong>verify</strong> (<em>bool</em>) – If <cite>False</cite>, HTTPS certificates are not
+verified. This value is passed to the Python <cite>requests</cite>
+library. See Python <a class="reference external" href="http://docs.python-requests.org/en/master/">requests</a> library <a class="reference external" href="http://docs.python-requests.org/en/master/user/advanced/#ssl-cert-verification">SSL Cert
+Verification</a> section for details on the <code class="docutils literal"><span class="pre">verify</span></code>
+argument (default <cite>None</cite>)</li>
+<li><strong>no_ops</strong> (<em>bool</em>) – If <cite>True</cite>, the list of operators is not
+fetched at this time and the connection is not implicitly
+verified. This expedites the execution of the function but
+disallows for calling the SciDB operators directly from the <cite>DB</cite>
+instance e.g., <cite>db.scan</cite> (default <cite>False</cite>)</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
 <dl class="method">
 <dt id="scidbpy.db.DB.iquery">
 <code class="descname">iquery</code><span class="sig-paren">(</span><em>query</em>, <em>fetch=False</em>, <em>atts_only=False</em>, <em>as_dataframe=False</em>, <em>dataframe_promo=True</em>, <em>schema=None</em>, <em>upload_data=None</em>, <em>upload_schema=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/scidbpy/db.html#DB.iquery"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scidbpy.db.DB.iquery" title="Permalink to this definition">¶</a></dt>
@@ -91,6 +125,7 @@
 <col class="field-body" />
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>query</strong> (<em>string</em>) – SciDB AFL query to execute</li>
 <li><strong>fetch</strong> (<em>bool</em>) – If <cite>True</cite>, download SciDB array (default
 <cite>False</cite>)</li>
 <li><strong>atts_only</strong> (<em>bool</em>) – If <cite>True</cite>, download only SciDB array
@@ -107,7 +142,7 @@ for null-able types (default <cite>True</cite>)</li>
 downloading the array. Schema is not verified. If schema is
 a Schema instance, it is copied. Otherwise, a
 <code class="xref py py-class docutils literal"><span class="pre">Schema</span></code> object is built using
-<code class="xref py py-func docutils literal"><span class="pre">Schema.fromstring()</span></code> (default <cite>None</cite>).</li>
+<code class="xref py py-func docutils literal"><span class="pre">Schema.fromstring()</span></code> (default <cite>None</cite>)</li>
 </ul>
 </td>
 </tr>
@@ -148,6 +183,20 @@ a Schema instance, it is copied. Otherwise, a
 <span class="go">[[...&#39;0&#39;, ...&#39;10&#39;], [...&#39;1&#39;, ...&#39;11&#39;], [...&#39;2&#39;, ...&#39;12&#39;]]</span>
 </pre></div>
 </div>
+</dd></dl>
+
+<dl class="method">
+<dt id="scidbpy.db.DB.load_ops">
+<code class="descname">load_ops</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/scidbpy/db.html#DB.load_ops"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scidbpy.db.DB.load_ops" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get list of operators and macros. Also sets the _id field used to
+generate unique array names</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="scidbpy.db.DB.next_array_name">
+<code class="descname">next_array_name</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/scidbpy/db.html#DB.next_array_name"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scidbpy.db.DB.next_array_name" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generate a uniqu array name. Keep track on these names using the
+_id field and a conter</p>
 </dd></dl>
 
 </dd></dl>
