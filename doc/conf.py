@@ -29,7 +29,7 @@ sys.path.insert(0, os.path.abspath('sphinxext'))
 # coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
 extensions = ['sphinx.ext.autodoc', 'sphinx.ext.autosummary',
               'sphinx.ext.doctest', 'sphinx.ext.coverage',
-              'sphinx.ext.imgmath', 'sphinx.ext.mathjax',
+              'sphinx.ext.mathjax',
               'numpydoc']
 
 autosummary_generate = True
