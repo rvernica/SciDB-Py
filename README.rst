@@ -6,16 +6,16 @@ SciDB-Py: Python Interface to SciDB
 Requirements
 ------------
 
-Python `2.7.x`, `3.4.x`, `3.5.x`, `3.6.x` or newer.
+Python ``2.7.x``, ``3.4.x``, ``3.5.x``, ``3.6.x`` or newer.
 
-Required Python packages:
+Required Python packages::
 
-* ``backports.weakref``
-* ``enum34``
-* ``numpy``
-* ``pandas``
-* ``requests``
-* ``six``
+  backports.weakref
+  enum34
+  numpy
+  pandas
+  requests
+  six
 
 
 Installation
