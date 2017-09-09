@@ -5,3 +5,4 @@ pandas
 pep8
 pytest
 requests
+six
