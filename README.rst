@@ -3,6 +3,19 @@ SciDB-Py: Python Interface to SciDB
 .. image:: https://travis-ci.org/Paradigm4/SciDB-Py.svg?branch=devel
     :target: https://travis-ci.org/Paradigm4/SciDB-Py
 
+Warning
+-------
+
+This documentation is for SciDB-Py **16.9.0**. This library has
+been released in `September 2017` and has been rewritten entirely
+from scratch. This version is **not compatible** with the previous
+versions of the library. The documentation for the previous
+versions is available at `SciDB-Py documentation (legacy)
+<http://scidb-py.readthedocs.io/en/stable/>`_. GitHub pull
+requests are still accepted for the previous versions, but the
+code is not actively maintained.
+
+
 Requirements
 ------------
 
