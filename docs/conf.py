@@ -98,6 +98,11 @@ html_theme_options = {
     'travis_button': True,
     'page_width': '1050px',
     'sidebar_width': '250px',
+    'extra_nav_links' : {
+        'Bug Reports': 'https://github.com/Paradigm4/SciDB-Py/issues',
+        'Support Forum': 'http://forum.paradigm4.com/c/scidb-py',
+        'SciDB 16.9 Docs': 'https://paradigm4.atlassian.net/wiki/display/ESD169',
+    },
 }
 
 html_sidebars = {

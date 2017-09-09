@@ -11,7 +11,6 @@ SciDB-Py Documentation
 
    guide
    api
-   SciDB Documentation <https://paradigm4.atlassian.net/wiki/display/ESD169>
 
 
 Indices and Tables
