@@ -42,8 +42,10 @@ Cleanup:
 >>> del ar
 
 
-Installation
+Requirements
 ============
+
+SciDB ``16.9`` with Shim
 
 Python ``2.7.x``, ``3.4.x``, ``3.5.x``, ``3.6.x`` or newer.
 
@@ -56,18 +58,15 @@ Required Python packages::
   requests
   six
 
-Install Latest Release
-----------------------
 
-::
+Installation
+============
+
+Install latest release::
 
   $ pip install scidb-py
 
-
-Install Development Version
----------------------------
-
-::
+Install development version from GitHub::
 
   $ pip install git+http://github.com/paradigm4/scidb-py.git
 
