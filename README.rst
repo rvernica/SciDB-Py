@@ -3,8 +3,23 @@ SciDB-Py: Python Interface to SciDB
 .. image:: https://travis-ci.org/Paradigm4/SciDB-Py.svg?branch=devel
     :target: https://travis-ci.org/Paradigm4/SciDB-Py
 
-Install
--------
+Requirements
+------------
+
+Python `2.7.x`, `3.4.x`, `3.5.x`, `3.6.x` or newer.
+
+Required Python packages:
+
+* ``backports.weakref``
+* ``enum34``
+* ``numpy``
+* ``pandas``
+* ``requests``
+* ``six``
+
+
+Installation
+------------
 
 ::
 
@@ -25,14 +40,6 @@ Or to install in user space::
      Running setup.py install for scidb-py ... done
    Successfully installed scidb-py-16.9
 
-Required packages:
-
-* ``backports.weakref``
-* ``enum34``
-* ``numpy``
-* ``pandas``
-* ``requests``
-* ``six``
 
 Documentation
 -------------
