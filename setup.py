@@ -32,7 +32,7 @@ AUTHOR_EMAIL = "jakevdp@cs.washington.edu, cbeaumont@cfa.harvard.edu, ksen@parad
 MAINTAINER = "Kriti Sen Sharma"
 MAINTAINER_EMAIL = "cbeaumont@cfa.harvard.edu"
 DOWNLOAD_URL = 'http://github.com/paradigm4/scidb-py'
-LICENSE = 'Simplified BSD'
+LICENSE = 'AGPL-3.0'
 
 import scidbpy
 VERSION = scidbpy.__version__
@@ -53,7 +53,7 @@ setup(name=NAME,
           'Development Status :: 4 - Beta',
           'Environment :: Console',
           'Intended Audience :: Science/Research',
-          'License :: OSI Approved :: BSD License',
+          'License :: OSI Approved :: GNU Affero General Public License v3',
           'Natural Language :: English',
           'Programming Language :: Python :: 2.7',
           'Topic :: Database :: Front-Ends',
