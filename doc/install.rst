@@ -58,7 +58,7 @@ SciDB-Py Package Installation
 
 The latest release of ``scidb-py`` can be installed from the Python package index::
 
-   pip install scidb-py==16.9.dev0
+   pip install scidb-py==16.9.post1
 
 Install the development package directly from Github with::
 
