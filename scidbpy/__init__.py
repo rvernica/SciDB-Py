@@ -69,7 +69,7 @@ Install Development Version
 
 ::
 
-  $ pip install git+http://github.com/paradigm4/scidb-py.git@devel
+  $ pip install git+http://github.com/paradigm4/scidb-py.git
 
 
 Connect to SciDB
