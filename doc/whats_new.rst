@@ -6,10 +6,10 @@
 Whats New
 =========
 
-16.9.dev0 (Release September 9, 2017)
+16.9.post1 (Release September 9, 2017)
 --------------------------------
 
-Fix SciDB ``16.9`` compatibility.
+Fix SciDB ``16.9`` compatibility. Use branch ``v15.12`` for SciDB ``15.12``.
 
 15.12 (Released March 21, 2016)
 ---------------------------------
