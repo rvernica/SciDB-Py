@@ -13,7 +13,7 @@ LONG_DESCRIPTION = open('README.rst').read()
 AUTHOR = 'Rares Vernica'
 AUTHOR_EMAIL = 'rvernica@gmail.com'
 DOWNLOAD_URL = 'http://github.com/Paradigm4/SciDB-Py'
-LICENSE = 'Simplified BSD'
+LICENSE = 'AGPL-3.0'
 VERSION = scidbpy.__version__
 
 setup(
@@ -38,7 +38,7 @@ setup(
         'Development Status :: 4 - Beta',
         'Environment :: Console',
         'Intended Audience :: Science/Research',
-        'License :: OSI Approved :: BSD License',
+        'License :: OSI Approved :: GNU Affero General Public License v3',
         'Natural Language :: English',
         'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3.4',
