@@ -1,6 +1,10 @@
 """Quick Start
 ===========
 
+Install the package with::
+
+  $ pip install scidb-py
+
 Connect to SciDB and run a query:
 
 >>> from scidbpy import connect
@@ -36,6 +40,36 @@ Cleanup:
 
 >>> db.remove(db.arrays.foo)
 >>> del ar
+
+
+Installation
+============
+
+Python ``2.7.x``, ``3.4.x``, ``3.5.x``, ``3.6.x`` or newer.
+
+Required Python packages::
+
+  backports.weakref
+  enum34
+  numpy
+  pandas
+  requests
+  six
+
+Install Latest Release
+----------------------
+
+::
+
+  $ pip install scidb-py
+
+
+Install Development Version
+---------------------------
+
+::
+
+  $ pip install git+http://github.com/paradigm4/scidb-py.git@devel
 
 
 Connect to SciDB
