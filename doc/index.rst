@@ -16,7 +16,7 @@ SciDB-Py documentation
     from scratch. This version is **not compatible** with the previous
     versions of the library. The documentation for the current version
     is available at `SciDB-Py documentation
-    <http://paradigm4.github.io/SciDB-Py/>`
+    <http://paradigm4.github.io/SciDB-Py/>`_
 
 SciDB-Py is a Python interface to the SciDB_, the massively scalable
 array-oriented database.  SciDB features include ACID transactions, parallel processing, distributed storage, efficient sparse array storage, and native parallel linear algebra operations.
