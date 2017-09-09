@@ -9,6 +9,7 @@ import scidbpy
 
 NAME = 'scidb-py'
 DESCRIPTION = 'Python library for SciDB'
+LONG_DESCRIPTION = open('README.rst').read()
 AUTHOR = 'Rares Vernica'
 AUTHOR_EMAIL = 'rvernica@gmail.com'
 DOWNLOAD_URL = 'http://github.com/Paradigm4/SciDB-Py'
@@ -18,6 +19,7 @@ VERSION = scidbpy.__version__
 setup(name=NAME,
       version=VERSION,
       description=DESCRIPTION,
+      long_description=LONG_DESCRIPTION,
       author=AUTHOR,
       author_email=AUTHOR_EMAIL,
       download_url=DOWNLOAD_URL,
