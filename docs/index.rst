@@ -8,7 +8,7 @@ SciDB-Py Documentation
 
 .. warning::
 
-    This documentation is for SciDB-Py **16.9.0**. This library has
+    This documentation is for SciDB-Py **16.9.1**. This library has
     been released in `September 2017` and has been rewritten entirely
     from scratch. This version is **not compatible** with the previous
     versions of the library. The documentation for the previous
