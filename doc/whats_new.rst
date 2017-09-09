@@ -6,12 +6,17 @@
 Whats New
 =========
 
+16.9.dev0 (Release September 9, 2017)
+--------------------------------
+
+Fix SciDB ``16.9`` compatibility.
+
 15.12 (Released March 21, 2016)
 ---------------------------------
 
 Highlights
 ^^^^^^^^^^
-- now supports SciDB15.12; use branch `scidb15.7` for use with SciDB15.7  
+- now supports SciDB15.12; use branch `scidb15.7` for use with SciDB15.7
 
 14.10 (Released November 4, 2014)
 ---------------------------------
