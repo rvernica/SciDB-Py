@@ -1,6 +1,6 @@
-############
-SciDB-Py API
-############
+###
+API
+###
 
 .. automodule:: scidbpy.db
    :members:

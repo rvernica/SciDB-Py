@@ -26,7 +26,7 @@
     <script type="text/javascript" src="_static/doctools.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="SciDB-Py API" href="api.html" />
+    <link rel="next" title="API" href="api.html" />
     <link rel="prev" title="SciDB-Py Documentation" href="index.html" />
    
   <link rel="stylesheet" href="_static/custom.css" type="text/css" />
@@ -47,6 +47,10 @@
 <span id="user-guide"></span><h1>User Guide<a class="headerlink" href="#module-scidbpy" title="Permalink to this headline">¶</a></h1>
 <div class="section" id="quick-start">
 <h2>Quick Start<a class="headerlink" href="#quick-start" title="Permalink to this headline">¶</a></h2>
+<p>Install the package with:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>$ pip install scidb-py
+</pre></div>
+</div>
 <p>Connect to SciDB and run a query:</p>
 <div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">scidbpy</span> <span class="k">import</span> <span class="n">connect</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">db</span> <span class="o">=</span> <span class="n">connect</span><span class="p">(</span><span class="s1">&#39;http://localhost:8080&#39;</span><span class="p">)</span>
@@ -82,6 +86,31 @@
 <div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">db</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">db</span><span class="o">.</span><span class="n">arrays</span><span class="o">.</span><span class="n">foo</span><span class="p">)</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="k">del</span> <span class="n">ar</span>
 </pre></div>
+</div>
+</div>
+<div class="section" id="installation">
+<h2>Installation<a class="headerlink" href="#installation" title="Permalink to this headline">¶</a></h2>
+<p>Python <code class="docutils literal"><span class="pre">2.7.x</span></code>, <code class="docutils literal"><span class="pre">3.4.x</span></code>, <code class="docutils literal"><span class="pre">3.5.x</span></code>, <code class="docutils literal"><span class="pre">3.6.x</span></code> or newer.</p>
+<p>Required Python packages:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">backports</span><span class="o">.</span><span class="n">weakref</span>
+<span class="n">enum34</span>
+<span class="n">numpy</span>
+<span class="n">pandas</span>
+<span class="n">requests</span>
+<span class="n">six</span>
+</pre></div>
+</div>
+<div class="section" id="install-latest-release">
+<h3>Install Latest Release<a class="headerlink" href="#install-latest-release" title="Permalink to this headline">¶</a></h3>
+<div class="highlight-default"><div class="highlight"><pre><span></span>$ pip install scidb-py
+</pre></div>
+</div>
+</div>
+<div class="section" id="install-development-version">
+<h3>Install Development Version<a class="headerlink" href="#install-development-version" title="Permalink to this headline">¶</a></h3>
+<div class="highlight-default"><div class="highlight"><pre><span></span>$ pip install git+http://github.com/paradigm4/scidb-py.git@devel
+</pre></div>
+</div>
 </div>
 </div>
 <div class="section" id="connect-to-scidb">
@@ -772,6 +801,11 @@ time:</p>
 <ul class="current">
 <li class="toctree-l1 current"><a class="current reference internal" href="#">User Guide</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#quick-start">Quick Start</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#installation">Installation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#install-latest-release">Install Latest Release</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#install-development-version">Install Development Version</a></li>
+</ul>
+</li>
 <li class="toctree-l2"><a class="reference internal" href="#connect-to-scidb">Connect to SciDB</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#advanced-connection">Advanced Connection</a></li>
 </ul>
@@ -795,10 +829,20 @@ time:</p>
 <li class="toctree-l2"><a class="reference internal" href="#scidb-enterprise-edition-features">SciDB Enterprise Edition Features</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="api.html">SciDB-Py API</a></li>
-<li class="toctree-l1"><a class="reference external" href="https://paradigm4.atlassian.net/wiki/display/ESD169">SciDB Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api.html">API</a></li>
 </ul>
 
+
+<hr />
+<ul>
+    
+    <li class="toctree-l1"><a href="https://paradigm4.atlassian.net/wiki/display/ESD169">SciDB 16.9 Docs</a></li>
+    
+    <li class="toctree-l1"><a href="https://github.com/Paradigm4/SciDB-Py/issues">Bug Reports</a></li>
+    
+    <li class="toctree-l1"><a href="http://forum.paradigm4.com/c/scidb-py">Support Forum</a></li>
+    
+</ul>
 
 <div id="searchbox" style="display: none" role="search">
   <h3>Quick search</h3>
