@@ -6,7 +6,7 @@ SciDB-Py: Python Interface to SciDB
 Warning
 -------
 
-This is SciDB-Py **16.9.1**. This library has been released in
+This is SciDB-Py Release **16.9.1**. This library has been released in
 `September 2017` and has been rewritten entirely from scratch. This
 version is **not compatible** with the previous versions of the
 library. The documentation for the previous versions is available at
