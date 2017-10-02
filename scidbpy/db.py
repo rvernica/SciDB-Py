@@ -505,9 +505,11 @@ class Array(object):
         ls.sort()
         return ls
 
-    def fetch(self, as_dataframe=False):
-        return self.db.iquery(
-            'scan({})'.format(self), fetch=True, as_dataframe=as_dataframe)
+    def fetch(self, atts_only=False, as_dataframe=False):
+        return self.db.iquery('scan({})'.format(self),
+                              fetch=True,
+                              atts_only=atts_only,
+                              as_dataframe=as_dataframe)
 
 
 class ArrayExp(object):
