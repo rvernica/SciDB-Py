@@ -140,7 +140,7 @@ library `SSL Cert Verification
 #ssl-cert-verification>`_ section for details on the ``verify``
 argument. ``verify=False`` disables SSL certificate
 verification. Warnings about the unverified HTTPS requests are
-displayed. The warnings can be disables as well by either setting
+displayed. The warnings can be disabled as well by either setting
 ``PYTHONWARNINGS="ignore:Unverified HTTPS request"`` in the
 environment before starting Python or by doing:
 
@@ -519,6 +519,19 @@ Download as Pandas DataFrame:
 0  0.0
 1  1.0
 2  2.0
+
+Attributes with null-able types are promoted as per Pandas 'promotion
+scheme <http://pandas.pydata.org/pandas-docs/stable/gotchas.html
+#na-type-promotions>`_ During such promotions, precision loss might
+occur. The user is notified about this via a `UserWarning`. If
+desired, such warnings can be disabled as follows:
+
+>>> import warnings
+>>> warnings.filterwarnings('ignore', category = UserWarning)
+
+Type promotions can be avoided altogether, by specifying
+`dataframe_promo = False` in the `iquery` arguments. In this case,
+object records will be used instead of atomic values:
 
 >>> iquery(db,
 ...        'build(<x:int64>[i=0:2], i)',
