@@ -537,14 +537,14 @@ Download as Pandas DataFrame:
 Attributes with null-able types are promoted as per Pandas 'promotion
 scheme <http://pandas.pydata.org/pandas-docs/stable/gotchas.html
 #na-type-promotions>`_ During such promotions, precision loss might
-occur. The user is notified about this via a `UserWarning`. If
+occur. The user is notified about this via a ``UserWarning``. If
 desired, such warnings can be disabled as follows:
 
 >>> import warnings
 >>> warnings.filterwarnings('ignore', category = UserWarning)
 
 Type promotions can be avoided altogether, by specifying
-`dataframe_promo = False` in the `iquery` arguments. In this case,
+``dataframe_promo = False`` in the ``iquery`` arguments. In this case,
 object records will be used instead of atomic values:
 
 >>> iquery(db,

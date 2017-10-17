@@ -57,37 +57,37 @@ class DB(object):
     Constructor parameters:
 
     :param string scidb_url: SciDB connection URL. The URL for the
-      Shim server. If `None`, use the value of the `SCIDB_URL`
+      Shim server. If ``None``, use the value of the ``SCIDB_URL``
       environment variable, if present (default
-      `http://localhost:8080`)
+      ``http://localhost:8080``)
 
     :param tuple scidb_auth: Tuple with username and password for
       connecting to SciDB, if password authentication method is used
-      (default `None`)
+      (default ``None``)
 
     :param tuple http_auth: Tuple with username and password for
       connecting to Shim, if Shim authentication is used (default
-      `None`)
+      ``None``)
 
     :param string namespace: Initial namespace for the
       connection. Only applicable for SciDB Enterprise Edition. The
-      namespace can changed at any time using the `set_namespace`
-      SciDB operator (default `None`)
+      namespace can changed at any time using the ``set_namespace``
+      SciDB operator (default ``None``)
 
-    :param bool verify: If `False`, HTTPS certificates are not
-      verified. This value is passed to the Python `requests`
+    :param bool verify: If ``False``, HTTPS certificates are not
+      verified. This value is passed to the Python ``requests``
       library. See Python `requests
       <http://docs.python-requests.org/en/master/>`_ library `SSL Cert
       Verification
       <http://docs.python-requests.org/en/master/user/advanced/
       #ssl-cert-verification>`_ section for details on the ``verify``
-      argument (default `None`)
+      argument (default ``None``)
 
-    :param bool no_ops: If `True`, the list of operators is not
+    :param bool no_ops: If ``True``, the list of operators is not
       fetched at this time and the connection is not implicitly
       verified. This expedites the execution of the function but
-      disallows for calling the SciDB operators directly from the `DB`
-      instance e.g., `db.scan` (default `False`)
+      disallows for calling the SciDB operators directly from the
+      ``DB`` instance e.g., ``db.scan`` (default ``False``)
 
     """
 
@@ -183,27 +183,27 @@ verify     = {}'''.format(*self)
 
         :param string query: SciDB AFL query to execute
 
-        :param bool fetch: If `True`, download SciDB array (default
-          `False`)
+        :param bool fetch: If ``True``, download SciDB array (default
+          ``False``)
 
-        :param bool atts_only: If `True`, download only SciDB array
-          attributes without dimensions (default `False`)
+        :param bool atts_only: If ``True``, download only SciDB array
+          attributes without dimensions (default ``False``)
 
-        :param bool as_dataframe: If `True`, return a Pandas
-          DataFrame. If `False`, return a NumPy array (default
-          `False`)
+        :param bool as_dataframe: If ``True``, return a Pandas
+          DataFrame. If ``False``, return a NumPy array (default
+          ``False``)
 
-        :param bool dataframe_promo: If `True`, null-able types are
-          promoted as per Pandas 'promotion scheme
+        :param bool dataframe_promo: If ``True``, null-able types are
+          promoted as per Pandas `promotion scheme
           <http://pandas.pydata.org/pandas-docs/stable/gotchas.html
-          #na-type-promotions>`_ If `False`, object records are used
-          for null-able types (default `True`)
+          #na-type-promotions>`_ If ``False``, object records are used
+          for null-able types (default ``True``)
 
         :param schema: Schema of the SciDB array to use when
           downloading the array. Schema is not verified. If schema is
           a Schema instance, it is copied. Otherwise, a
-          :py:class:`Schema` object is built using
-          :py:func:`Schema.fromstring` (default `None`)
+          :py:class:``Schema`` object is built using
+          :py:func:``Schema.fromstring`` (default ``None``)
 
         >>> DB().iquery('build(<x:int64>[i=0:1; j=0:1], i + j)', fetch=True)
         ... # doctest: +NORMALIZE_WHITESPACE
@@ -498,7 +498,7 @@ class Array(object):
         return self.fetch()[key]
 
     def __dir__(self):
-        """Download the schema of the SciDB array, using `show()`"""
+        """Download the schema of the SciDB array, using ``show()``"""
         sh = Schema.fromstring(
             self.db.iquery_readlines('show({})'.format(self))[0])
         ls = [i.name for i in itertools.chain(sh.atts, sh.dims)]
