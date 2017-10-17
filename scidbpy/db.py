@@ -505,6 +505,10 @@ class Array(object):
         ls.sort()
         return ls
 
+    def __mod__(self, alias):
+        """Overloads ``%`` operator to add support for aliasing"""
+        return Array(self.db, '{} as {}'.format(self.name, alias))
+
     def fetch(self, atts_only=False, as_dataframe=False):
         return self.db.iquery('scan({})'.format(self),
                               fetch=True,

@@ -301,6 +301,20 @@ After SciDB restart:
 ... # doctest: +SKIP
 False
 
+The ``cross_join`` operator in SciDB supports aliasing for the array
+arguments, e.g., ``cross_join(left_array as left_alias,...``. Aliasing
+is possible in SciDB-Py using the ``%`` operator:
+
+>>> db.iquery('store(build(<x:int64>[i=0:1], i), foo)')
+>>> db.cross_join(db.arrays.foo % 'f1',
+...               db.arrays.foo % 'f2',
+...               'f1.i', 'f2.i')[:]
+... # doctest: +NORMALIZE_WHITESPACE
+array([(0, (255, 0), (255, 0)), (1, (255, 1), (255, 1))],
+      dtype=[('i', '<i8'), ('x',   [('null', 'u1'), ('val', '<i8')]),
+                           ('x_1', [('null', 'u1'), ('val', '<i8')])])
+>>> db.remove(db.arrays.foo)
+
 
 Download Data from SciDB
 ------------------------
