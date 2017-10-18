@@ -33,6 +33,20 @@ Required Python packages::
   six
 
 
+CentOS 6 and Red Hat Enterprise Linux 6
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+CentOS ``6`` and Red Hat Enterprise Linux ``6`` come with Python
+``2.6``. SciDB-Py requires Python ``2.7`` or newer (see above). The
+default Python cannot be upgraded on these operating systems. Instead
+a different Python version can be installed in parallel using
+`Software Collections <https://www.softwarecollections.org/en/>`_. For
+example, `here
+<https://www.softwarecollections.org/en/scls/rhscl/python27/>`_ are
+the instructions to install Python ``2.7`` using Software Collections.
+
+
+
 Installation
 ------------
 
