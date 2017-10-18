@@ -686,6 +686,10 @@ class Operator(object):
     def __dir__(self):
         return self._dir
 
+    def __mod__(self, alias):
+        """Overloads ``%`` operator to add support for aliasing"""
+        return Array(self.db, '{} as {}'.format(self, alias))
+
     def fetch(self, atts_only=False, as_dataframe=False):
         if self.is_lazy:
             return self.db.iquery(str(self),
