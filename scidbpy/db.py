@@ -563,7 +563,8 @@ class Operator(object):
             arg_fmt = '{}'.format(arg)
 
             # Special case: quote string argument if not quoted
-            if (self.name in string_args[pos] and
+            if (pos < len(string_args) and
+                    self.name in string_args[pos] and
                     arg and
                     arg_fmt[0] != "'" and
                     arg_fmt[-1] != "'"):
