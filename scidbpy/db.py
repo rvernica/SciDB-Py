@@ -512,6 +512,22 @@ class Array(object):
                               fetch=True,
                               **kwargs)
 
+    def head(self, n=5, **kwargs):
+        """Similar to ``pandas.DataFrame.head``. Makes use of the ``limit``
+        operator, if available.
+
+        """
+        if 'limit' in self.db.operators:
+            return self.db.iquery('limit({}, {})'.format(self, n),
+                                  fetch=True,
+                                  **kwargs)
+        else:
+            warnings.warn(
+                '"limit" operator not available. ' +
+                'Fetching the entire array. ' +
+                'See https://github.com/Paradigm4/limit.')
+            return self.fetch(**kwargs)[:n]
+
 
 class ArrayExp(object):
     """Access to individual attribute or dimension"""
