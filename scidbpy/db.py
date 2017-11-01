@@ -508,11 +508,10 @@ class Array(object):
         """Overloads ``%`` operator to add support for aliasing"""
         return Array(self.db, '{} as {}'.format(self.name, alias))
 
-    def fetch(self, atts_only=False, as_dataframe=False):
+    def fetch(self, **kwargs):
         return self.db.iquery('scan({})'.format(self),
                               fetch=True,
-                              atts_only=atts_only,
-                              as_dataframe=as_dataframe)
+                              **kwargs)
 
 
 class ArrayExp(object):
@@ -690,14 +689,13 @@ class Operator(object):
         """Overloads ``%`` operator to add support for aliasing"""
         return Array(self.db, '{} as {}'.format(self, alias))
 
-    def fetch(self, atts_only=False, as_dataframe=False):
+    def fetch(self, **kwargs):
         if self.is_lazy:
             return self.db.iquery(str(self),
                                   fetch=True,
-                                  atts_only=atts_only,
-                                  as_dataframe=as_dataframe,
                                   upload_data=self.upload_data,
-                                  upload_schema=self.upload_schema)
+                                  upload_schema=self.upload_schema,
+                                  **kwargs)
 
 
 connect = DB
