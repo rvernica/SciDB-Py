@@ -27,7 +27,8 @@ class TestDB:
     ])
     def test_iquery(self, db, query):
         assert db.iquery(query) is None
-        assert type(db.iquery(query, fetch=True)) == numpy.ndarray
+        assert type(
+            db.iquery(query, fetch=True, as_dataframe=False)) == numpy.ndarray
 
     @pytest.mark.parametrize('query_batch', [
         [('store(build(<val:double>[i=1:10,10,0], i), foo)', False),
@@ -37,9 +38,11 @@ class TestDB:
     def test_iquery_batch(self, db, query_batch):
         for (query, fetch) in query_batch:
             if fetch:
-                assert type(db.iquery(query, fetch=fetch)) == numpy.ndarray
+                assert type(db.iquery(
+                    query, fetch=fetch, as_dataframe=False)) == numpy.ndarray
             else:
-                assert db.iquery(query, fetch=fetch) is None
+                assert db.iquery(
+                    query, fetch=fetch, as_dataframe=False) is None
 
     @pytest.mark.parametrize(('type_name', 'schema'), [
         (type_name, schema)
@@ -74,6 +77,7 @@ class TestDB:
             'build(<val:{}>[i=1:10,10,0], random())'.format(type_name),
             fetch=True,
             atts_only=atts_only,
+            as_dataframe=False,
             schema=schema)
         if not atts_only:
             for i in range(10):
@@ -108,7 +112,6 @@ class TestDB:
             db,
             'build(<val:{}>[i=1:10,10,0], random())'.format(type_name),
             fetch=True,
-            as_dataframe=True,
             schema=schema)
         assert ar.shape == (10, 2)
         assert ar.ndim == 2
@@ -141,7 +144,6 @@ class TestDB:
             'build(<val:{}>[i=1:10,10,0], random())'.format(type_name),
             fetch=True,
             atts_only=True,
-            as_dataframe=True,
             schema=schema)
         assert ar.shape == (10, 1)
         assert ar.ndim == 2
@@ -360,8 +362,11 @@ class TestVariety:
     ])
     def test_variety_numpy(self, db, variety, schema):
         # NumPy array
-        ar = iquery(db, 'scan({})'.format(variety),
-                    fetch=True, schema=schema)
+        ar = iquery(db,
+                    'scan({})'.format(variety),
+                    fetch=True,
+                    as_dataframe=False,
+                    schema=schema)
         assert ar.shape == (12,)
         assert ar.ndim == 1
         assert ar[0] == variety_array_struct[0]
@@ -375,8 +380,12 @@ class TestVariety:
     ])
     def test_variety_numpy_atts(self, db, variety, schema):
         # NumPy array, atts_only
-        ar = iquery(db, 'scan({})'.format(variety),
-                    fetch=True, atts_only=True, schema=schema)
+        ar = iquery(db,
+                    'scan({})'.format(variety),
+                    fetch=True,
+                    atts_only=True,
+                    as_dataframe=False,
+                    schema=schema)
         assert ar.shape == (12,)
         assert ar.ndim == 1
         assert ar[0] == variety_array_struct[variety_atts][0]
@@ -390,8 +399,9 @@ class TestVariety:
     ])
     def test_variety_dataframe(self, db, variety, schema):
         # Pandas DataFrame, atts_only
-        ar = iquery(db, 'scan({})'.format(variety),
-                    fetch=True, as_dataframe=True)
+        ar = iquery(db,
+                    'scan({})'.format(variety),
+                    fetch=True)
         assert ar.shape == (12, 16)
         assert ar.ndim == 2
         assert numpy.all(ar[0:1].values[0] == variety_array_promo[0])
@@ -416,8 +426,10 @@ class TestVariety:
     ])
     def test_variety_dataframe_atts(self, db, variety, schema):
         # Pandas DataFrame, atts_only
-        ar = iquery(db, 'scan({})'.format(variety),
-                    fetch=True, as_dataframe=True, atts_only=True)
+        ar = iquery(db,
+                    'scan({})'.format(variety),
+                    fetch=True,
+                    atts_only=True)
         assert ar.shape == (12, 13)
         assert ar.ndim == 2
         assert numpy.all(ar[0:1].values == variety_array_promo[0][3:])
@@ -440,8 +452,10 @@ class TestVariety:
     ])
     def test_variety_dataframe_no_promo(self, db, variety, schema):
         # Pandas DataFrame, atts_only
-        ar = iquery(db, 'scan({})'.format(variety),
-                    fetch=True, as_dataframe=True, dataframe_promo=False)
+        ar = iquery(db,
+                    'scan({})'.format(variety),
+                    fetch=True,
+                    dataframe_promo=False)
         assert ar.shape == (12, 16)
         assert ar.ndim == 2
         assert ar[0:1].to_records(index=False) == variety_array_obj[0]

@@ -14,9 +14,10 @@ Connect to SciDB and run a query:
 Download data from SciDB:
 
 >>> db.arrays.foo[:]
-... # doctest: +NORMALIZE_WHITESPACE
-array([(0, (255, 0)), (1, (255, 1)), (2, (255, 2))],
-      dtype=[('i', '<i8'), ('x', [('null', 'u1'), ('val', '<i8')])])
+   i    x
+0  0  0.0
+1  1  1.0
+2  2  2.0
 
 Upload data to SciDB and create an array:
 
@@ -29,12 +30,10 @@ py_..._1
 Run a query with chained operators and download the resulting array:
 
 >>> db.join(ar, 'foo').apply('j', ar.i + 1)[:]
-... # doctest: +NORMALIZE_WHITESPACE
-array([(0, 0, (255, 0), 1), (1, 1, (255, 1), 2), (2, 2, (255, 2), 3)],
-      dtype=[('i', '<i8'),
-             ('x', '<i8'),
-             ('x_1', [('null', 'u1'), ('val', '<i8')]),
-             ('j', '<i8')])
+   i  x  x_1  j
+0  0  0  0.0  1
+1  1  1  1.0  2
+2  2  2  2.0  3
 
 Cleanup:
 
@@ -97,6 +96,7 @@ scidb_auth = None
 http_auth  = None
 namespace  = None
 verify     = None
+
 
 Advanced Connection
 -------------------
@@ -204,9 +204,10 @@ SciDB arrays can be accessed using ``DB.arrays``:
 [...'i', ...'x']
 
 >>> db.arrays.foo[:]
-... # doctest: +NORMALIZE_WHITESPACE
-array([(0, (255, 0)), (1, (255, 1)), (2, (255, 2))],
-      dtype=[('i', '<i8'), ('x', [('null', 'u1'), ('val', '<i8')])])
+   i    x
+0  0  0.0
+1  1  1.0
+2  2  2.0
 
 >>> db.iquery('remove(foo)')
 
@@ -309,10 +310,9 @@ is possible in SciDB-Py using the ``%`` operator:
 >>> db.cross_join(db.arrays.foo % 'f1',
 ...               db.arrays.foo % 'f2',
 ...               'f1.i', 'f2.i')[:]
-... # doctest: +NORMALIZE_WHITESPACE
-array([(0, (255, 0), (255, 0)), (1, (255, 1), (255, 1))],
-      dtype=[('i', '<i8'), ('x',   [('null', 'u1'), ('val', '<i8')]),
-                           ('x_1', [('null', 'u1'), ('val', '<i8')])])
+   i    x  x_1
+0  0  0.0  0.0
+1  1  1.0  1.0
 >>> db.remove(db.arrays.foo)
 
 
@@ -320,41 +320,43 @@ Download Data from SciDB
 ------------------------
 
 >>> db.build('<x:int8 not null>[i=0:2]', 'i + 10')[:]
-... # doctest: +NORMALIZE_WHITESPACE
-array([(0, 10), (1, 11), (2, 12)],
-      dtype=[('i', '<i8'), ('x', 'i1')])
-
->>> db.build('<x:int8 not null>[i=0:2]', 'i + 10').fetch(as_dataframe=True)
    i   x
 0  0  10
 1  1  11
 2  2  12
 
+>>> db.build('<x:int8 not null>[i=0:2]', 'i + 10').fetch(as_dataframe=False)
+... # doctest: +NORMALIZE_WHITESPACE
+array([(0, 10), (1, 11), (2, 12)],
+      dtype=[('i', '<i8'), ('x', 'i1')])
+
 >>> db.build('<x:int8 not null>[i=0:2]', 'i + 10').fetch(
-...     atts_only=True,
-...     as_dataframe=True)
+...     atts_only=True)
     x
 0  10
 1  11
 2  12
 
 >>> db.build('<x:int8 not null>[i=0:2]', 'i + 10').apply('y', 'x - 5')[:]
-... # doctest: +NORMALIZE_WHITESPACE
-array([(0, 10, 5), (1, 11, 6), (2, 12, 7)],
-      dtype=[('i', '<i8'), ('x', 'i1'), ('y', '<i8')])
+   i   x  y
+0  0  10  5
+1  1  11  6
+2  2  12  7
 
 >>> db.build('<x:int8 not null>[i=0:2]', 'i + 10').store('foo')
 Array(DB('http://localhost:8080', None, None, None, None), 'foo')
 
 >>> db.scan(db.arrays.foo)[:]
-... # doctest: +NORMALIZE_WHITESPACE
-array([(0, 10), (1, 11), (2, 12)],
-      dtype=[('i', '<i8'), ('x', 'i1')])
+   i   x
+0  0  10
+1  1  11
+2  2  12
 
 >>> db.apply(db.arrays.foo, 'y', db.arrays.foo.x + 1)[:]
-... # doctest: +NORMALIZE_WHITESPACE
-array([(0, 10, 11), (1, 11, 12), (2, 12, 13)],
-      dtype=[('i', '<i8'), ('x', 'i1'), ('y', '<i8')])
+   i   x   y
+0  0  10  11
+1  1  11  12
+2  2  12  13
 
 >>> db.remove(db.arrays.foo)
 
@@ -380,9 +382,10 @@ Array(DB('http://localhost:8080', None, None, None, None), 'py_...')
 >>> del ar
 
 >>> db.input('<x:int64>[i]', upload_data=numpy.arange(3))[:]
-... # doctest: +NORMALIZE_WHITESPACE
-array([(0, (255, 0)), (1, (255, 1)), (2, (255, 2))],
-      dtype=[('i', '<i8'), ('x', [('null', 'u1'), ('val', '<i8')])])
+   i    x
+0  0  0.0
+1  1  1.0
+2  2  2.0
 
 >>> db.input('<x:int64>[i]', upload_data=numpy.arange(3)).store(db.arrays.foo)
 Array(DB('http://localhost:8080', None, None, None, None), 'foo')
@@ -396,17 +399,22 @@ Array(DB('http://localhost:8080', None, None, None, None), 'foo')
 ...  ).insert(db.arrays.foo)
 
 >>> db.arrays.foo[:]
-... # doctest: +NORMALIZE_WHITESPACE
-array([(0, (255, 0)), (1, (255, 1)), (2, (255, 2)), (3, (255, 3)),
-       (4, (255, 4)), (5, (255, 5))],
-      dtype=[('i', '<i8'), ('x', [('null', 'u1'), ('val', '<i8')])])
+   i    x
+0  0  0.0
+1  1  1.0
+2  2  2.0
+3  3  3.0
+4  4  4.0
+5  5  5.0
 
->>> db.input('<i:int64 not null, x:int64>[j]', upload_data=db.arrays.foo[:]
+>>> db.input('<i:int64 not null, x:int64>[j]',
+...          upload_data=db.arrays.foo.fetch(as_dataframe=False)
 ...  ).redimension(db.arrays.foo
 ...  ).store('bar')
 Array(DB('http://localhost:8080', None, None, None, None), 'bar')
 
->>> numpy.all(db.arrays.bar[:] == db.arrays.foo[:])
+>>> numpy.all(db.arrays.bar.fetch(as_dataframe=False)
+...           == db.arrays.foo.fetch(as_dataframe=False))
 True
 
 >>> buf = numpy.array([bytes([10, 20, 30])], dtype='object')
@@ -429,6 +437,7 @@ double-quoted in SciDB-Py. For example:
 
 >>> for ar in ['foo', 'bar', 'taz']: db.remove(ar)
 
+
 The iquery Function
 ===================
 
@@ -445,17 +454,19 @@ The ``iquery`` function can be used to download data from SciDB by
 specifying the ``fetch=True`` argument:
 
 >>> db.iquery('scan(foo)', fetch=True)
-... # doctest: +NORMALIZE_WHITESPACE
-array([(0, (255, 0)), (1, (255, 1)), (2, (255, 2))],
-      dtype=[('i', '<i8'), ('x', [('null', 'u1'), ('val', '<i8')])])
+   i    x
+0  0  0.0
+1  1  1.0
+2  2  2.0
 
 To avoid downloading the dimension information and only download the
 attributes, use the ``atts_only=True`` argument:
 
 >>> db.iquery('scan(foo)', fetch=True, atts_only=True)
-... # doctest: +NORMALIZE_WHITESPACE
-array([((255, 0),), ((255, 1),), ((255, 2),)],
-      dtype=[('x', [('null', 'u1'), ('val', '<i8')])])
+     x
+0  0.0
+1  1.0
+2  2.0
 
 >>> db.iquery('remove(foo)')
 
@@ -464,25 +475,28 @@ Download operator output directly:
 
 >>> db.iquery('build(<x:int64 not null>[i=0:2], i)',
 ...           fetch=True)
-... # doctest: +NORMALIZE_WHITESPACE
-array([(0, 0), (1, 1), (2, 2)],
-      dtype=[('i', '<i8'), ('x', '<i8')])
+   i  x
+0  0  0
+1  1  1
+2  2  2
 
 >>> db.iquery('build(<x:int64 not null>[i=0:2], i)',
 ...           fetch=True,
 ...           atts_only=True)
-... # doctest: +NORMALIZE_WHITESPACE
-array([(0,), (1,), (2,)],
-      dtype=[('x', '<i8')])
+   x
+0  0
+1  1
+2  2
 
 
 If dimension names collide with attribute names, unique dimension
 names are created:
 
 >>> db.iquery('apply(build(<x:int64 not null>[i=0:2], i), i, i)', fetch=True)
-... # doctest: +NORMALIZE_WHITESPACE
-array([(0, 0, 0), (1, 1, 1), (2, 2, 2)],
-      dtype=[('i_1', '<i8'), ('x', '<i8'), ('i', '<i8')])
+   i_1  x  i
+0    0  0  0
+1    1  1  1
+2    2  2  2
 
 
 If schema is known, it can be provided to ``iquery`` using the
@@ -497,9 +511,10 @@ schema:
 ...        schema=Schema(None,
 ...                      (Attribute('x', 'int64', not_null=True),),
 ...                      (Dimension('i', 0, 2),)))
-... # doctest: +NORMALIZE_WHITESPACE
-array([(0, 0), (1, 1), (2, 2)],
-      dtype=[('i', '<i8'), ('x', '<i8')])
+   i  x
+0  0  0
+1  1  1
+2  2  2
 
 >>> iquery(db,
 ...        'build(<x:int64 not null>[i=0:2], i)',
@@ -507,32 +522,11 @@ array([(0, 0), (1, 1), (2, 2)],
 ...        atts_only=True,
 ...        schema=Schema.fromstring('<x:int64 not null>[i=0:2]'))
 ... # doctest: +NORMALIZE_WHITESPACE
-array([(0,), (1,), (2,)],
-      dtype=[('x', '<i8')])
-
-
-Download as Pandas DataFrame:
-
->>> iquery(db,
-...        'build(<x:int64>[i=0:2], i)',
-...        fetch=True,
-...        as_dataframe=True)
-... # doctest: +NORMALIZE_WHITESPACE
-   i x
-0  0 0.0
-1  1 1.0
-2  2 2.0
-
->>> iquery(db,
-...        'build(<x:int64>[i=0:2], i)',
-...        fetch=True,
-...        atts_only=True,
-...        as_dataframe=True)
-... # doctest: +NORMALIZE_WHITESPACE
    x
-0  0.0
-1  1.0
-2  2.0
+0  0
+1  1
+2  2
+
 
 Attributes with null-able types are promoted as per Pandas 'promotion
 scheme <http://pandas.pydata.org/pandas-docs/stable/gotchas.html
@@ -560,6 +554,26 @@ object records will be used instead of atomic values:
 2  (255, 2)
 
 
+Download as NumPy Array:
+
+>>> iquery(db,
+...        'build(<x:int64>[i=0:2], i)',
+...        fetch=True,
+...        as_dataframe=False)
+... # doctest: +NORMALIZE_WHITESPACE
+array([(0, (255, 0)), (1, (255, 1)), (2, (255, 2))],
+      dtype=[('i', '<i8'), ('x', [('null', 'u1'), ('val', '<i8')])])
+
+>>> iquery(db,
+...        'build(<x:int64>[i=0:2], i)',
+...        fetch=True,
+...        atts_only=True,
+...        as_dataframe=False)
+... # doctest: +NORMALIZE_WHITESPACE
+array([((255, 0),), ((255, 1),), ((255, 2),)],
+      dtype=[('x', [('null', 'u1'), ('val', '<i8')])])
+
+
 Upload Data to SciDB
 --------------------
 
@@ -585,6 +599,7 @@ The SciDB query placeholders are:
 
 See examples in the following subsections.
 
+
 Upload NumPy Arrays
 ^^^^^^^^^^^^^^^^^^^
 
@@ -597,9 +612,10 @@ populate these placeholders.
 ...           upload_data=numpy.arange(3))
 
 >>> db.arrays.foo[:]
-... # doctest: +NORMALIZE_WHITESPACE
-array([(0, (255, 0)), (1, (255, 1)), (2, (255, 2))],
-      dtype=[('i', '<i8'), ('x', [('null', 'u1'), ('val', '<i8')])])
+   i    x
+0  0  0.0
+1  1  1.0
+2  2  2.0
 
 >>> db.iquery("insert(input({sch}, '{fn}', 0, '(int64)'), foo)",
 ...           upload_data=numpy.arange(3))

@@ -174,7 +174,7 @@ verify     = {}'''.format(*self)
                query,
                fetch=False,
                atts_only=False,
-               as_dataframe=False,
+               as_dataframe=True,
                dataframe_promo=True,
                schema=None,
                upload_data=None,
@@ -191,7 +191,7 @@ verify     = {}'''.format(*self)
 
         :param bool as_dataframe: If ``True``, return a Pandas
           DataFrame. If ``False``, return a NumPy array (default
-          ``False``)
+          ``True``)
 
         :param bool dataframe_promo: If ``True``, null-able types are
           promoted as per Pandas `promotion scheme
@@ -206,20 +206,19 @@ verify     = {}'''.format(*self)
           :py:func:``Schema.fromstring`` (default ``None``)
 
         >>> DB().iquery('build(<x:int64>[i=0:1; j=0:1], i + j)', fetch=True)
-        ... # doctest: +NORMALIZE_WHITESPACE
-        array([(0, 0, (255, 0)),
-               (0, 1, (255, 1)),
-               (1, 0, (255, 1)),
-               (1, 1, (255, 2))],
-              dtype=[('i', '<i8'), ('j', '<i8'),
-                     ('x', [('null', 'u1'), ('val', '<i8')])])
+           i  j    x
+        0  0  0  0.0
+        1  0  1  1.0
+        2  1  0  1.0
+        3  1  1  2.0
 
         >>> DB().iquery("input({sch}, '{fn}', 0, '{fmt}')",
         ...             fetch=True,
         ...             upload_data=numpy.arange(3, 6))
-        ... # doctest: +NORMALIZE_WHITESPACE
-        array([(0, 3), (1, 4), (2, 5)],
-              dtype=[('i', '<i8'), ('x', '<i8')])
+           i  x
+        0  0  3
+        1  1  4
+        2  2  5
 
         """
         # Special case: -- - set_namespace - --
