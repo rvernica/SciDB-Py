@@ -32,6 +32,7 @@ class Shim(enum.Enum):
     execute_query = 'execute_query'
     new_session = 'new_session'
     read_bytes = 'read_bytes'
+    read_lines = 'read_lines'
     release_session = 'release_session'
     upload = 'upload'
 
@@ -294,7 +295,7 @@ verify     = {}'''.format(*self)
                     query=DB._show_query.format(query.replace("'", "\\'")),
                     save='tsv')
                 schema = Schema.fromstring(
-                    self._shim(Shim.read_bytes, id=id, n=0).text)
+                    self._shim(Shim.read_lines, id=id, n=0).text)
 
             # Attributes and dimensions can collide. Run make_unique to
             # remove any collisions.
@@ -445,7 +446,7 @@ verify     = {}'''.format(*self)
         """Read data from Shim and parse as text lines"""
         return [line.split('\t') if '\t' in line else line
                 for line in self._shim(
-                        Shim.read_bytes, id=id, n=0).text.splitlines()]
+                        Shim.read_lines, id=id, n=0).text.splitlines()]
 
 
 class Arrays(object):
