@@ -13,14 +13,6 @@ def db():
 
 class TestDB:
 
-    @pytest.mark.parametrize('args', [
-        {'scidb_auth': ('foo', 'bar')},
-        {'scidb_url': 'http://localhost:8080', 'scidb_auth': ('foo', 'bar')},
-    ])
-    def test_connect_exception(self, args):
-        with pytest.raises(Exception):
-            connect(**args)
-
     @pytest.mark.parametrize('query', [
         'list()',
         "list('operators')",

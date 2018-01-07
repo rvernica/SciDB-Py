@@ -116,11 +116,6 @@ class DB(object):
             self._http_auth = self.http_auth = None
 
         if scidb_auth:
-            if not self.scidb_url.lower().startswith('https'):
-                raise Exception(
-                    'SciDB credentials can only be used ' +
-                    'with https connections')
-
             self._scidb_auth = {'user': scidb_auth[0],
                                 'password': scidb_auth[1]}
             self.scidb_auth = (scidb_auth[0], Password_Placeholder())
