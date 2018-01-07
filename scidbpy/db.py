@@ -16,6 +16,7 @@ import re
 import requests
 import string
 import threading
+import uuid
 import warnings
 
 try:
@@ -116,15 +117,21 @@ class DB(object):
             self._http_auth = self.http_auth = None
 
         if scidb_auth:
-            self._scidb_auth = {'user': scidb_auth[0],
-                                'password': scidb_auth[1]}
+            self._id = self._shim(Shim.new_session,
+                                  user=scidb_auth[0],
+                                  password=scidb_auth[1]).text
             self.scidb_auth = (scidb_auth[0], Password_Placeholder())
         else:
-            self._scidb_auth = self.scidb_auth = None
+            self._id = self._shim(Shim.new_session).text
+            self.scidb_auth = None
+
+        finalize(self,
+                 self._shim,
+                 Shim.release_session)
 
         self.arrays = Arrays(self)
 
-        self._id = None
+        self._uid = uuid.uuid1().hex
         self._lock = threading.Lock()
         self._array_cnt = 0
         self._formatter = string.Formatter()
@@ -226,8 +233,6 @@ verify     = {}'''.format(*self)
             self.namespace = param
             return
 
-        id = self._shim(Shim.new_session).text
-
         if upload_data is not None:
             if isinstance(upload_data, numpy.ndarray):
                 if upload_schema is None:
@@ -267,7 +272,7 @@ verify     = {}'''.format(*self)
                     'upload_data is not bytes or file-like object',
                     stacklevel=2)
 
-            fn = self._shim(Shim.upload, id=id, data=upload_data).text
+            fn = self._shim(Shim.upload, data=upload_data).text
             query = query.format(
                 sch=upload_schema,
                 fn=fn,
@@ -286,11 +291,10 @@ verify     = {}'''.format(*self)
                 # Execute 'show(...)' and Download text
                 self._shim(
                     Shim.execute_query,
-                    id=id,
                     query=DB._show_query.format(query.replace("'", "\\'")),
                     save='tsv')
                 schema = Schema.fromstring(
-                    self._shim(Shim.read_lines, id=id, n=0).text)
+                    self._shim(Shim.read_lines, n=0).text)
 
             # Attributes and dimensions can collide. Run make_unique to
             # remove any collisions.
@@ -322,12 +326,9 @@ verify     = {}'''.format(*self)
 
             # Execute Query and Download content
             self._shim(Shim.execute_query,
-                       id=id,
                        query=query,
                        save=schema.atts_fmt_scidb)
-            buf = self._shim(Shim.read_bytes, id=id, n=0).content
-
-            self._shim(Shim.release_session, id=id)
+            buf = self._shim(Shim.read_bytes, n=0).content
 
             if schema.is_fixsize() and (not as_dataframe or
                                         not dataframe_promo):
@@ -342,7 +343,7 @@ verify     = {}'''.format(*self)
                 return data
 
         else:                   # fetch=False
-            self._shim(Shim.execute_query, id=id, query=query, release=1)
+            self._shim(Shim.execute_query, query=query)
 
             # Special case: -- - load_library - --
             if query.startswith('load_library('):
@@ -360,44 +361,33 @@ verify     = {}'''.format(*self)
         ... # doctest: +ELLIPSIS
         [[...'0', ...'10'], [...'1', ...'11'], [...'2', ...'12']]
         """
-        id = self._shim(Shim.new_session).text
-        self._shim(Shim.execute_query, id=id, query=query, save='tsv')
-        ret = self._shim_readlines(id=id)
-        self._shim(Shim.release_session, id=id)
+        self._shim(Shim.execute_query, query=query, save='tsv')
+        ret = self._shim_readlines()
         return ret
 
     def next_array_name(self):
         """Generate a uniqu array name. Keep track on these names using the
-           _id field and a conter
+           _uid field and a counter
         """
         # Thread-safe counter
         with self._lock:
             self._array_cnt += 1
-            return 'py_{}_{}'.format(self._id, self._array_cnt)
+            return 'py_{}_{}'.format(self._uid, self._array_cnt)
 
     def load_ops(self):
-        """Get list of operators and macros. Also sets the _id field used to
-           generate unique array names
+        """Get list of operators and macros.
         """
-        id = self._shim(Shim.new_session).text
-
         query_id = self._shim(
             Shim.execute_query,
-            id=id,
             query="project(list('operators'), name)",
             save='tsv').text  # set query ID as DB instance ID
-        if self._id is None:
-            self._id = query_id
-        operators = self._shim_readlines(id=id)
+        operators = self._shim_readlines()
 
         self._shim(
             Shim.execute_query,
-            id=id,
             query="project(list('macros'), name)",
             save='tsv').content
-        macros = self._shim_readlines(id=id)
-
-        self._shim(Shim.release_session, id=id)
+        macros = self._shim_readlines()
 
         self.operators = operators + macros
         self._dir = (self.operators +
@@ -411,9 +401,8 @@ verify     = {}'''.format(*self)
     def _shim(self, endpoint, **kwargs):
         """Make request on Shim endpoint"""
 
-        # Add credentails to request, if necessary
-        if self._scidb_auth and endpoint in (Shim.cancel, Shim.execute_query):
-            kwargs.update(self._scidb_auth)
+        if endpoint != Shim.new_session:
+            kwargs.update(id=self._id)
 
         # Add prefix to request, if necessary
         if self.namespace and endpoint == Shim.execute_query:
@@ -437,11 +426,11 @@ verify     = {}'''.format(*self)
         req.raise_for_status()
         return req
 
-    def _shim_readlines(self, id):
+    def _shim_readlines(self):
         """Read data from Shim and parse as text lines"""
         return [line.split('\t') if '\t' in line else line
                 for line in self._shim(
-                        Shim.read_lines, id=id, n=0).text.splitlines()]
+                        Shim.read_lines, n=0).text.splitlines()]
 
 
 class Arrays(object):
