@@ -229,7 +229,7 @@ foo
 >>> print(db.arrays.bar)
 bar
 
-In IPython, you can use <TAB> for auto-completion of array names,
+In IPython, we can use <TAB> for auto-completion of array names,
 array dimensions, and array attributes::
 
     In [1]: db.arrays.<TAB>
@@ -265,7 +265,7 @@ Traceback (most recent call last):
     ...
 AttributeError: 'DB' object has no attribute 'missing'
 
-In IPython, you can use <TAB> for auto-completion of operator names::
+In IPython, we can use <TAB> for auto-completion of operator names::
 
     In [1]: db.<TAB>
     In [1]: db.apply
