@@ -321,8 +321,22 @@ is possible in SciDB-Py using the ``%`` operator:
    i    x  x_1
 0  0  0.0  0.0
 1  1  1.0  1.0
->>> db.remove(db.arrays.foo)
 
+To retrieve the schema of a query result, the ``show`` operator can be
+used. For example to retrieve the schema of the
+``build(<x:int64>[i=0:2], i)``, we can use:
+
+>>> db.build('<x:int64>[i=0:2]', 'i').show('afl')['schema']
+0    build<x:int64> [i=0:2:0:1000000]
+Name: schema, dtype: object
+
+Similarily, to retrieve the schema of an array, we can use:
+
+>>> db.show(db.arrays.foo)['schema']
+0    foo<x:int64> [i=0:1:0:1000000]
+Name: schema, dtype: object
+
+>>> db.remove(db.arrays.foo)
 
 Download Data from SciDB
 ------------------------

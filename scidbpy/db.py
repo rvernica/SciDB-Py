@@ -569,6 +569,10 @@ class Operator(object):
 
                 arg_fmt = "'{}'".format(arg_fmt)
 
+            # Special case: -- - show - --
+            if pos == 0 and self.name == 'show' and isinstance(arg, Operator):
+                arg_fmt = "'{}'".format(arg_fmt.replace("'", "\\'"))
+
             # Add to arguments list
             args_fmt.append(arg_fmt)
 

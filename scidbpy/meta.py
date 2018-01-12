@@ -95,6 +95,7 @@ string_args = (
         'input',
         'load',
         'save',
+        'show',
 
         # load_library('namespaces');
         # ---
