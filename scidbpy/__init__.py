@@ -35,6 +35,14 @@ Run a query with chained operators and download the resulting array:
 1  1  1  1.0  2
 2  2  2  2.0  3
 
+Operators can also be composed:
+
+>>> db.apply(db.join(ar, 'foo'), 'j', ar.i + 1)[:]
+   i  x  x_1  j
+0  0  0  0.0  1
+1  1  1  1.0  2
+2  2  2  2.0  3
+
 Cleanup:
 
 >>> db.remove(db.arrays.foo)
