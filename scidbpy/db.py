@@ -513,6 +513,9 @@ class Array(object):
                 'See https://github.com/Paradigm4/limit.')
             return self.fetch(**kwargs)[:n]
 
+    def schema(self):
+        return self.db.show(self)['schema'][0]
+
 
 class ArrayExp(object):
     """Access to individual attribute or dimension"""
@@ -703,6 +706,10 @@ class Operator(object):
                                   upload_data=self.upload_data,
                                   upload_schema=self.upload_schema,
                                   **kwargs)
+
+    def schema(self):
+        if self.is_lazy:
+            return self.show('afl')['schema'][0]
 
 
 connect = DB
