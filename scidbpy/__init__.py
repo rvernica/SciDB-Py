@@ -204,12 +204,12 @@ SciDB arrays can be accessed using ``DB.arrays``:
 >>> db.iquery('store(build(<x:int64>[i=0:2], i), foo)')
 
 >>> dir(db.arrays)
-... # doctest: +ELLIPSIS
-[...'foo']
+... # doctest: +ALLOW_UNICODE
+[u'foo']
 
 >>> dir(db.arrays.foo)
-... # doctest: +ELLIPSIS
-[...'i', ...'x']
+... # doctest: +ALLOW_UNICODE
+[u'i', u'x']
 
 >>> db.arrays.foo[:]
    i    x
@@ -246,11 +246,10 @@ operators and macros and makes them available through the ``DB`` class
 instance:
 
 >>> dir(db)
-... # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
-[...'aggregate',
- ...'apply',
+... # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS +ALLOW_UNICODE
+[u'aggregate',
  ...
- ...'xgrid']
+ u'xgrid']
 
 >>> db.apply
 ... # doctest: +NORMALIZE_WHITESPACE
@@ -278,8 +277,8 @@ execute immediately (e.g., ``create_array``, ``remove``, etc.).
 
 >>> db.create_array('foo', '<x:int64>[i]')
 >>> dir(db.arrays)
-... # doctest: +ELLIPSIS
-[...'foo']
+... # doctest: +ALLOW_UNICODE
+[u'foo']
 
 >>> db.remove(db.arrays.foo)
 >>> dir(db.arrays)
