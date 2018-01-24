@@ -109,20 +109,40 @@ class Attribute(object):
     Construct an attribute using Attribute constructor:
 
     >>> Attribute('foo', 'int64', not_null=True)
-    Attribute('foo', 'int64', True, None, None)
+    ... # doctest: +NORMALIZE_WHITESPACE
+    Attribute(name='foo',
+              type_name='int64',
+              not_null=True,
+              default=None,
+              compression=None)
 
     >>> Attribute('foo', 'int64', default=100, compression='zlib')
-    Attribute('foo', 'int64', False, 100, 'zlib')
+    ... # doctest: +NORMALIZE_WHITESPACE
+    Attribute(name='foo',
+              type_name='int64',
+              not_null=False,
+              default=100,
+              compression='zlib')
 
 
     Construct an attribute from a string:
 
     >>> Attribute.fromstring('foo:int64')
-    Attribute('foo', 'int64', False, None, None)
+    ... # doctest: +NORMALIZE_WHITESPACE
+    Attribute(name='foo',
+              type_name='int64',
+              not_null=False,
+              default=None,
+              compression=None)
 
     >>> Attribute.fromstring(
     ...     "taz : string NOT null DEFAULT '' compression bzlib")
-    Attribute('taz', 'string', True, "''", 'bzlib')
+    ... # doctest: +NORMALIZE_WHITESPACE
+    Attribute(name='taz',
+              type_name='string',
+              not_null=True,
+              default="''",
+              compression='bzlib')
     """
 
     _regex = re.compile('''
@@ -167,7 +187,12 @@ class Attribute(object):
         return tuple(self) == tuple(other)
 
     def __repr__(self):
-        return '{}({!r}, {!r}, {!r}, {!r}, {!r})'.format(
+        return ('{}(' +
+                'name={!r}, ' +
+                'type_name={!r}, ' +
+                'not_null={!r}, ' +
+                'default={!r}, ' +
+                'compression={!r})').format(
             type(self).__name__, *self)
 
     def __str__(self):
@@ -315,19 +340,39 @@ class Dimension(object):
     Construct a dimension using the Dimension constructor:
 
     >>> Dimension('foo')
-    Dimension('foo', None, None, None, None)
+    ... # doctest: +NORMALIZE_WHITESPACE
+    Dimension(name='foo',
+              low_value=None,
+              high_value=None,
+              chunk_overlap=None,
+              chunk_length=None)
 
     >>> Dimension('foo', -100, '10', '?', '1000')
-    Dimension('foo', -100, 10, '?', 1000)
+    ... # doctest: +NORMALIZE_WHITESPACE
+    Dimension(name='foo',
+              low_value=-100,
+              high_value=10,
+              chunk_overlap='?',
+              chunk_length=1000)
 
 
     Construct a dimension from a string:
 
     >>> Dimension.fromstring('foo')
-    Dimension('foo', None, None, None, None)
+    ... # doctest: +NORMALIZE_WHITESPACE
+    Dimension(name='foo',
+              low_value=None,
+              high_value=None,
+              chunk_overlap=None,
+              chunk_length=None)
 
     >>> Dimension.fromstring('foo=-100:*:?:10')
-    Dimension('foo', -100, '*', '?', 10)
+    ... # doctest: +NORMALIZE_WHITESPACE
+    Dimension(name='foo',
+              low_value=-100,
+              high_value='*',
+              chunk_overlap='?',
+              chunk_length=10)
     """
 
     _regex = re.compile('''
@@ -382,7 +427,12 @@ class Dimension(object):
         return tuple(self) == tuple(other)
 
     def __repr__(self):
-        return '{}({!r}, {!r}, {!r}, {!r}, {!r})'.format(
+        return ('{}(' +
+                'name={!r}, ' +
+                'low_value={!r}, ' +
+                'high_value={!r}, ' +
+                'chunk_overlap={!r}, ' +
+                'chunk_length={!r})').format(
             type(self).__name__, *self)
 
     def __str__(self):
@@ -411,9 +461,17 @@ class Schema(object):
 
     >>> Schema('foo', (Attribute('x', 'int64'),), (Dimension('i', 0, 10),))
     ... # doctest: +NORMALIZE_WHITESPACE
-    Schema('foo',
-           (Attribute('x', 'int64', False, None, None),),
-           (Dimension('i', 0, 10, None, None),))
+    Schema(name='foo',
+           atts=(Attribute(name='x',
+                           type_name='int64',
+                           not_null=False,
+                           default=None,
+                           compression=None),),
+           dims=(Dimension(name='i',
+                           low_value=0,
+                           high_value=10,
+                           chunk_overlap=None,
+                           chunk_length=None),))
 
 
     Construct a schema using Schema constructor and fromstring methods
@@ -423,9 +481,17 @@ class Schema(object):
     ...        (Attribute.fromstring('x:int64'),),
     ...        (Dimension.fromstring('i=0:10'),))
     ... # doctest: +NORMALIZE_WHITESPACE
-    Schema('foo',
-           (Attribute('x', 'int64', False, None, None),),
-           (Dimension('i', 0, 10, None, None),))
+    Schema(name='foo',
+           atts=(Attribute(name='x',
+                           type_name='int64',
+                           not_null=False,
+                           default=None,
+                           compression=None),),
+           dims=(Dimension(name='i',
+                           low_value=0,
+                           high_value=10,
+                           chunk_overlap=None,
+                           chunk_length=None),))
 
 
     Construct a schema from a string:
@@ -433,11 +499,27 @@ class Schema(object):
     >>> Schema.fromstring(
     ...     'foo@1<x:int64 not null, y:double>[i=0:*; j=-100:0:0:10]')
     ... # doctest: +NORMALIZE_WHITESPACE
-    Schema('foo@1',
-           (Attribute('x',  'int64',  True, None, None),
-            Attribute('y', 'double', False, None, None)),
-           (Dimension('i',    0, '*', None, None),
-            Dimension('j', -100,   0,    0, 10)))
+    Schema(name='foo@1',
+           atts=(Attribute(name='x',
+                           type_name='int64',
+                           not_null=True,
+                           default=None,
+                           compression=None),
+                 Attribute(name='y',
+                           type_name='double',
+                           not_null=False,
+                           default=None,
+                           compression=None)),
+           dims=(Dimension(name='i',
+                           low_value=0,
+                           high_value='*',
+                           chunk_overlap=None,
+                           chunk_length=None),
+                 Dimension(name='j',
+                           low_value=-100,
+                           high_value=0,
+                           chunk_overlap=0,
+                           chunk_length=10)))
 
 
     Print a schema constructed from a string:
@@ -480,7 +562,7 @@ class Schema(object):
         return tuple(self) == tuple(other)
 
     def __repr__(self):
-        return '{}({!r}, {!r}, {!r})'.format(
+        return '{}(name={!r}, atts={!r}, dims={!r})'.format(
             type(self).__name__, self.name, self.atts, self.dims)
 
     def __str__(self):
