@@ -217,6 +217,12 @@ SciDB arrays can be accessed using ``DB.arrays``:
 1  1  1.0
 2  2  2.0
 
+>>> db.arrays['foo'][:]
+   i    x
+0  0  0.0
+1  1  1.0
+2  2  2.0
+
 To get the schema of an array, we can use the ``schema`` utility
 function:
 

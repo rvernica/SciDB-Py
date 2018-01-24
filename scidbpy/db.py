@@ -447,6 +447,11 @@ class Arrays(object):
 {}'''.format(self.db)
 
     def __getattr__(self, name):
+        """db.arrays.foo"""
+        return Array(self.db, name)
+
+    def __getitem__(self, name):
+        """db.arrays['foo']"""
         return Array(self.db, name)
 
     def __dir__(self):
