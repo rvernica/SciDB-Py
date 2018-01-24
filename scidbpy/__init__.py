@@ -229,6 +229,13 @@ function:
 >>> print(db.arrays.foo.schema())
 foo<x:int64> [i=0:2:0:1000000]
 
+>>> db.arrays.foo.schema().pprint()
+... # doctest: +NORMALIZE_WHITESPACE
+foo<x:int64> [i=0:2:0:1000000]
+  name class   type nullable start end overlap    chunk
+0    x  attr  int64     True
+1    i   dim  int64              0   2       0  1000000
+
 >>> db.iquery('remove(foo)')
 
 >>> dir(db.arrays)
@@ -340,6 +347,14 @@ function can be used:
 
 >>> print(db.build('<x:int64>[i=0:2]', 'i').schema())
 build<x:int64> [i=0:2:0:1000000]
+
+>>> db.build('<x:int64>[i=0:2]', 'i').schema().pprint()
+... # doctest: +NORMALIZE_WHITESPACE
+build<x:int64> [i=0:2:0:1000000]
+  name class   type nullable start end overlap    chunk
+0    x  attr  int64     True
+1    i   dim  int64              0   2       0  1000000
+
 
 
 Download Data from SciDB

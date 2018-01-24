@@ -7,6 +7,7 @@ Classes for accessing SciDB data and schemas.
 
 import itertools
 import numpy
+import pandas
 import re
 import six
 import struct
@@ -590,6 +591,43 @@ class Schema(object):
             self.__atts_fmt_scidb = '({})'.format(
                 ', '.join(a.fmt_scidb for a in self.atts))
         return self.__atts_fmt_scidb
+
+    def pprint(self):
+        print(self)
+        info = numpy.empty(
+            (len(self.atts) + len(self.dims),),
+            dtype=[('name', numpy.object),
+                   ('class', numpy.object),
+                   ('type', numpy.object),
+                   ('nullable', numpy.object),
+                   ('start', numpy.object),
+                   ('end', numpy.object),
+                   ('overlap', numpy.object),
+                   ('chunk', numpy.object)])
+        pos = 0
+        for a in self.atts:
+            info.put((pos,),
+                     (a.name,
+                      'attr',
+                      a.type_name,
+                      not a.not_null,
+                      '',
+                      '',
+                      '',
+                      ''))
+            pos += 1
+        for d in self.dims:
+            info.put((pos,),
+                     (d.name,
+                      'dim',
+                      'int64',
+                      '',
+                      d.low_value,
+                      d.high_value,
+                      d.chunk_overlap,
+                      d.chunk_length))
+            pos += 1
+        print(pandas.DataFrame.from_records(info))
 
     def is_fixsize(self):
         return all(a.is_fixsize() for a in self.atts)
