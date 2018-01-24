@@ -709,7 +709,8 @@ class Operator(object):
 
     def schema(self):
         if self.is_lazy:
-            return self.show('afl')['schema'][0]
+            return self.db.iquery_readlines(
+                "show('{}', 'afl')".format(self))[0]
 
 
 connect = DB
