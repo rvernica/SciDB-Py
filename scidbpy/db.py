@@ -519,7 +519,8 @@ class Array(object):
             return self.fetch(**kwargs)[:n]
 
     def schema(self):
-        return self.db.iquery_readlines("show({})".format(self))[0]
+        return Schema.fromstring(
+            self.db.iquery_readlines("show({})".format(self))[0])
 
 
 class ArrayExp(object):
@@ -714,8 +715,9 @@ class Operator(object):
 
     def schema(self):
         if self.is_lazy:
-            return self.db.iquery_readlines(
-                "show('{}', 'afl')".format(self))[0]
+            return Schema.fromstring(
+                self.db.iquery_readlines(
+                    "show('{}', 'afl')".format(self))[0])
 
 
 connect = DB

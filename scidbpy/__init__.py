@@ -226,9 +226,8 @@ SciDB arrays can be accessed using ``DB.arrays``:
 To get the schema of an array, we can use the ``schema`` utility
 function:
 
->>> db.arrays.foo.schema()
-... # doctest: +ALLOW_UNICODE
-u'foo<x:int64> [i=0:2:0:1000000]'
+>>> print(db.arrays.foo.schema())
+foo<x:int64> [i=0:2:0:1000000]
 
 >>> db.iquery('remove(foo)')
 
@@ -339,9 +338,8 @@ is possible in SciDB-Py using the ``%`` operator:
 To retrieve the schema of a query result, the ``schema`` utility
 function can be used:
 
->>> db.build('<x:int64>[i=0:2]', 'i').schema()
-... # doctest: +ALLOW_UNICODE
-u'build<x:int64> [i=0:2:0:1000000]'
+>>> print(db.build('<x:int64>[i=0:2]', 'i').schema())
+build<x:int64> [i=0:2:0:1000000]
 
 
 Download Data from SciDB
