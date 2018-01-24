@@ -519,7 +519,7 @@ class Array(object):
             return self.fetch(**kwargs)[:n]
 
     def schema(self):
-        return self.db.show(self)['schema'][0]
+        return self.db.iquery_readlines("show({})".format(self))[0]
 
 
 class ArrayExp(object):
