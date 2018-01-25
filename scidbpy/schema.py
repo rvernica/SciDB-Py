@@ -578,7 +578,7 @@ class Schema(object):
             ','.join(str(a) for a in self.atts),
             '; '.join(str(d) for d in self.dims))
 
-    def _promo_waring(self):
+    def _promo_warning(self):
         cnt = sum(not a.not_null for a in self.atts)
         if cnt:
             warnings.warn(
@@ -749,7 +749,7 @@ class Schema(object):
         for a in self.atts:
             if not a.not_null:
                 data[a.name] = pandas.Series(
-                    data=[np.NAN if attr[0] != 255 else attr[1]
+                    data=[attr[1] if attr[0] == 255 else numpy.NAN
                           for attr in data[a.name]],
                     dtype=type_map_promo.get(
                         a.type_name, type_map_numpy.get(
