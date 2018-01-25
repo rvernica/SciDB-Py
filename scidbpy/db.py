@@ -330,17 +330,23 @@ verify     = {}'''.format(*self)
                        save=schema.atts_fmt_scidb)
             buf = self._shim(Shim.read_bytes, n=0).content
 
-            if schema.is_fixsize() and (not as_dataframe or
-                                        not dataframe_promo):
+            # Build result
+            if schema.is_fixsize():
                 data = numpy.frombuffer(buf, dtype=schema.atts_dtype)
+
+                if as_dataframe:
+                    data = pandas.DataFrame.from_records(data)
+
+                    if dataframe_promo:
+                        schema.promote(data)
             else:
+                # Parse binary buffer
                 data = schema.frombytes(buf, as_dataframe, dataframe_promo)
 
-            # Return NumPy array or Pandas dataframe
-            if as_dataframe:
-                return pandas.DataFrame.from_records(data)
-            else:
-                return data
+                if as_dataframe:
+                    data = pandas.DataFrame.from_records(data)
+
+            return data
 
         else:                   # fetch=False
             self._shim(Shim.execute_query, query=query)

@@ -578,6 +578,14 @@ class Schema(object):
             ','.join(str(a) for a in self.atts),
             '; '.join(str(d) for d in self.dims))
 
+    def _promo_waring(self):
+        cnt = sum(not a.not_null for a in self.atts)
+        if cnt:
+            warnings.warn(
+                ('{} type(s) promoted for null support.' +
+                 ' Precision loss may occur').format(cnt),
+                stacklevel=2)
+
     @property
     def atts_dtype(self):
         if self.__atts_dtype is None:
@@ -721,18 +729,31 @@ class Schema(object):
         self.__atts_fmt_scidb = None
 
     def get_promo_atts_dtype(self):
-        cnt = sum(not a.not_null for a in self.atts)
-        if cnt:
-            warnings.warn(
-                ('{} type(s) promoted for null support.' +
-                 ' Precision loss may occur').format(cnt),
-                stacklevel=2)
+        self._promo_warning()
         return numpy.dtype(
             [a.dtype.descr[0] if a.not_null else
              (a.dtype.names[0],
               type_map_promo.get(
                   a.type_name, type_map_numpy.get(a.type_name, numpy.object)))
              for a in self.atts])
+
+    def promote(self, data):
+        """Promote nullable attributes in the DataFrame to types which
+        support some type of null values as per Pandas 'promotion
+        scheme
+        <http://pandas.pydata.org/pandas-docs/stable/gotchas.html
+        #na-type-promotions>`_
+
+        """
+        self._promo_warning()
+        for a in self.atts:
+            if not a.not_null:
+                data[a.name] = pandas.Series(
+                    data=[np.NAN if attr[0] != 255 else attr[1]
+                          for attr in data[a.name]],
+                    dtype=type_map_promo.get(
+                        a.type_name, type_map_numpy.get(
+                            a.type_name, numpy.object)))
 
     def frombytes(self, buf, as_dataframe=False, dataframe_promo=True):
         # Scan content and build (offset, size) metadata
