@@ -144,7 +144,7 @@ class TestDB:
 
 modes = ('var', 'fix')
 
-all_atts_types = {
+types_atts_types = {
     'var': """b  :bool       null,
               c  :char       null,
               d  :double     null,
@@ -171,25 +171,25 @@ all_atts_types = {
               u32:uint32     null,
               u64:uint64     null"""}
 
-all_atts = dict((mode, [at.split(':')[0].strip()
-                        for at in all_atts_types[mode].split(',')])
-                for mode in modes)
+types_atts = dict((mode, [at.split(':')[0].strip()
+                          for at in types_atts_types[mode].split(',')])
+                  for mode in modes)
 
-all_queries = {
+types_queries = {
     'create': [
-        'create array all_var_i<{}>[i=0:2]'.format(all_atts_types['var']),
+        'create array types_var_i<{}>[i=0:2]'.format(types_atts_types['var']),
 
-        'create array all_fix_i<{}>[i=0:2]'.format(all_atts_types['fix']),
+        'create array types_fix_i<{}>[i=0:2]'.format(types_atts_types['fix']),
 
-        'create array all_var<{}>[i=0:2; j=-2:0; k=0:*]'.format(
-            all_atts_types['var']),
+        'create array types_var<{}>[i=0:2; j=-2:0; k=0:*]'.format(
+            types_atts_types['var']),
 
-        'create array all_fix<{}>[i=0:2; j=-2:0; k=0:*]'.format(
-            all_atts_types['fix']),
+        'create array types_fix<{}>[i=0:2; j=-2:0; k=0:*]'.format(
+            types_atts_types['fix']),
 
         """store(
              build(
-               all_var_i,
+               types_var_i,
                '[(true,
                   "a",
                   1.7976931348623157e+308,
@@ -230,11 +230,11 @@ all_queries = {
                   ?32,
                   ?64)]',
                true),
-             all_var_i)""",
+             types_var_i)""",
 
         """store(
              build(
-               all_fix_i,
+               types_fix_i,
                '[(true,
                   "a",
                   1.7976931348623157e+308,
@@ -272,44 +272,44 @@ all_queries = {
                   ?32,
                   ?64)]',
                true),
-             all_fix_i)""",
+             types_fix_i)""",
 
         """store(
              filter(
                redimension(
                  cross_join(
                    cross_join(
-                     all_var_i,
+                     types_var_i,
                      build(<x:int8 null>[j=-2:0], null)),
                    build(<y:int8 null>[k=0:2], null)),
-                 all_var),
+                 types_var),
                j != 0 and k != 1),
-             all_var)""",
+             types_var)""",
 
         """store(
              filter(
                redimension(
                  cross_join(
                    cross_join(
-                     all_fix_i,
+                     types_fix_i,
                      build(<x:int8 null>[j=-2:0], null)),
                    build(<y:int8 null>[k=0:2], null)),
-                 all_fix),
+                 types_fix),
                j != 0 and k != 1),
-             all_fix)"""],
+             types_fix)"""],
 
     'clean': [
-        'remove(all_var_i)',
-        'remove(all_fix_i)',
-        'remove(all_var)',
-        'remove(all_fix)']}
+        'remove(types_var_i)',
+        'remove(types_fix_i)',
+        'remove(types_var)',
+        'remove(types_fix)']}
 
-all_schema = {
-    'var': all_queries['create'][2][len('create array '):],
-    'fix': all_queries['create'][3][len('create array '):]
+types_schema = {
+    'var': types_queries['create'][2][len('create array '):],
+    'fix': types_queries['create'][3][len('create array '):]
 }
 
-all_array_struct = {
+types_array_struct = {
     'var': numpy.array(
         [(0, -2, 0,
           (255, True),
@@ -423,13 +423,13 @@ all_array_struct = {
                ('u64', [('null', 'u1'), ('val', '<u8')])]),
 }
 
-all_array_obj = dict(
-    (mode, all_array_struct[mode].astype(
+types_array_obj = dict(
+    (mode, types_array_struct[mode].astype(
         [(d, '<i8') for d in ('i', 'j', 'k')] +
-        [(a, 'O') for a in all_atts[mode]]))
+        [(a, 'O') for a in types_atts[mode]]))
     for mode in modes)
 
-all_array_promo = {
+types_array_promo = {
     'var': numpy.array(
         [[0, -2, 0,
           True,
@@ -515,7 +515,7 @@ all_array_promo = {
           numpy.nan]], dtype=object),
 }
 
-all_shape = {
+types_shape = {
     'var': ((12, 16), (12, 13)),
     'fix': ((12, 15), (12, 12)),
 }
@@ -523,135 +523,135 @@ all_shape = {
 
 @pytest.fixture(scope='module')
 def setup(db):
-    for q in all_queries['create']:
+    for q in types_queries['create']:
         iquery(db, q)
 
     yield True
 
-    for q in all_queries['clean']:
+    for q in types_queries['clean']:
         iquery(db, q)
 
 
-class TestAll:
+class TestTypes:
 
     @pytest.mark.parametrize(
         ('mode', 'schema'),
         ((mode, schema)
          for mode in modes
          for schema in (None,
-                        all_schema[mode],
-                        Schema.fromstring(all_schema[mode]))))
-    def test_all_numpy(self, db, setup, mode, schema):
+                        types_schema[mode],
+                        Schema.fromstring(types_schema[mode]))))
+    def test_types_numpy(self, db, setup, mode, schema):
         # NumPy array
         ar = iquery(db,
-                    'scan(all_{})'.format(mode),
+                    'scan(types_{})'.format(mode),
                     fetch=True,
                     as_dataframe=False,
                     schema=schema)
         assert ar.shape == (12,)
         assert ar.ndim == 1
-        assert ar[0] == all_array_struct[mode][0]
-        assert ar[4] == all_array_struct[mode][1]
-        assert ar[8] == all_array_struct[mode][2]
+        assert ar[0] == types_array_struct[mode][0]
+        assert ar[4] == types_array_struct[mode][1]
+        assert ar[8] == types_array_struct[mode][2]
 
     @pytest.mark.parametrize(
         ('mode', 'schema'),
         ((mode, schema)
          for mode in modes
          for schema in (None,
-                        all_schema[mode],
-                        Schema.fromstring(all_schema[mode]))))
-    def test_all_numpy_atts(self, db, setup, mode, schema):
+                        types_schema[mode],
+                        Schema.fromstring(types_schema[mode]))))
+    def test_types_numpy_atts(self, db, setup, mode, schema):
         # NumPy array, atts_only
         ar = iquery(db,
-                    'scan(all_{})'.format(mode),
+                    'scan(types_{})'.format(mode),
                     fetch=True,
                     atts_only=True,
                     as_dataframe=False,
                     schema=schema)
         assert ar.shape == (12,)
         assert ar.ndim == 1
-        assert ar[0] == all_array_struct[mode][all_atts[mode]][0]
-        assert ar[4] == all_array_struct[mode][all_atts[mode]][1]
-        assert ar[8] == all_array_struct[mode][all_atts[mode]][2]
+        assert ar[0] == types_array_struct[mode][types_atts[mode]][0]
+        assert ar[4] == types_array_struct[mode][types_atts[mode]][1]
+        assert ar[8] == types_array_struct[mode][types_atts[mode]][2]
 
     @pytest.mark.parametrize(
         ('mode', 'schema'),
         ((mode, schema)
          for mode in modes
          for schema in (None,
-                        all_schema[mode],
-                        Schema.fromstring(all_schema[mode]))))
-    def test_all_dataframe(self, db, setup, mode, schema):
+                        types_schema[mode],
+                        Schema.fromstring(types_schema[mode]))))
+    def test_types_dataframe(self, db, setup, mode, schema):
         # Pandas DataFrame, atts_only
         ar = iquery(db,
-                    'scan(all_{})'.format(mode),
+                    'scan(types_{})'.format(mode),
                     fetch=True)
-        assert ar.shape == all_shape[mode][0]
+        assert ar.shape == types_shape[mode][0]
         assert ar.ndim == 2
-        assert numpy.all(ar[0:1].values[0] == all_array_promo[mode][0])
+        assert numpy.all(ar[0:1].values[0] == types_array_promo[mode][0])
 
         # Values which differ have to be NAN
         ln = ar[4:5]
         assert numpy.all(
             pandas.isnull(
                 ln[ar.columns[
-                    (ln.values[0] != all_array_promo[mode][1]).tolist()]]))
+                    (ln.values[0] != types_array_promo[mode][1]).tolist()]]))
 
         ln = ar[8:9]
         assert numpy.all(
             pandas.isnull(
                 ln[ar.columns[
-                    (ln.values[0] != all_array_promo[mode][2]).tolist()]]))
+                    (ln.values[0] != types_array_promo[mode][2]).tolist()]]))
 
     @pytest.mark.parametrize(
         ('mode', 'schema'),
         ((mode, schema)
          for mode in modes
          for schema in (None,
-                        all_schema[mode],
-                        Schema.fromstring(all_schema[mode]))))
-    def test_all_dataframe_atts(self, db, setup, mode, schema):
+                        types_schema[mode],
+                        Schema.fromstring(types_schema[mode]))))
+    def test_types_dataframe_atts(self, db, setup, mode, schema):
         # Pandas DataFrame, atts_only
         ar = iquery(db,
-                    'scan(all_{})'.format(mode),
+                    'scan(types_{})'.format(mode),
                     fetch=True,
                     atts_only=True)
-        assert ar.shape == all_shape[mode][1]
+        assert ar.shape == types_shape[mode][1]
         assert ar.ndim == 2
-        assert numpy.all(ar[0:1].values == all_array_promo[mode][0][3:])
+        assert numpy.all(ar[0:1].values == types_array_promo[mode][0][3:])
 
         # Values which differ have to be NAN
         ln = ar[4:5]
         assert numpy.all(
             pandas.isnull(
                 ln[ar.columns[
-                    (ln.values != all_array_promo[mode][1][3:])[0]]]))
+                    (ln.values != types_array_promo[mode][1][3:])[0]]]))
 
         ln = ar[8:9]
         assert numpy.all(
             pandas.isnull(
                 ln[ar.columns[
-                    (ln.values != all_array_promo[mode][2][3:])[0]]]))
+                    (ln.values != types_array_promo[mode][2][3:])[0]]]))
 
     @pytest.mark.parametrize(
         ('mode', 'schema'),
         ((mode, schema)
          for mode in modes
          for schema in (None,
-                        all_schema[mode],
-                        Schema.fromstring(all_schema[mode]))))
-    def test_all_dataframe_no_promo(self, db, setup, mode, schema):
+                        types_schema[mode],
+                        Schema.fromstring(types_schema[mode]))))
+    def test_types_dataframe_no_promo(self, db, setup, mode, schema):
         # Pandas DataFrame, atts_only
         ar = iquery(db,
-                    'scan(all_{})'.format(mode),
+                    'scan(types_{})'.format(mode),
                     fetch=True,
                     dataframe_promo=False)
-        assert ar.shape == all_shape[mode][0]
+        assert ar.shape == types_shape[mode][0]
         assert ar.ndim == 2
-        assert ar[0:1].to_records(index=False) == all_array_obj[mode][0]
-        assert ar[4:5].to_records(index=False) == all_array_obj[mode][1]
-        assert ar[8:9].to_records(index=False) == all_array_obj[mode][2]
+        assert ar[0:1].to_records(index=False) == types_array_obj[mode][0]
+        assert ar[4:5].to_records(index=False) == types_array_obj[mode][1]
+        assert ar[8:9].to_records(index=False) == types_array_obj[mode][2]
 
 
 foo_np = numpy.random.randint(1e3, size=10)
