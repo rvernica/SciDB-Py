@@ -642,20 +642,22 @@ class Operator(object):
                         # Fails if the argument is an array name
                         pass
 
-            # Set defaults if arguments are missing
+            # Set required arguments if missing
+            # Check if "input_file" is present (2nd argument)
+            if ln < 2:
+                # Check if "existing_array|anonymous_schema"
+                # is present (1st argument)
+                if ln < 1:
+                    self.args.append('{sch}')  # anonymous_schema
+                self.args.append("'{fn}'")     # input_file
+
+            # Set optional arguments if missing and necessary
             # Check if "format" is present (4th argument)
-            if ln < 4:
-                # Check if "instance_id" is present (3rd argument)
+            if ln < 4 and self.upload_data is not None:
+                # Check if "instance_id" is present (3nd argument)
                 if ln < 3:
-                    # Check if "input_file" is present (2nd argument)
-                    if ln < 2:
-                        # Check if "existing_array|anonymous_schema"
-                        # is present (1st argument)
-                        if ln < 1:
-                            self.args.append('{sch}')  # anonymous_schema
-                        self.args.append("'{fn}'")     # input_file
-                    self.args.append(0)                # instance_id
-                self.args.append("'{fmt}'")            # format
+                    self.args.append(0)        # instance_id
+                self.args.append("'{fmt}'")    # format
 
         # Special case: -- - store - --
         elif self.name == 'store' and len(self.args) < 2:

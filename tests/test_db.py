@@ -909,6 +909,14 @@ class TestUpload:
                                             'foo')) == Array
         db.remove('foo')
 
+    def test_input_file(self, db):
+        db.build('<x:int64>[i=0:2]', 'i').store('foo')
+        db.save('foo', '/tmp/foo')
+        db.remove('foo')
+        assert type(
+            db.input('<x:int64>[i=0:2]', '/tmp/foo').store('foo') == Array)
+        db.remove('foo')
+
     # -- - --
     # -- - Load - --
     # -- - --
@@ -1013,4 +1021,11 @@ class TestUpload:
                 upload_data=foo_np_null.tobytes(),
                 upload_schema=(Schema.fromstring(upload_schema_str)
                                if upload_schema_str else None))) == Array
+        db.remove('foo')
+
+    def test_load_file(self, db):
+        db.build('<x:int64>[i=0:2]', 'i').store('foo')
+        db.save('foo', '/tmp/foo')
+        assert type(
+            db.load('foo', '/tmp/foo') == Array)
         db.remove('foo')
