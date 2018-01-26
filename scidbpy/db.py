@@ -660,12 +660,31 @@ class Operator(object):
                 self.args.append("'{fmt}'")    # format
 
         # Special case: -- - store - --
-        elif self.name == 'store' and len(self.args) < 2:
-            # Set "named_array"
-            self.args.append(self.db.next_array_name())
-            # Garbage collect (if not specified)
-            if 'gc' not in kwargs.keys():
-                kwargs['gc'] = True
+        elif self.name == 'store':
+            if len(self.args) < 2:
+                # Set "named_array"
+                self.args.append(self.db.next_array_name())
+                # Garbage collect (if not specified)
+                if 'gc' not in kwargs.keys():
+                    kwargs['gc'] = True
+            # If temp=True in kwargs, create a temporary array first
+            if 'temp' in kwargs.keys() and kwargs['temp'] is True:
+                # Get the schema of the new array
+                try:
+                    new_schema = Schema.fromstring(
+                        self.db.iquery_readlines(
+                            "show('{}', 'afl')".format(
+                                str(self.args[0]).replace("'", "\\'")))[0])
+                except requests.HTTPError as e:
+                    e.args = (
+                        '"temp=True" not supported for complex queries\n' +
+                        e.args[0],
+                    )
+                    raise
+                # Set array name
+                new_schema.name = self.args[1]
+                # Create temporary array
+                self.db.iquery('create temp array {}'.format(new_schema))
 
         # Lazy or hungry
         if self.is_lazy:        # Lazy

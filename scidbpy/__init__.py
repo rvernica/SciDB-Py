@@ -411,17 +411,6 @@ provided, it can be generated from the upload data or upload
 schema. If the upload format is not provided, it can be constructed
 from the upload schema, upload data, or resulting array schema.
 
-If an array name is not specified for the ``store`` operator, an array
-name is generated. Arrays with generated names are removed when the
-returned Array object is garbage collected. This behavior can be
-changed by specifying the ``gc=False`` argument to the store operator.
-
->>> ar = db.input(upload_data=numpy.arange(3)).store()
->>> ar
-... # doctest: +ELLIPSIS
-Array(DB('http://localhost:8080', None, None, None, None), 'py_...')
->>> del ar
-
 >>> db.input('<x:int64>[i]', upload_data=numpy.arange(3))[:]
    i    x
 0  0  0.0
@@ -477,6 +466,26 @@ double-quoted in SciDB-Py. For example:
 ... # doctest: +SKIP
 
 >>> for ar in ['foo', 'bar', 'taz']: db.remove(ar)
+
+The ``store`` function accepts a ``temp`` argument as well. If the
+``temp`` argument is set to ``True``, a temporary array is created.
+
+>>> ar = db.build('<x:int64>[i=0:2]', 'i').store('foo', temp=True)
+>>> db.list()[['name', 'temporary']]
+  name  temporary
+0  foo       True
+>>> db.remove(ar)
+
+If an array name is not specified for the ``store`` operator, an array
+name is generated. Arrays with generated names are removed when the
+returned Array object is garbage collected. This behavior can be
+changed by specifying the ``gc=False`` argument to the store operator.
+
+>>> ar = db.input(upload_data=numpy.arange(3)).store()
+>>> ar
+... # doctest: +ELLIPSIS
+Array(DB('http://localhost:8080', None, None, None, None), 'py_...')
+>>> del ar
 
 
 The iquery Function
