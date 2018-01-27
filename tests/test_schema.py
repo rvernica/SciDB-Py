@@ -28,7 +28,7 @@ class TestAttribute:
             type_name,
             ' not null' if not_null else ' NULL',
             ' DEFAULT {}'.format(default) if default is not None else '',
-            (' compression {}'.format(compression)
+            (" compression '{}'".format(compression)
              if compression is not None else '')),
           Attribute(name, type_name, not_null, default, compression))
          for name in ('x', 'foo', 'BAR')
@@ -54,7 +54,7 @@ class TestAttribute:
               'not_null': 'not',
               'default': None,
               'compression': None}),
-            ("foo : string NULL DEFAULT '' COMPRESSION zlib",
+            ("foo : string NULL DEFAULT '' COMPRESSION 'zlib'",
              {'name': 'foo',
               'type_name': 'string',
               'not_null': None,

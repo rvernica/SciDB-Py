@@ -137,7 +137,7 @@ class Attribute(object):
               compression=None)
 
     >>> Attribute.fromstring(
-    ...     "taz : string NOT null DEFAULT '' compression bzlib")
+    ...     "taz : string NOT null DEFAULT '' compression 'bzlib'")
     ... # doctest: +NORMALIZE_WHITESPACE
     Attribute(name='taz',
               type_name='string',
@@ -148,11 +148,11 @@ class Attribute(object):
 
     _regex = re.compile('''
         \s*
-        (?P<name>      \w+ ) \s* : \s*
-        (?P<type_name> \w+ ) \s*
-        (?:                 (?P<not_null>    NOT )? \s+ NULL )? \s*
-        (?: DEFAULT     \s+ (?P<default>     \S+ )           )? \s*
-        (?: COMPRESSION \s+ (?P<compression> \w+ )           )? \s*
+        (?P<name>      \w+ )  \s* : \s*
+        (?P<type_name> \w+ )  \s*
+        (?:                  (?P<not_null>    NOT )? \s+ NULL )? \s*
+        (?: DEFAULT     \s+  (?P<default>     \S+ )           )? \s*
+        (?: COMPRESSION \s+ '(?P<compression> \w+ )'          )? \s*
         $''', re.VERBOSE | re.IGNORECASE)
     # length dtype for variable-size SciDB types
     _length_dtype = numpy.dtype(numpy.uint32)
@@ -202,7 +202,7 @@ class Attribute(object):
             self.type_name,
             ' NOT NULL' if self.not_null else '',
             ' DEFAULT {}'.format(self.default) if self.default else '',
-            ' COMPRESSION {}'.format(self.compression)
+            " COMPRESSION '{}'".format(self.compression)
             if self.compression else '')
 
     @property

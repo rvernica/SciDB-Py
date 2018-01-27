@@ -145,8 +145,8 @@ class TestDB:
 modes = ('var', 'fix')
 
 types_atts_types = {
-    'var': """b  :bool       null,
-              c  :char       null,
+    'var': """b  :bool       null compression 'zlib',
+              c  :char       null compression 'bzlib',
               d  :double     null,
               f  :float      null,
               i8 :int8       null,
@@ -158,8 +158,8 @@ types_atts_types = {
               u16:uint16     null,
               u32:uint32     null,
               u64:uint64     null""",
-    'fix': """b  :bool       null,
-              c  :char       null,
+    'fix': """b  :bool       null compression 'zlib',
+              c  :char       null compression 'bzlib',
               d  :double     null,
               f  :float      null,
               i8 :int8       null,
@@ -1028,4 +1028,39 @@ class TestUpload:
         db.save('foo', '/tmp/foo')
         assert type(
             db.load('foo', '/tmp/foo') == Array)
+        db.remove('foo')
+
+
+class TestCreate:
+
+    # -- - --
+    # -- - Create - --
+    # -- - --
+    @pytest.mark.parametrize(('type_name', 'default', 'compression'), [
+        (type_name, default, compression)
+        for type_name in ('bool',
+                          'char',
+                          'int8',
+                          'int16',
+                          'int32',
+                          'int64',
+                          'uint8',
+                          'uint16',
+                          'uint32',
+                          'uint64',
+                          'string')
+        for default in (None, 'null')
+        for compression in (None, 'zlib', 'bzlib')
+
+    ])
+    def test_input_numpy(self, db, type_name, default, compression):
+        schema_str = (
+            '<x:{type_name} {default_exp} {compression_exp}>[i=0:9]'.format(
+                type_name=type_name,
+                default_exp='default {}'.format(default) if default else '',
+                compression_exp=("compression '{}'".format(compression)
+                                 if compression else '')))
+        schema = Schema.fromstring(schema_str)
+        assert type(db.create_array('foo', schema) == Array)
+        assert type(db.build(schema_str, 'null').store('foo') == Array)
         db.remove('foo')
