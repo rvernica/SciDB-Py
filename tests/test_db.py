@@ -917,6 +917,107 @@ class TestUpload:
             db.input('<x:int64>[i=0:2]', '/tmp/foo').store('foo') == Array)
         db.remove('foo')
 
+    @pytest.mark.parametrize(('args', 'upload_schema_str'), [
+        ((arr, inp, ins, fmt) if all((arr, inp, ins, fmt)) else
+         (arr, inp, ins) if all((arr, inp, ins)) else
+         (arr, inp) if arr and inp else
+         (arr,) if arr else
+         (), ups)
+        for arr in ('',
+                    'foo',
+                    'foo_not_null',
+                    '<val:int64>[i]',
+                    '<val:int64 not null>[i]',
+                    '{sch}')
+        for inp in (('', "'{fn}'") if arr else (None,))
+        for ins in (('', '0') if inp else (None,))
+        for fmt in (('', "'(int64)'", "'{fmt}'") if ins else (None,))
+        for ups in ('<val:int64 not null>[i]', None)
+    ])
+    def test_input_compose(self, db, args, upload_schema_str):
+        if args and args[0].startswith('foo'):
+            if args[0].endswith('not_null'):
+                args = ('foo',) + args[1:]
+                db.create_array('foo', '<val:int64 not null>[i]')
+            else:
+                db.create_array('foo', '<val:int64>[i]')
+        attr_name = 'val'
+        if (not args or args[0].startswith('{')) and not upload_schema_str:
+            attr_name = 'x'
+        assert type(
+            db.store(
+                db.input(*args,
+                         upload_data=foo_np,
+                         upload_schema=(Schema.fromstring(upload_schema_str)
+                                        if upload_schema_str else None)),
+                'foo')) == Array
+        assert type(
+            db.store(
+                db.apply(
+                    db.input(*args,
+                             upload_data=foo_np,
+                             upload_schema=(
+                                 Schema.fromstring(upload_schema_str)
+                                 if upload_schema_str else None)),
+                    'val2', attr_name),
+                'foo2')) == Array
+        db.remove('foo')
+        db.remove('foo2')
+
+    @pytest.mark.parametrize(('args', 'upload_schema_str'), [
+        ((arr, inp, ins, fmt) if all((arr, inp, ins, fmt)) else
+         (arr, inp, ins) if all((arr, inp, ins)) else
+         (arr, inp) if arr and inp else
+         (arr,) if arr else
+         (), ups)
+        for arr in ('',
+                    'foo',
+                    'foo_not_null',
+                    '<val:int64>[i]',
+                    '<val:int64 not null>[i]',
+                    '{sch}')
+        for inp in (('', "'{fn}'") if arr else (None,))
+        for ins in (('', '0') if inp else (None,))
+        for fmt in (('', "'(int64)'", "'{fmt}'") if ins else (None,))
+        for ups in ('<val:int64 not null>[i]', None)
+    ])
+    def test_input_chain(self, db, args, upload_schema_str):
+        is_foo = False
+        if args and args[0].startswith('foo'):
+            is_foo = True
+            if args[0].endswith('not_null'):
+                args = ('foo',) + args[1:]
+                db.create_array('foo', '<val:int64 not null>[i]')
+            else:
+                db.create_array('foo', '<val:int64>[i]')
+        attr_name = 'val'
+        if (not args or args[0].startswith('{')) and not upload_schema_str:
+            attr_name = 'x'
+        assert type(
+            db.input(*args,
+                     upload_data=foo_np,
+                     upload_schema=(Schema.fromstring(upload_schema_str)
+                                    if upload_schema_str else None)).apply(
+                                            'val2', attr_name).store(
+                                                'foo2')) == Array
+        if is_foo:
+            db.remove('foo')
+        db.remove('foo2')
+
+    def test_input_join(self, db):
+        assert type(
+            db.join(
+                db.input(upload_data=foo_np),
+                db.build(
+                    '<x:int64 NOT NULL> [i=0:9]', 'i')).store('foo')) == Array
+        assert type(
+            db.join(db.build('<x:int64 NOT NULL> [i=0:9]', 'i'),
+                    db.input(upload_data=foo_np)).store('foo')) == Array
+        with pytest.raises(NotImplementedError):
+            db.join(db.input(upload_data=foo_np),
+                    db.input(upload_data=foo_np)).store('foo')
+        db.remove('foo')
+
     # -- - --
     # -- - Load - --
     # -- - --

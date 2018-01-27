@@ -599,6 +599,20 @@ class Operator(object):
     def __call__(self, *args, **kwargs):
         """Returns self for lazy expressions. Executes immediate expressions.
         """
+        # Propagate "upload_data" and "upload_schema" from previous
+        # operators
+        for arg in args:
+            if isinstance(arg, Operator) and (
+                    arg.upload_data is not None or
+                    arg.upload_schema is not None):
+                if self.upload_data is not None or (self.upload_schema
+                                                    is not None):
+                    raise NotImplementedError(
+                        'Queries with multiple "uplaod_data" or ' +
+                        '"uplaod_schema" arguments are not supported')
+                self.upload_data = arg.upload_data
+                self.upload_schema = arg.upload_schema
+
         self.args.extend(args)
 
         # Special case: -- - create_array - --
