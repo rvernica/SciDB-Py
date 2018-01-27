@@ -608,8 +608,8 @@ class Operator(object):
                 if self.upload_data is not None or (self.upload_schema
                                                     is not None):
                     raise NotImplementedError(
-                        'Queries with multiple "uplaod_data" or ' +
-                        '"uplaod_schema" arguments are not supported')
+                        'Queries with multiple "upload_data" or ' +
+                        '"upload_schema" arguments are not supported')
                 self.upload_data = arg.upload_data
                 self.upload_schema = arg.upload_schema
 
