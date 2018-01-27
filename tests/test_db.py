@@ -149,8 +149,8 @@ class TestDB:
         assert ar.ndim == 2
 
 
-variety_atts_types = """b  :bool       null,
-                        c  :char       null,
+variety_atts_types = """b  :bool       null compression 'zlib',
+                        c  :char       null compression 'bzlib',
                         d  :double     null,
                         f  :float      null,
                         i8 :int8       null,
@@ -822,4 +822,39 @@ class TestUpload:
                 upload_data=foo_np_null.tobytes(),
                 upload_schema=(Schema.fromstring(upload_schema_str)
                                if upload_schema_str else None))) == Array
+        db.remove('foo')
+
+
+class TestCreate:
+
+    # -- - --
+    # -- - Create - --
+    # -- - --
+    @pytest.mark.parametrize(('type_name', 'default', 'compression'), [
+        (type_name, default, compression)
+        for type_name in ('bool',
+                          'char',
+                          'int8',
+                          'int16',
+                          'int32',
+                          'int64',
+                          'uint8',
+                          'uint16',
+                          'uint32',
+                          'uint64',
+                          'string')
+        for default in (None, 'null')
+        for compression in (None, 'zlib', 'bzlib')
+
+    ])
+    def test_input_numpy(self, db, type_name, default, compression):
+        schema_str = (
+            '<x:{type_name} {default_exp} {compression_exp}>[i=0:9]'.format(
+                type_name=type_name,
+                default_exp='default {}'.format(default) if default else '',
+                compression_exp=("compression '{}'".format(compression)
+                                 if compression else '')))
+        schema = Schema.fromstring(schema_str)
+        assert type(db.create_array('foo', schema) == Array)
+        assert type(db.build(schema_str, 'null').store('foo') == Array)
         db.remove('foo')
