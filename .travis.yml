@@ -34,7 +34,7 @@ before_install:
     -keyout /var/lib/shim/ssl_cert.pem
     2>/dev/null
     >> /var/lib/shim/ssl_cert.pem"
-  - curl --retry-connrefused --max-time 300 http://localhost:8080/version
+  - while ! curl http://localhost:8080/version; do sleep 5; done
 
 install:
   - pip install --upgrade -r requirements.txt
