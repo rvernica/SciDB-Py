@@ -14,16 +14,27 @@ services:
   - docker
 
 before_install:
+  # - wget --no-verbose --output-document -
+  #   https://github.com/Paradigm4/shim/archive/session-auth.tar.gz
+  #   | tar --extract --gzip --directory=/tmp
   - docker pull rvernica/scidb:${SCIDB_VER}
   - docker run
     --name scidb
     --detach
     --volume /dev/shm
     --tmpfs /dev/shm:exec
+    --volume /tmp/shim-session-auth:/shim
     --publish 8080:8080
     --publish 8083:8083
     rvernica/scidb:${SCIDB_VER}
-  - while ! curl http://localhost:8080/version; do sleep 1; done
+  # - docker exec scidb make --directory /shim service
+  - docker exec scidb bash -c "
+    openssl req -new -newkey rsa:4096 -days 3650 -nodes -x509
+    -subj \"/C=US/ST=MA/L=Waltham/O=Paradigm4/CN=$(hostname)\"
+    -keyout /var/lib/shim/ssl_cert.pem
+    2>/dev/null
+    >> /var/lib/shim/ssl_cert.pem"
+  - while ! curl http://localhost:8080/version; do sleep 5; done
 
 install:
   - pip install --upgrade -r requirements.txt

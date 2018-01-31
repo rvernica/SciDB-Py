@@ -16,6 +16,7 @@ import re
 import requests
 import string
 import threading
+import uuid
 import warnings
 
 try:
@@ -32,6 +33,7 @@ class Shim(enum.Enum):
     execute_query = 'execute_query'
     new_session = 'new_session'
     read_bytes = 'read_bytes'
+    read_lines = 'read_lines'
     release_session = 'release_session'
     upload = 'upload'
 
@@ -115,20 +117,21 @@ class DB(object):
             self._http_auth = self.http_auth = None
 
         if scidb_auth:
-            if not self.scidb_url.lower().startswith('https'):
-                raise Exception(
-                    'SciDB credentials can only be used ' +
-                    'with https connections')
-
-            self._scidb_auth = {'user': scidb_auth[0],
-                                'password': scidb_auth[1]}
+            self._id = self._shim(Shim.new_session,
+                                  user=scidb_auth[0],
+                                  password=scidb_auth[1]).text
             self.scidb_auth = (scidb_auth[0], Password_Placeholder())
         else:
-            self._scidb_auth = self.scidb_auth = None
+            self._id = self._shim(Shim.new_session).text
+            self.scidb_auth = None
+
+        finalize(self,
+                 self._shim,
+                 Shim.release_session)
 
         self.arrays = Arrays(self)
 
-        self._id = None
+        self._uid = uuid.uuid1().hex
         self._lock = threading.Lock()
         self._array_cnt = 0
         self._formatter = string.Formatter()
@@ -230,8 +233,6 @@ verify     = {}'''.format(*self)
             self.namespace = param
             return
 
-        id = self._shim(Shim.new_session).text
-
         if upload_data is not None:
             if isinstance(upload_data, numpy.ndarray):
                 if upload_schema is None:
@@ -271,7 +272,7 @@ verify     = {}'''.format(*self)
                     'upload_data is not bytes or file-like object',
                     stacklevel=2)
 
-            fn = self._shim(Shim.upload, id=id, data=upload_data).text
+            fn = self._shim(Shim.upload, data=upload_data).text
             query = query.format(
                 sch=upload_schema,
                 fn=fn,
@@ -290,11 +291,10 @@ verify     = {}'''.format(*self)
                 # Execute 'show(...)' and Download text
                 self._shim(
                     Shim.execute_query,
-                    id=id,
                     query=DB._show_query.format(query.replace("'", "\\'")),
                     save='tsv')
                 schema = Schema.fromstring(
-                    self._shim(Shim.read_bytes, id=id, n=0).text)
+                    self._shim(Shim.read_lines, n=0).text)
 
             # Attributes and dimensions can collide. Run make_unique to
             # remove any collisions.
@@ -326,27 +326,30 @@ verify     = {}'''.format(*self)
 
             # Execute Query and Download content
             self._shim(Shim.execute_query,
-                       id=id,
                        query=query,
                        save=schema.atts_fmt_scidb)
-            buf = self._shim(Shim.read_bytes, id=id, n=0).content
+            buf = self._shim(Shim.read_bytes, n=0).content
 
-            self._shim(Shim.release_session, id=id)
-
-            if schema.is_fixsize() and (not as_dataframe or
-                                        not dataframe_promo):
+            # Build result
+            if schema.is_fixsize():
                 data = numpy.frombuffer(buf, dtype=schema.atts_dtype)
+
+                if as_dataframe:
+                    data = pandas.DataFrame.from_records(data)
+
+                    if dataframe_promo:
+                        schema.promote(data)
             else:
+                # Parse binary buffer
                 data = schema.frombytes(buf, as_dataframe, dataframe_promo)
 
-            # Return NumPy array or Pandas dataframe
-            if as_dataframe:
-                return pandas.DataFrame.from_records(data)
-            else:
-                return data
+                if as_dataframe:
+                    data = pandas.DataFrame.from_records(data)
+
+            return data
 
         else:                   # fetch=False
-            self._shim(Shim.execute_query, id=id, query=query, release=1)
+            self._shim(Shim.execute_query, query=query)
 
             # Special case: -- - load_library - --
             if query.startswith('load_library('):
@@ -364,44 +367,33 @@ verify     = {}'''.format(*self)
         ... # doctest: +ELLIPSIS
         [[...'0', ...'10'], [...'1', ...'11'], [...'2', ...'12']]
         """
-        id = self._shim(Shim.new_session).text
-        self._shim(Shim.execute_query, id=id, query=query, save='tsv')
-        ret = self._shim_readlines(id=id)
-        self._shim(Shim.release_session, id=id)
+        self._shim(Shim.execute_query, query=query, save='tsv')
+        ret = self._shim_readlines()
         return ret
 
     def next_array_name(self):
         """Generate a uniqu array name. Keep track on these names using the
-           _id field and a conter
+           _uid field and a counter
         """
         # Thread-safe counter
         with self._lock:
             self._array_cnt += 1
-            return 'py_{}_{}'.format(self._id, self._array_cnt)
+            return 'py_{}_{}'.format(self._uid, self._array_cnt)
 
     def load_ops(self):
-        """Get list of operators and macros. Also sets the _id field used to
-           generate unique array names
+        """Get list of operators and macros.
         """
-        id = self._shim(Shim.new_session).text
-
         query_id = self._shim(
             Shim.execute_query,
-            id=id,
             query="project(list('operators'), name)",
             save='tsv').text  # set query ID as DB instance ID
-        if self._id is None:
-            self._id = query_id
-        operators = self._shim_readlines(id=id)
+        operators = self._shim_readlines()
 
         self._shim(
             Shim.execute_query,
-            id=id,
             query="project(list('macros'), name)",
             save='tsv').content
-        macros = self._shim_readlines(id=id)
-
-        self._shim(Shim.release_session, id=id)
+        macros = self._shim_readlines()
 
         self.operators = operators + macros
         self._dir = (self.operators +
@@ -415,9 +407,8 @@ verify     = {}'''.format(*self)
     def _shim(self, endpoint, **kwargs):
         """Make request on Shim endpoint"""
 
-        # Add credentails to request, if necessary
-        if self._scidb_auth and endpoint in (Shim.cancel, Shim.execute_query):
-            kwargs.update(self._scidb_auth)
+        if endpoint != Shim.new_session:
+            kwargs.update(id=self._id)
 
         # Add prefix to request, if necessary
         if self.namespace and endpoint == Shim.execute_query:
@@ -441,11 +432,11 @@ verify     = {}'''.format(*self)
         req.raise_for_status()
         return req
 
-    def _shim_readlines(self, id):
+    def _shim_readlines(self):
         """Read data from Shim and parse as text lines"""
         return [line.split('\t') if '\t' in line else line
                 for line in self._shim(
-                        Shim.read_bytes, id=id, n=0).text.splitlines()]
+                        Shim.read_lines, n=0).text.splitlines()]
 
 
 class Arrays(object):
@@ -462,6 +453,11 @@ class Arrays(object):
 {}'''.format(self.db)
 
     def __getattr__(self, name):
+        """db.arrays.foo"""
+        return Array(self.db, name)
+
+    def __getitem__(self, name):
+        """db.arrays['foo']"""
         return Array(self.db, name)
 
     def __dir__(self):
@@ -528,6 +524,10 @@ class Array(object):
                 'See https://github.com/Paradigm4/limit.')
             return self.fetch(**kwargs)[:n]
 
+    def schema(self):
+        return Schema.fromstring(
+            self.db.iquery_readlines("show({})".format(self))[0])
+
 
 class ArrayExp(object):
     """Access to individual attribute or dimension"""
@@ -584,6 +584,13 @@ class Operator(object):
 
                 arg_fmt = "'{}'".format(arg_fmt)
 
+            # Special case: -- - show - --
+            if (pos == 0 and
+                    self.name == 'show' and
+                    (isinstance(arg, Operator) or
+                     len(self.args) > 1)):
+                arg_fmt = "'{}'".format(arg_fmt.replace("'", "\\'"))
+
             # Add to arguments list
             args_fmt.append(arg_fmt)
 
@@ -592,6 +599,20 @@ class Operator(object):
     def __call__(self, *args, **kwargs):
         """Returns self for lazy expressions. Executes immediate expressions.
         """
+        # Propagate "upload_data" and "upload_schema" from previous
+        # operators
+        for arg in args:
+            if isinstance(arg, Operator) and (
+                    arg.upload_data is not None or
+                    arg.upload_schema is not None):
+                if self.upload_data is not None or (self.upload_schema
+                                                    is not None):
+                    raise NotImplementedError(
+                        'Queries with multiple "upload_data" or ' +
+                        '"upload_schema" arguments are not supported')
+                self.upload_data = arg.upload_data
+                self.upload_schema = arg.upload_schema
+
         self.args.extend(args)
 
         # Special case: -- - create_array - --
@@ -635,28 +656,49 @@ class Operator(object):
                         # Fails if the argument is an array name
                         pass
 
-            # Set defaults if arguments are missing
+            # Set required arguments if missing
+            # Check if "input_file" is present (2nd argument)
+            if ln < 2:
+                # Check if "existing_array|anonymous_schema"
+                # is present (1st argument)
+                if ln < 1:
+                    self.args.append('{sch}')  # anonymous_schema
+                self.args.append("'{fn}'")     # input_file
+
+            # Set optional arguments if missing and necessary
             # Check if "format" is present (4th argument)
-            if ln < 4:
-                # Check if "instance_id" is present (3rd argument)
+            if ln < 4 and self.upload_data is not None:
+                # Check if "instance_id" is present (3nd argument)
                 if ln < 3:
-                    # Check if "input_file" is present (2nd argument)
-                    if ln < 2:
-                        # Check if "existing_array|anonymous_schema"
-                        # is present (1st argument)
-                        if ln < 1:
-                            self.args.append('{sch}')  # anonymous_schema
-                        self.args.append("'{fn}'")     # input_file
-                    self.args.append(0)                # instance_id
-                self.args.append("'{fmt}'")            # format
+                    self.args.append(0)        # instance_id
+                self.args.append("'{fmt}'")    # format
 
         # Special case: -- - store - --
-        elif self.name == 'store' and len(self.args) < 2:
-            # Set "named_array"
-            self.args.append(self.db.next_array_name())
-            # Garbage collect (if not specified)
-            if 'gc' not in kwargs.keys():
-                kwargs['gc'] = True
+        elif self.name == 'store':
+            if len(self.args) < 2:
+                # Set "named_array"
+                self.args.append(self.db.next_array_name())
+                # Garbage collect (if not specified)
+                if 'gc' not in kwargs.keys():
+                    kwargs['gc'] = True
+            # If temp=True in kwargs, create a temporary array first
+            if 'temp' in kwargs.keys() and kwargs['temp'] is True:
+                # Get the schema of the new array
+                try:
+                    new_schema = Schema.fromstring(
+                        self.db.iquery_readlines(
+                            "show('{}', 'afl')".format(
+                                str(self.args[0]).replace("'", "\\'")))[0])
+                except requests.HTTPError as e:
+                    e.args = (
+                        '"temp=True" not supported for complex queries\n' +
+                        e.args[0],
+                    )
+                    raise
+                # Set array name
+                new_schema.name = self.args[1]
+                # Create temporary array
+                self.db.iquery('create temp array {}'.format(new_schema))
 
         # Lazy or hungry
         if self.is_lazy:        # Lazy
@@ -711,6 +753,12 @@ class Operator(object):
                                   upload_data=self.upload_data,
                                   upload_schema=self.upload_schema,
                                   **kwargs)
+
+    def schema(self):
+        if self.is_lazy:
+            return Schema.fromstring(
+                self.db.iquery_readlines(
+                    "show('{}', 'afl')".format(self))[0])
 
 
 connect = DB

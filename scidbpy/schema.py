@@ -7,6 +7,7 @@ Classes for accessing SciDB data and schemas.
 
 import itertools
 import numpy
+import pandas
 import re
 import six
 import struct
@@ -109,29 +110,49 @@ class Attribute(object):
     Construct an attribute using Attribute constructor:
 
     >>> Attribute('foo', 'int64', not_null=True)
-    Attribute('foo', 'int64', True, None, None)
+    ... # doctest: +NORMALIZE_WHITESPACE
+    Attribute(name='foo',
+              type_name='int64',
+              not_null=True,
+              default=None,
+              compression=None)
 
     >>> Attribute('foo', 'int64', default=100, compression='zlib')
-    Attribute('foo', 'int64', False, 100, 'zlib')
+    ... # doctest: +NORMALIZE_WHITESPACE
+    Attribute(name='foo',
+              type_name='int64',
+              not_null=False,
+              default=100,
+              compression='zlib')
 
 
     Construct an attribute from a string:
 
     >>> Attribute.fromstring('foo:int64')
-    Attribute('foo', 'int64', False, None, None)
+    ... # doctest: +NORMALIZE_WHITESPACE
+    Attribute(name='foo',
+              type_name='int64',
+              not_null=False,
+              default=None,
+              compression=None)
 
     >>> Attribute.fromstring(
-    ...     "taz : string NOT null DEFAULT '' compression bzlib")
-    Attribute('taz', 'string', True, "''", 'bzlib')
+    ...     "taz : string NOT null DEFAULT '' compression 'bzlib'")
+    ... # doctest: +NORMALIZE_WHITESPACE
+    Attribute(name='taz',
+              type_name='string',
+              not_null=True,
+              default="''",
+              compression='bzlib')
     """
 
     _regex = re.compile('''
         \s*
-        (?P<name>      \w+ ) \s* : \s*
-        (?P<type_name> \w+ ) \s*
-        (?:                 (?P<not_null>    NOT )? \s+ NULL )? \s*
-        (?: DEFAULT     \s+ (?P<default>     \S+ )           )? \s*
-        (?: COMPRESSION \s+ (?P<compression> \w+ )           )? \s*
+        (?P<name>      \w+ )  \s* : \s*
+        (?P<type_name> \w+ )  \s*
+        (?:                  (?P<not_null>    NOT )? \s+ NULL )? \s*
+        (?: DEFAULT     \s+  (?P<default>     \S+ )           )? \s*
+        (?: COMPRESSION \s+ '(?P<compression> \w+ )'          )? \s*
         $''', re.VERBOSE | re.IGNORECASE)
     # length dtype for variable-size SciDB types
     _length_dtype = numpy.dtype(numpy.uint32)
@@ -167,7 +188,12 @@ class Attribute(object):
         return tuple(self) == tuple(other)
 
     def __repr__(self):
-        return '{}({!r}, {!r}, {!r}, {!r}, {!r})'.format(
+        return ('{}(' +
+                'name={!r}, ' +
+                'type_name={!r}, ' +
+                'not_null={!r}, ' +
+                'default={!r}, ' +
+                'compression={!r})').format(
             type(self).__name__, *self)
 
     def __str__(self):
@@ -176,7 +202,7 @@ class Attribute(object):
             self.type_name,
             ' NOT NULL' if self.not_null else '',
             ' DEFAULT {}'.format(self.default) if self.default else '',
-            ' COMPRESSION {}'.format(self.compression)
+            " COMPRESSION '{}'".format(self.compression)
             if self.compression else '')
 
     @property
@@ -315,19 +341,39 @@ class Dimension(object):
     Construct a dimension using the Dimension constructor:
 
     >>> Dimension('foo')
-    Dimension('foo', None, None, None, None)
+    ... # doctest: +NORMALIZE_WHITESPACE
+    Dimension(name='foo',
+              low_value=None,
+              high_value=None,
+              chunk_overlap=None,
+              chunk_length=None)
 
     >>> Dimension('foo', -100, '10', '?', '1000')
-    Dimension('foo', -100, 10, '?', 1000)
+    ... # doctest: +NORMALIZE_WHITESPACE
+    Dimension(name='foo',
+              low_value=-100,
+              high_value=10,
+              chunk_overlap='?',
+              chunk_length=1000)
 
 
     Construct a dimension from a string:
 
     >>> Dimension.fromstring('foo')
-    Dimension('foo', None, None, None, None)
+    ... # doctest: +NORMALIZE_WHITESPACE
+    Dimension(name='foo',
+              low_value=None,
+              high_value=None,
+              chunk_overlap=None,
+              chunk_length=None)
 
     >>> Dimension.fromstring('foo=-100:*:?:10')
-    Dimension('foo', -100, '*', '?', 10)
+    ... # doctest: +NORMALIZE_WHITESPACE
+    Dimension(name='foo',
+              low_value=-100,
+              high_value='*',
+              chunk_overlap='?',
+              chunk_length=10)
     """
 
     _regex = re.compile('''
@@ -382,7 +428,12 @@ class Dimension(object):
         return tuple(self) == tuple(other)
 
     def __repr__(self):
-        return '{}({!r}, {!r}, {!r}, {!r}, {!r})'.format(
+        return ('{}(' +
+                'name={!r}, ' +
+                'low_value={!r}, ' +
+                'high_value={!r}, ' +
+                'chunk_overlap={!r}, ' +
+                'chunk_length={!r})').format(
             type(self).__name__, *self)
 
     def __str__(self):
@@ -411,9 +462,17 @@ class Schema(object):
 
     >>> Schema('foo', (Attribute('x', 'int64'),), (Dimension('i', 0, 10),))
     ... # doctest: +NORMALIZE_WHITESPACE
-    Schema('foo',
-           (Attribute('x', 'int64', False, None, None),),
-           (Dimension('i', 0, 10, None, None),))
+    Schema(name='foo',
+           atts=(Attribute(name='x',
+                           type_name='int64',
+                           not_null=False,
+                           default=None,
+                           compression=None),),
+           dims=(Dimension(name='i',
+                           low_value=0,
+                           high_value=10,
+                           chunk_overlap=None,
+                           chunk_length=None),))
 
 
     Construct a schema using Schema constructor and fromstring methods
@@ -423,9 +482,17 @@ class Schema(object):
     ...        (Attribute.fromstring('x:int64'),),
     ...        (Dimension.fromstring('i=0:10'),))
     ... # doctest: +NORMALIZE_WHITESPACE
-    Schema('foo',
-           (Attribute('x', 'int64', False, None, None),),
-           (Dimension('i', 0, 10, None, None),))
+    Schema(name='foo',
+           atts=(Attribute(name='x',
+                           type_name='int64',
+                           not_null=False,
+                           default=None,
+                           compression=None),),
+           dims=(Dimension(name='i',
+                           low_value=0,
+                           high_value=10,
+                           chunk_overlap=None,
+                           chunk_length=None),))
 
 
     Construct a schema from a string:
@@ -433,11 +500,27 @@ class Schema(object):
     >>> Schema.fromstring(
     ...     'foo@1<x:int64 not null, y:double>[i=0:*; j=-100:0:0:10]')
     ... # doctest: +NORMALIZE_WHITESPACE
-    Schema('foo@1',
-           (Attribute('x',  'int64',  True, None, None),
-            Attribute('y', 'double', False, None, None)),
-           (Dimension('i',    0, '*', None, None),
-            Dimension('j', -100,   0,    0, 10)))
+    Schema(name='foo@1',
+           atts=(Attribute(name='x',
+                           type_name='int64',
+                           not_null=True,
+                           default=None,
+                           compression=None),
+                 Attribute(name='y',
+                           type_name='double',
+                           not_null=False,
+                           default=None,
+                           compression=None)),
+           dims=(Dimension(name='i',
+                           low_value=0,
+                           high_value='*',
+                           chunk_overlap=None,
+                           chunk_length=None),
+                 Dimension(name='j',
+                           low_value=-100,
+                           high_value=0,
+                           chunk_overlap=0,
+                           chunk_length=10)))
 
 
     Print a schema constructed from a string:
@@ -480,7 +563,7 @@ class Schema(object):
         return tuple(self) == tuple(other)
 
     def __repr__(self):
-        return '{}({!r}, {!r}, {!r})'.format(
+        return '{}(name={!r}, atts={!r}, dims={!r})'.format(
             type(self).__name__, self.name, self.atts, self.dims)
 
     def __str__(self):
@@ -495,6 +578,14 @@ class Schema(object):
             ','.join(str(a) for a in self.atts),
             '; '.join(str(d) for d in self.dims))
 
+    def _promo_warning(self):
+        cnt = sum(not a.not_null for a in self.atts)
+        if cnt:
+            warnings.warn(
+                ('{} type(s) promoted for null support.' +
+                 ' Precision loss may occur').format(cnt),
+                stacklevel=2)
+
     @property
     def atts_dtype(self):
         if self.__atts_dtype is None:
@@ -508,6 +599,43 @@ class Schema(object):
             self.__atts_fmt_scidb = '({})'.format(
                 ', '.join(a.fmt_scidb for a in self.atts))
         return self.__atts_fmt_scidb
+
+    def pprint(self):
+        print(self)
+        info = numpy.empty(
+            (len(self.atts) + len(self.dims),),
+            dtype=[('name', numpy.object),
+                   ('class', numpy.object),
+                   ('type', numpy.object),
+                   ('nullable', numpy.object),
+                   ('start', numpy.object),
+                   ('end', numpy.object),
+                   ('overlap', numpy.object),
+                   ('chunk', numpy.object)])
+        pos = 0
+        for a in self.atts:
+            info.put((pos,),
+                     (a.name,
+                      'attr',
+                      a.type_name,
+                      not a.not_null,
+                      '',
+                      '',
+                      '',
+                      ''))
+            pos += 1
+        for d in self.dims:
+            info.put((pos,),
+                     (d.name,
+                      'dim',
+                      'int64',
+                      '',
+                      d.low_value,
+                      d.high_value,
+                      d.chunk_overlap,
+                      d.chunk_length))
+            pos += 1
+        print(pandas.DataFrame.from_records(info))
 
     def is_fixsize(self):
         return all(a.is_fixsize() for a in self.atts)
@@ -601,18 +729,31 @@ class Schema(object):
         self.__atts_fmt_scidb = None
 
     def get_promo_atts_dtype(self):
-        cnt = sum(not a.not_null for a in self.atts)
-        if cnt:
-            warnings.warn(
-                ('{} type(s) promoted for null support.' +
-                 ' Precision loss may occur').format(cnt),
-                stacklevel=2)
+        self._promo_warning()
         return numpy.dtype(
             [a.dtype.descr[0] if a.not_null else
              (a.dtype.names[0],
               type_map_promo.get(
                   a.type_name, type_map_numpy.get(a.type_name, numpy.object)))
              for a in self.atts])
+
+    def promote(self, data):
+        """Promote nullable attributes in the DataFrame to types which
+        support some type of null values as per Pandas 'promotion
+        scheme
+        <http://pandas.pydata.org/pandas-docs/stable/gotchas.html
+        #na-type-promotions>`_
+
+        """
+        self._promo_warning()
+        for a in self.atts:
+            if not a.not_null:
+                data[a.name] = pandas.Series(
+                    data=[attr[1] if attr[0] == 255 else numpy.NAN
+                          for attr in data[a.name]],
+                    dtype=type_map_promo.get(
+                        a.type_name, type_map_numpy.get(
+                            a.type_name, numpy.object)))
 
     def frombytes(self, buf, as_dataframe=False, dataframe_promo=True):
         # Scan content and build (offset, size) metadata

@@ -35,6 +35,14 @@ Run a query with chained operators and download the resulting array:
 1  1  1  1.0  2
 2  2  2  2.0  3
 
+Operators can also be composed:
+
+>>> db.apply(db.join(ar, 'foo'), 'j', ar.i + 1)[:]
+   i  x  x_1  j
+0  0  0  0.0  1
+1  1  1  1.0  2
+2  2  2  2.0  3
+
 Cleanup:
 
 >>> db.remove(db.arrays.foo)
@@ -196,18 +204,37 @@ SciDB arrays can be accessed using ``DB.arrays``:
 >>> db.iquery('store(build(<x:int64>[i=0:2], i), foo)')
 
 >>> dir(db.arrays)
-... # doctest: +ELLIPSIS
-[...'foo']
+... # doctest: +ALLOW_UNICODE
+[u'foo']
 
 >>> dir(db.arrays.foo)
-... # doctest: +ELLIPSIS
-[...'i', ...'x']
+... # doctest: +ALLOW_UNICODE
+[u'i', u'x']
 
 >>> db.arrays.foo[:]
    i    x
 0  0  0.0
 1  1  1.0
 2  2  2.0
+
+>>> db.arrays['foo'][:]
+   i    x
+0  0  0.0
+1  1  1.0
+2  2  2.0
+
+To get the schema of an array, we can use the ``schema`` utility
+function:
+
+>>> print(db.arrays.foo.schema())
+foo<x:int64> [i=0:2:0:1000000]
+
+>>> db.arrays.foo.schema().pprint()
+... # doctest: +NORMALIZE_WHITESPACE
+foo<x:int64> [i=0:2:0:1000000]
+  name class   type nullable start end overlap    chunk
+0    x  attr  int64     True
+1    i   dim  int64              0   2       0  1000000
 
 >>> db.iquery('remove(foo)')
 
@@ -221,7 +248,7 @@ foo
 >>> print(db.arrays.bar)
 bar
 
-In IPython, you can use <TAB> for auto-completion of array names,
+In IPython, we can use <TAB> for auto-completion of array names,
 array dimensions, and array attributes::
 
     In [1]: db.arrays.<TAB>
@@ -238,11 +265,10 @@ operators and macros and makes them available through the ``DB`` class
 instance:
 
 >>> dir(db)
-... # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
-[...'aggregate',
- ...'apply',
+... # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS +ALLOW_UNICODE
+[u'aggregate',
  ...
- ...'xgrid']
+ u'xgrid']
 
 >>> db.apply
 ... # doctest: +NORMALIZE_WHITESPACE
@@ -258,7 +284,7 @@ Traceback (most recent call last):
     ...
 AttributeError: 'DB' object has no attribute 'missing'
 
-In IPython, you can use <TAB> for auto-completion of operator names::
+In IPython, we can use <TAB> for auto-completion of operator names::
 
     In [1]: db.<TAB>
     In [1]: db.apply
@@ -270,8 +296,8 @@ execute immediately (e.g., ``create_array``, ``remove``, etc.).
 
 >>> db.create_array('foo', '<x:int64>[i]')
 >>> dir(db.arrays)
-... # doctest: +ELLIPSIS
-[...'foo']
+... # doctest: +ALLOW_UNICODE
+[u'foo']
 
 >>> db.remove(db.arrays.foo)
 >>> dir(db.arrays)
@@ -313,7 +339,22 @@ is possible in SciDB-Py using the ``%`` operator:
    i    x  x_1
 0  0  0.0  0.0
 1  1  1.0  1.0
+
 >>> db.remove(db.arrays.foo)
+
+To retrieve the schema of a query result, the ``schema`` utility
+function can be used:
+
+>>> print(db.build('<x:int64>[i=0:2]', 'i').schema())
+build<x:int64> [i=0:2:0:1000000]
+
+>>> db.build('<x:int64>[i=0:2]', 'i').schema().pprint()
+... # doctest: +NORMALIZE_WHITESPACE
+build<x:int64> [i=0:2:0:1000000]
+  name class   type nullable start end overlap    chunk
+0    x  attr  int64     True
+1    i   dim  int64              0   2       0  1000000
+
 
 
 Download Data from SciDB
@@ -370,17 +411,6 @@ provided, it can be generated from the upload data or upload
 schema. If the upload format is not provided, it can be constructed
 from the upload schema, upload data, or resulting array schema.
 
-If an array name is not specified for the ``store`` operator, an array
-name is generated. Arrays with generated names are removed when the
-returned Array object is garbage collected. This behavior can be
-changed by specifying the ``gc=False`` argument to the store operator.
-
->>> ar = db.input(upload_data=numpy.arange(3)).store()
->>> ar
-... # doctest: +ELLIPSIS
-Array(DB('http://localhost:8080', None, None, None, None), 'py_...')
->>> del ar
-
 >>> db.input('<x:int64>[i]', upload_data=numpy.arange(3))[:]
    i    x
 0  0  0.0
@@ -436,6 +466,26 @@ double-quoted in SciDB-Py. For example:
 ... # doctest: +SKIP
 
 >>> for ar in ['foo', 'bar', 'taz']: db.remove(ar)
+
+The ``store`` function accepts a ``temp`` argument as well. If the
+``temp`` argument is set to ``True``, a temporary array is created.
+
+>>> ar = db.build('<x:int64>[i=0:2]', 'i').store('foo', temp=True)
+>>> db.list()[['name', 'temporary']]
+  name  temporary
+0  foo       True
+>>> db.remove(ar)
+
+If an array name is not specified for the ``store`` operator, an array
+name is generated. Arrays with generated names are removed when the
+returned Array object is garbage collected. This behavior can be
+changed by specifying the ``gc=False`` argument to the store operator.
+
+>>> ar = db.input(upload_data=numpy.arange(3)).store()
+>>> ar
+... # doctest: +ELLIPSIS
+Array(DB('http://localhost:8080', None, None, None, None), 'py_...')
+>>> del ar
 
 
 The iquery Function
@@ -744,4 +794,4 @@ verify     = False
 from .db import connect, iquery, Array
 from .schema import Attribute, Dimension, Schema
 
-__version__ = '16.9.1'
+__version__ = '16.9.5'
