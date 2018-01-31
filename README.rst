@@ -1,3 +1,15 @@
+NOTE
+====
+
+This is the **legacy** version of the SciDB-Py library. GitHub pull
+requests are still accepted for the previous versions, but the code is
+not actively maintained. The current version of the SciDB-Py library
+is **16.9.1**. This version has been released in *September 2017* and
+has been rewritten entirely from scratch. This version is **not
+compatible** with the previous versions of the library. The
+documentation for the current version is available at `SciDB-Py
+documentation <http://paradigm4.github.io/SciDB-Py/>`_
+
 SciDB-py: Python Interface to SciDB
 ===================================
 SciDB-py is a full-featuered Python interface to SciDB.  It's goal is to
@@ -46,15 +58,15 @@ Installation
 ------------
 
 NOTE for different versions of SciDB
-The master branch of this repository tracks the latest release of SciDB. 
+The master branch of this repository tracks the latest release of SciDB.
 To get a version of SciDB-Py that works with SciDB version 15.7 or older, choose the ``scidb15.7`` branch.
 
 Installation steps
 
 The latest release of ``scidb-py`` can be installed from the Python package index::
- 
+
    pip install scidb-py
- 
+
 Install the development package directly from Github with::
 
     pip install git+http://github.com/paradigm4/scidb-py.git
