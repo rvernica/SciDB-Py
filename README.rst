@@ -10,6 +10,12 @@ compatible** with the previous versions of the library. The
 documentation for the current version is available at `SciDB-Py
 documentation <http://paradigm4.github.io/SciDB-Py/>`_
 
+The ``stable`` branch exists only for the legacy SciDB-Py
+documentation to be generated at
+http://scidb-py.readthedocs.io/en/stable/ The legacy SciDB-Py version
+is in the ``legacy`` branch. The latest SciDB-Py version is in the
+``master`` branch.
+
 SciDB-py: Python Interface to SciDB
 ===================================
 SciDB-py is a full-featuered Python interface to SciDB.  It's goal is to
