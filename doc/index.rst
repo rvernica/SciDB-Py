@@ -8,6 +8,8 @@ SciDB-Py documentation
 
 .. warning::
 
+    .. image:: http://static.lightwave3d.com/sdk/2015/python/_images/deprecated.jpg
+
     This documentation is for the **legacy** version of the SciDB-Py
     library. GitHub pull requests are still accepted for the previous
     versions, but the code is not actively maintained. The current
