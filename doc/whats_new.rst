@@ -14,9 +14,7 @@ Fix SciDB ``16.9`` compatibility. Use branch ``v15.12`` for SciDB ``15.12``.
 15.12 (Released March 21, 2016)
 ---------------------------------
 
-Highlights
-^^^^^^^^^^
-- now supports SciDB15.12; use branch `scidb15.7` for use with SciDB15.7
+Support for SciDB ``15.12``. Use branch ``v15.7`` for SciDB ``15.7``.
 
 14.10 (Released November 4, 2014)
 ---------------------------------
